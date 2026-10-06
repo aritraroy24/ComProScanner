@@ -1,3 +1,13 @@
+# Unreleased
+
+### Fixed
+
+- Fixed the `Composition` node `MERGE` in `create_knowledge_graph.py` being keyed only on the composition string, which silently collapsed the same composition text reported by different papers into one node and overwrote its property value. The `MERGE` key now also includes `doi`, so each paper's composition gets its own node.
+
+- Standardized coefficient rounding to 8 decimal places across `DataCleaner`'s composition-cleaning arithmetic, which previously ranged from 2 to 6 decimals in different functions and could round distinct fraction-derived compositions down to identical text, colliding them into a single dict key.
+
+---
+
 # 2026.08.11
 
 ### Added

@@ -330,12 +330,12 @@ class TestDataCleanerPrivateMethods:
         ]
         result = data_cleaner._convert_fractions_and_resolve_compositions(dict_list)
 
-        # Check that fractions are converted to decimals
+        # Check that fractions are converted to decimals (8 decimal places, trailing zeros stripped)
         first_key = list(result[0].keys())[0]
-        assert "0.50" in first_key
+        assert "0.5" in first_key
 
         second_key = list(result[1].keys())[0]
-        assert "0.67" in second_key
+        assert "0.66666667" in second_key
 
         assert {"Regular": "value3"} in result
 
@@ -1094,7 +1094,7 @@ class TestIntegration:
                 "compositions_property_values"
             ]
             assert comp_values == {
-                "Pb0.645Zr0.38055Ti0.26445O1.935-Pb0.355Ni0.11715Nb0.23785O1.065"
+                "Pb0.645Zr0.38055Ti0.26445O1.935-Pb0.355Ni0.11833333Nb0.23666667O1.065"
                 "+1.25 wt% (0.78PbO-0.22CuO) Sintered at 1000C": 1,
             }
         finally:
@@ -1493,8 +1493,8 @@ class TestParametrizedScenarios:
     @pytest.mark.parametrize(
         "input_key,expected_pattern",
         [
-            ("Na1/2Cl1/2", "0.50"),  # Fractions converted
-            ("Ti2/3O4/3", "0.67"),  # Fractions converted
+            ("Na1/2Cl1/2", "0.5"),  # Fractions converted
+            ("Ti2/3O4/3", "0.66666667"),  # Fractions converted
             ("Ca1/4CO3", "0.25"),  # Fraction converted
             ("Regular", "Regular"),  # No changes
             ("H2O", "H2O"),  # No changes

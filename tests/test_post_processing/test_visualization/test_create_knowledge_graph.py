@@ -364,3 +364,121 @@ class TestIntegrationScenarios:
             mock_db.driver.return_value = mock_driver
 
             yield {"driver": mock_driver, "session": mock_session}
+
+
+class TestCompositionNodeDoiScoping:
+    """Regression tests: the Composition node MERGE must be scoped by doi,
+    not just the composition string, or the same composition text reported
+    by two different papers collapses into one node and overwrites its
+    property value instead of creating a distinct node per paper."""
+
+    @pytest.fixture
+    def mock_kg(self):
+        """CreateKG with a mocked Neo4j driver/session/transaction wired for
+        a successful create_paper_with_compositions call. Yields the
+        instance plus the mock transaction so tests can inspect the Cypher
+        queries and params passed to tx.run."""
+        env = {
+            "NEO4J_URI": "bolt://localhost:7687",
+            "NEO4J_USER": "neo4j",
+            "NEO4J_PASSWORD": "password",
+        }
+        with (
+            patch.dict(os.environ, env),
+            patch(
+                "comproscanner.post_processing.visualization.create_knowledge_graph.GraphDatabase"
+            ) as mock_graph_db,
+        ):
+            mock_driver = Mock()
+            mock_driver.verify_connectivity.return_value = None
+            mock_driver.session.return_value = MagicMock()
+            mock_graph_db.driver.return_value = mock_driver
+
+            mock_session = Mock()
+            mock_driver.session.return_value.__enter__.return_value = mock_session
+            mock_driver.session.return_value.__exit__.return_value = None
+
+            # Paper doesn't exist on the pre-check, exists after commit
+            mock_session.run.return_value.single.side_effect = [None, Mock()]
+
+            mock_tx = Mock()
+            mock_tx.run.return_value.single.return_value = Mock()
+            mock_session.begin_transaction.return_value = mock_tx
+
+            from comproscanner.post_processing.visualization.create_knowledge_graph import (
+                CreateKG,
+            )
+
+            yield CreateKG(), mock_tx
+
+    def _compositions_query_call(self, mock_tx):
+        """Find the tx.run call that ran the compositions query"""
+        for call in mock_tx.run.call_args_list:
+            if "Composition" in call.args[0]:
+                return call
+        return None
+
+    def test_composition_merge_key_includes_doi(self, mock_kg):
+        """The Composition MERGE must key on (composition, doi) so the same
+        formula reported by different papers doesn't collide into one node"""
+        kg, mock_tx = mock_kg
+        synthesis_data = {
+            "method": "sol-gel",
+            "steps": [],
+            "precursors": [],
+            "characterization_techniques": [],
+        }
+        composition_data = {
+            "family": "Perovskite",
+            "compositions_property_values": {"BaTiO3": 180.0},
+            "property_unit": "pC/N",
+        }
+        paper_metadata = {
+            "doi": "10.1000/test1",
+            "title": "Test Paper",
+            "journal": "Test Journal",
+            "year": "2026",
+            "isOpenAccess": True,
+            "authors": [],
+            "keywords": [],
+        }
+
+        kg.create_paper_with_compositions(synthesis_data, composition_data, paper_metadata)
+
+        call = self._compositions_query_call(mock_tx)
+        assert call is not None
+        merge_line = next(
+            line for line in call.args[0].splitlines() if "MERGE (c:Composition" in line
+        )
+        assert "composition: comp_name" in merge_line
+        assert "doi: $paper_metadata.doi" in merge_line
+
+    def test_composition_query_uses_paper_doi_param(self, mock_kg):
+        """The doi the MERGE key relies on must actually reach the query"""
+        kg, mock_tx = mock_kg
+        synthesis_data = {
+            "method": "sol-gel",
+            "steps": [],
+            "precursors": [],
+            "characterization_techniques": [],
+        }
+        composition_data = {
+            "family": "Perovskite",
+            "compositions_property_values": {"BaTiO3": 180.0},
+            "property_unit": "pC/N",
+        }
+        paper_metadata = {
+            "doi": "10.1000/test2",
+            "title": "Test Paper",
+            "journal": "Test Journal",
+            "year": "2026",
+            "isOpenAccess": True,
+            "authors": [],
+            "keywords": [],
+        }
+
+        kg.create_paper_with_compositions(synthesis_data, composition_data, paper_metadata)
+
+        call = self._compositions_query_call(mock_tx)
+        assert call is not None
+        assert call.kwargs["paper_metadata"]["doi"] == "10.1000/test2"

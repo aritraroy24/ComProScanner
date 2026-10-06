@@ -706,7 +706,8 @@ class CreateKG:
                         
                         WITH p, f
                         UNWIND keys($compositions) as comp_name
-                        MERGE (c:Composition {composition: comp_name})
+                        // Create or find composition node scoped to this paper
+                        MERGE (c:Composition {composition: comp_name, doi: $paper_metadata.doi})
                         SET c.property_value = $compositions[comp_name],
                             c.property_unit = $property_unit
                         MERGE (c)-[:BELONGS_TO]->(f)

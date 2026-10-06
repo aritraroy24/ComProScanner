@@ -636,7 +636,7 @@ class DataCleaner:
             denominator = float(match.group(2))
             if denominator == 0:
                 return match.group(0)
-            return f"{numerator/denominator:.2f}"
+            return f"{numerator/denominator:.8f}".rstrip("0").rstrip(".")
 
         def _evaluate_all_parenthetical_expressions(formula):
             """
@@ -667,7 +667,7 @@ class DataCleaner:
                                     if result.is_integer():
                                         evaluated_value = str(int(result))
                                     else:
-                                        evaluated_value = str(round(result, 5))
+                                        evaluated_value = str(round(result, 8))
                                 else:
                                     evaluated_value = str(result)
 
@@ -738,7 +738,7 @@ class DataCleaner:
                     if result == int(result):
                         result_str = str(int(result))
                     else:
-                        result_str = str(round(result, 5))
+                        result_str = str(round(result, 8))
 
                     # Replace the pattern
                     formula = (
@@ -777,7 +777,7 @@ class DataCleaner:
                             if result.is_integer():
                                 evaluated_value = str(int(result))
                             else:
-                                evaluated_value = str(round(result, 5))
+                                evaluated_value = str(round(result, 8))
                         else:
                             evaluated_value = str(result)
 
@@ -1469,7 +1469,7 @@ class DataCleaner:
                             float(coefficient_str) if coefficient_str else 1.0
                         )
                         new_coefficient = round(
-                            inner_coefficient * outer_coefficient, 5
+                            inner_coefficient * outer_coefficient, 8
                         )
 
                         # Skip elements with coefficient 0
@@ -1481,7 +1481,7 @@ class DataCleaner:
                         elif new_coefficient == int(new_coefficient):
                             expanded += f"{element}{int(new_coefficient)}"
                         else:
-                            formatted_coeff = f"{new_coefficient:.4f}".rstrip(
+                            formatted_coeff = f"{new_coefficient:.8f}".rstrip(
                                 "0"
                             ).rstrip(".")
                             expanded += f"{element}{formatted_coeff}"
