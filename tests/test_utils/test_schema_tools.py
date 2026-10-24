@@ -14,7 +14,13 @@ from comproscanner.utils.configs.schema_config import (
     DEFAULT_SCHEMA_CONFIG,
     ExtractionSchemaConfig,
 )
-from comproscanner.utils.schema_tools import build_output_model
+from comproscanner.utils.schema_tools import (
+    build_example,
+    build_output_model,
+    fill_schema_placeholders,
+    render_fields_description,
+    schema_prompt_values,
+)
 
 SNAPSHOT = json.loads(
     (Path(__file__).parent / "fixtures" / "legacy_output_models_snapshot.json").read_text(
@@ -169,3 +175,89 @@ class TestCustomSchemaModels:
             ]["d33_data"]
             is None
         )
+
+
+class TestPromptRendering:
+    def test_extraction_description_lists_every_field(self):
+        text = render_fields_description(
+            DEFAULT_SCHEMA_CONFIG.fields("composition"), stage="extraction"
+        )
+        for name in DEFAULT_SCHEMA_CONFIG.field_names("composition", final_only=False):
+            assert f"- {name} (" in text
+        # Formatting rules are only shown to the format crew.
+        assert "Formatting rule" not in text
+
+    def test_format_description_shows_rules_and_allowed_values_placeholder(self):
+        text = render_fields_description(
+            DEFAULT_SCHEMA_CONFIG.fields("synthesis", final_only=True), stage="format"
+        )
+        assert "Formatting rule: Keep the steps unmodified." in text
+        # Runtime allowed-values lists are left for CrewAI to fill from the kickoff inputs.
+        assert "{allowed_synthesis_methods}" in text
+        assert "{allowed_characterization_techniques}" in text
+
+    def test_nested_fields_are_indented(self):
+        schema = ExtractionSchemaConfig.from_dict(
+            {
+                "version": "1.0",
+                "composition_fields": [
+                    {
+                        "name": "compositions_property_values",
+                        "type": "dict[str, object]",
+                        "value_fields": [
+                            {
+                                "name": "d33_data",
+                                "type": "object",
+                                "value_fields": [{"name": "value", "type": "float|None"}],
+                            }
+                        ],
+                    }
+                ],
+                "synthesis_fields": [
+                    {
+                        "name": "sintering_atmosphere",
+                        "type": "str",
+                        "allowed_values": ["air", "oxygen"],
+                    }
+                ],
+            }
+        )
+        text = render_fields_description(schema.fields("composition"))
+        assert "\n    - d33_data (object, required)" in text
+        assert "\n        - value (float|None, required)" in text
+        assert "Allowed values: air, oxygen" in render_fields_description(
+            schema.fields("synthesis"), stage="format"
+        )
+        example = build_example(schema.fields("composition", final_only=True))
+        assert example == {
+            "compositions_property_values": {"<key>": {"d33_data": {"value": 0}}}
+        }
+
+    def test_default_examples_use_schema_examples(self):
+        fields = DEFAULT_SCHEMA_CONFIG.fields("composition", final_only=True)
+        assert build_example(fields)["family"] == "BaTiO3"
+        assert build_example(fields, variant="variable")["family"] == "NaNbO3"
+        assert "0.5NaNbO3" in build_example(fields, variant="variable")[
+            "compositions_property_values"
+        ]
+        assert "abbreviations" not in build_example(fields)
+
+    def test_fill_schema_placeholders_leaves_other_placeholders(self):
+        config = {
+            "description": "Fields:\n{schema_fields_description}\nData: {extracted_synthesis_data}",
+            "agent": "synthesis_formatter",
+        }
+        filled = fill_schema_placeholders(
+            config, schema_prompt_values(DEFAULT_SCHEMA_CONFIG.fields("synthesis"), "format")
+        )
+        assert "{schema_fields_description}" not in filled["description"]
+        assert "{extracted_synthesis_data}" in filled["description"]
+        # The crew's shared config dict is not mutated.
+        assert "{schema_fields_description}" in config["description"]
+
+    def test_rendered_example_has_no_crewai_placeholders(self):
+        import re
+
+        for domain in ("composition", "synthesis"):
+            values = schema_prompt_values(DEFAULT_SCHEMA_CONFIG.fields(domain), "format")
+            assert not re.search(r"\{[A-Za-z_][A-Za-z0-9_\-]*\}", values["schema_example_json"])

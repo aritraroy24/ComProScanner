@@ -13,7 +13,11 @@ from crewai import Agent, Crew, Process, Task, LLM
 from crewai.project import CrewBase, agent, crew, task
 from .....utils.configs.llm_config import LLMConfig
 from .....utils.configs.schema_config import ExtractionSchemaConfig, load_schema_config
-from .....utils.schema_tools import build_output_model
+from .....utils.schema_tools import (
+    build_output_model,
+    fill_schema_placeholders,
+    schema_prompt_values,
+)
 
 
 @CrewBase
@@ -54,14 +58,16 @@ class SynthesisFormatCrew:
         self.is_log_json = is_log_json
         self.verbose = verbose
         self.schema_config = schema_config or load_schema_config()
+        fields = self.schema_config.fields("synthesis", final_only=True)
         self.output_model = build_output_model(
-            self.schema_config.fields("synthesis", final_only=True),
+            fields,
             wrapper_key="synthesis_formatted_data",
             model_name="FormattedSynthesisData",
             inner_model_name="DetailedSynthesisData",
             model_doc="Formatted Synthesis Data",
             inner_model_doc="Detailed Synthesis Data",
         )
+        self.schema_prompt_values = schema_prompt_values(fields, stage="format")
 
         # Initialize output file paths as None
         self.output_log_file = None
@@ -95,7 +101,9 @@ class SynthesisFormatCrew:
     @agent
     def synthesis_formatter(self) -> Agent:
         return Agent(
-            config=self.agents_config["synthesis_formatter"],
+            config=fill_schema_placeholders(
+                self.agents_config["synthesis_formatter"], self.schema_prompt_values
+            ),
             llm=self.llm,
             verbose=self.verbose,
         )
@@ -105,13 +113,17 @@ class SynthesisFormatCrew:
     def format_synthesis_data(self) -> Task:
         if self.task_output_file:
             return Task(
-                config=self.tasks_config["format_synthesis_data"],
+                config=fill_schema_placeholders(
+                    self.tasks_config["format_synthesis_data"], self.schema_prompt_values
+                ),
                 output_pydantic=self.output_model,
                 output_file=self.task_output_file,
             )
         else:
             return Task(
-                config=self.tasks_config["format_synthesis_data"],
+                config=fill_schema_placeholders(
+                    self.tasks_config["format_synthesis_data"], self.schema_prompt_values
+                ),
                 output_pydantic=self.output_model,
             )
 

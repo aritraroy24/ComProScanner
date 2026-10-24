@@ -9,7 +9,7 @@ Branch: `feat/dynamic-extraction-schema`. Source plan: `DYNAMIC_SCHEMA_PLAN.md`.
 - [x] 3. `build_output_model()` + wire into the 4 crew files, replacing the hand-written Pydantic classes
 - [x] 4. Thread `schema_config_path` through `ComProScanner(...)`, `DataExtractionFlow.__init__` and `DataCleaner`
 - [x] 5. Replace literal `expected_keys` / `composition_expected_keys` / duplicated `default_synthesis_data` in `main_extraction_flow.py`
-- [ ] 6. `{schema_fields_description}` / `{schema_example_json}` placeholders; rewrite the 8 crew YAML files; fix `'methods'` → `method`
+- [x] 6. `{schema_fields_description}` / `{schema_example_json}` placeholders; rewrite the 8 crew YAML files; fix `'methods'` → `method`
 - [ ] 7. Regression tests (see "Regression strategy")
 
 ## Step 1 audit: `data_cleaner.py`

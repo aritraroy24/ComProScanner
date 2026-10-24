@@ -13,7 +13,11 @@ from crewai import Agent, Crew, Process, Task, LLM
 from crewai.project import CrewBase, agent, crew, task
 from .....utils.configs.llm_config import LLMConfig
 from .....utils.configs.schema_config import ExtractionSchemaConfig, load_schema_config
-from .....utils.schema_tools import build_output_model
+from .....utils.schema_tools import (
+    build_output_model,
+    fill_schema_placeholders,
+    schema_prompt_values,
+)
 from ....tools.material_parser_tool import MaterialParserTool
 
 
@@ -56,14 +60,16 @@ class CompositionFormatCrew:
         self.is_log_json = is_log_json
         self.verbose = verbose
         self.schema_config = schema_config or load_schema_config()
+        fields = self.schema_config.fields("composition", final_only=True)
         self.output_model = build_output_model(
-            self.schema_config.fields("composition", final_only=True),
+            fields,
             wrapper_key="composition_formatted_data",
             model_name="FormattedCompositionPropertyData",
             inner_model_name="DetailedCompositionPropertyData",
             model_doc="Formatted Composition Property",
             inner_model_doc="Detailed Composition Property",
         )
+        self.schema_prompt_values = schema_prompt_values(fields, stage="format")
 
         # Initialize output file paths as None
         self.output_log_file = None
@@ -96,7 +102,9 @@ class CompositionFormatCrew:
     def composition_property_formatter(self) -> Agent:
         material_parser_tool = MaterialParserTool()
         return Agent(
-            config=self.agents_config["composition_property_formatter"],
+            config=fill_schema_placeholders(
+                self.agents_config["composition_property_formatter"], self.schema_prompt_values
+            ),
             tools=[material_parser_tool],
             llm=self.llm,
             verbose=self.verbose,
@@ -107,13 +115,17 @@ class CompositionFormatCrew:
     def format_composition_property(self) -> Task:
         if self.task_output_file:
             return Task(
-                config=self.tasks_config["format_composition_property"],
+                config=fill_schema_placeholders(
+                    self.tasks_config["format_composition_property"], self.schema_prompt_values
+                ),
                 output_pydantic=self.output_model,
                 output_file=self.task_output_file,
             )
         else:
             return Task(
-                config=self.tasks_config["format_composition_property"],
+                config=fill_schema_placeholders(
+                    self.tasks_config["format_composition_property"], self.schema_prompt_values
+                ),
                 output_pydantic=self.output_model,
             )
 

@@ -237,6 +237,30 @@ class TestSchemaValidation:
         raw["composition_fields"][0]["type"] = "str"
         self.assert_rejected(raw, "primary_composition_field")
 
+    def test_synthesis_description_cannot_use_placeholders(self):
+        raw = minimal_schema_dict()
+        raw["synthesis_fields"][0]["description"] = "Method for {main_extraction_keyword}"
+        self.assert_rejected(raw, "unsupported placeholder")
+
+    def test_composition_description_may_use_keyword(self):
+        raw = minimal_schema_dict()
+        raw["composition_fields"][1]["description"] = "Unit of {main_extraction_keyword}"
+        ExtractionSchemaConfig.from_dict(raw)
+
+    def test_unknown_placeholder_rejected(self):
+        raw = minimal_schema_dict()
+        raw["composition_fields"][1]["format_note"] = "Use {unit_list}"
+        self.assert_rejected(raw, "unsupported placeholder")
+
+    @pytest.mark.parametrize(
+        "domain, ref",
+        [("synthesis_fields", "allowed_atmospheres"), ("composition_fields", "allowed_synthesis_methods")],
+    )
+    def test_allowed_values_ref_restricted(self, domain, ref):
+        raw = minimal_schema_dict()
+        raw[domain][-1]["allowed_values_ref"] = ref
+        self.assert_rejected(raw, "allowed_values_ref")
+
     def test_primary_field_must_exist(self):
         raw = minimal_schema_dict()
         raw["primary_composition_field"] = "missing"

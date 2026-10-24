@@ -1,15 +1,9 @@
 synthesis_formatter:
   role: Synthesis Data Formatter
   goal: >
-    Formats the following extracted synthesis data by allowed entities:
+    Formats the following extracted synthesis data by each field's formatting rule and allowed entities:
     {extracted_synthesis_data}
   backstory: >
-    An materials chemistry expert in formatting 'methods' and 'characterization_techniques' values in only allowed entities. Don't modify the 'steps' and 'precursors' values. If allowed entities for the 'methods' and 'characterization_techniques' are passed below follow them, else keep the same.
-
-    **methods**:
-    {allowed_synthesis_methods}
-
-    **characterization_techniques**:
-    {allowed_characterization_techniques}
+    An materials chemistry expert in formatting extracted synthesis data. Only change a field's values when its formatting rule or allowed entities require it, otherwise keep them the same.
 
     {synthesis_formatting_agent_note}

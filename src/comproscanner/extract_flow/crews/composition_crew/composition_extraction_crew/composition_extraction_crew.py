@@ -13,7 +13,11 @@ from crewai import Agent, Crew, Process, Task, LLM
 from crewai.project import CrewBase, agent, crew, task
 from .....utils.configs.llm_config import LLMConfig
 from .....utils.configs.schema_config import ExtractionSchemaConfig, load_schema_config
-from .....utils.schema_tools import build_output_model
+from .....utils.schema_tools import (
+    build_output_model,
+    fill_schema_placeholders,
+    schema_prompt_values,
+)
 from ....tools.graph_extractor_tool import GraphExtractorTool
 from ....tools.equation_tool import EquationTool
 
@@ -71,14 +75,16 @@ class CompositionExtractionCrew:
         self.formula_instruction = formula_instruction
         self.equation_model = equation_model
         self.schema_config = schema_config or load_schema_config()
+        fields = self.schema_config.fields("composition")
         self.output_model = build_output_model(
-            self.schema_config.fields("composition"),
+            fields,
             wrapper_key="composition_extracted_data",
             model_name="ExtractedCompositionPropertyData",
             inner_model_name="DetailedCompositionPropertyData",
             model_doc="Extracted Composition Property",
             inner_model_doc="Detailed Composition Property",
         )
+        self.schema_prompt_values = schema_prompt_values(fields, stage="extraction")
 
         # Initialize output file paths as None
         self.output_log_file = None
@@ -124,7 +130,9 @@ class CompositionExtractionCrew:
             vlm_property_name=self.main_extraction_keyword,
         )
         return Agent(
-            config=self.agents_config["composition_property_extractor"],
+            config=fill_schema_placeholders(
+                self.agents_config["composition_property_extractor"], self.schema_prompt_values
+            ),
             tools=[equation_tool, graph_tool],
             llm=self.llm,
             verbose=self.verbose,
@@ -135,13 +143,17 @@ class CompositionExtractionCrew:
     def extract_composition_property(self) -> Task:
         if self.task_output_file:
             return Task(
-                config=self.tasks_config["extract_composition_property"],
+                config=fill_schema_placeholders(
+                    self.tasks_config["extract_composition_property"], self.schema_prompt_values
+                ),
                 output_pydantic=self.output_model,
                 output_file=self.task_output_file,
             )
         else:
             return Task(
-                config=self.tasks_config["extract_composition_property"],
+                config=fill_schema_placeholders(
+                    self.tasks_config["extract_composition_property"], self.schema_prompt_values
+                ),
                 output_pydantic=self.output_model,
             )
 

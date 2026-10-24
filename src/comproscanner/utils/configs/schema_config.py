@@ -219,6 +219,42 @@ def _parse_fields(raw_fields: Any, location: str) -> List[SchemaField]:
     return fields
 
 
+# Runtime allowed-values lists the extraction API supplies to the synthesis format crew.
+ALLOWED_VALUES_REFS = {"allowed_synthesis_methods", "allowed_characterization_techniques"}
+# Placeholders a field's description/format_note may use. CrewAI fills {name} placeholders from each crew's kickoff inputs and fails on unknown ones; only the composition crews receive main_extraction_keyword.
+_PROMPT_PLACEHOLDERS = {
+    "composition": {"main_extraction_keyword"},
+    "synthesis": set(),
+}
+_PLACEHOLDER = re.compile(r"\{([A-Za-z_][A-Za-z0-9_\-]*)\}")
+
+
+def _iter_fields(fields: List[SchemaField]):
+    for schema_field in fields:
+        yield schema_field
+        if schema_field.value_fields:
+            yield from _iter_fields(schema_field.value_fields)
+
+
+def _validate_prompt_text(fields: List[SchemaField], domain: str) -> None:
+    allowed = _PROMPT_PLACEHOLDERS.get(domain, set())
+    for schema_field in _iter_fields(fields):
+        for attr in ("description", "format_note"):
+            used = set(_PLACEHOLDER.findall(getattr(schema_field, attr) or ""))
+            if used - allowed:
+                supported = sorted(allowed) or "none"
+                raise SchemaValidationError(
+                    f"{domain} field '{schema_field.name}' {attr} uses unsupported placeholder(s) "
+                    f"{sorted(used - allowed)}; supported in {domain} fields: {supported}"
+                )
+        ref = schema_field.allowed_values_ref
+        if ref is not None and (domain != "synthesis" or ref not in ALLOWED_VALUES_REFS):
+            raise SchemaValidationError(
+                f"{domain} field '{schema_field.name}' has allowed_values_ref '{ref}'; "
+                f"only synthesis fields may use {sorted(ALLOWED_VALUES_REFS)} (use allowed_values for an inline list)"
+            )
+
+
 BUILTIN_ABBREVIATIONS_FIELD = "abbreviations"
 
 
@@ -310,6 +346,8 @@ class ExtractionSchemaConfig:
             composition_fields, raw.get("primary_composition_field")
         )
         synthesis_fields = _parse_fields(raw.get("synthesis_fields"), "synthesis_fields")
+        _validate_prompt_text(composition_fields, "composition")
+        _validate_prompt_text(synthesis_fields, "synthesis")
         extra_domains = {}
         for domain, domain_fields in (raw.get("extra_domains") or {}).items():
             if not _SAFE_NAME.match(str(domain)) or domain in SCHEMA_DOMAINS:

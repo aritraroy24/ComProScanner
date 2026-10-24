@@ -3,6 +3,6 @@ synthesis_extractor:
   goal: "Extract the synthesis data from the given text data:\n\n {synthesis_text_data}"
   backstory: >
     An expert in extracting the synthesis data from the given journal article text to create a structured JSON output with the following keys-
-    "method", "precursors", "steps" and "characterization_techniques".
+    {schema_field_names}.
 
     {synthesis_extraction_agent_note}

@@ -27,6 +27,7 @@ from ..utils.error_handler import ValueErrorHandler
 from ..utils.logger import setup_logger
 from ..utils.configs.rag_config import RAGConfig
 from ..utils.configs.schema_config import DEFAULT_SCHEMA_CONFIG, load_schema_config
+from ..utils.schema_tools import render_example_json
 from .crews.materials_data_identifier_crew.materials_data_identifier_crew import (
     MaterialsDataIdentifierCrew,
 )
@@ -227,35 +228,15 @@ class DataExtractionFlow(Flow[MaterialsState]):
         self.state.composition_property_text_data = composition_property_text_data
         self.state.synthesis_text_data = synthesis_text_data
 
-        default_expected_composition_property_example = dedent(
-            f"""
-{{
-  "compositions":
-  {{
-    "Ba0.99Ca0.01Ti0.68Zr0.32O3": 375, 
-    "Ba0.98Ca0.02Ti0.78Zr0.22O3": 350, 
-    "Ba0.97Ca0.03Ti0.88Zr0.12O3": 325, 
-    "Ba0.96Ca0.04Ti0.98Zr0.02O3": 300
-  }},
-  "property_unit": "pC/N", 
-  "family": "BaTiO3"
-}}"""
+        # Default few-shot examples are rendered from the schema, so they always show the fields the crews actually enforce.
+        final_composition_fields = self.schema_config.fields(
+            "composition", final_only=True
         )
-
-        default_expected_variable_composition_property_example = dedent(
-            f"""
-{{
-"compositions": 
-  {{
-    "0.5NaNbO3": 375, 
-    "(1-x)Na0.2K2(x)Bi0.5TiO3 - (y)NaNbO3 where x=0, y=0.5": 350, 
-    "(1-x)Na0.2K2(x)Bi0.5TiO3 - (y)NaNbO3 where x=0.1, y=0.4": 325, 
-    "(1-x)Na0.2K2(x)Bi0.5TiO3 - (y)NaNbO3 where x=0.2, y=0.3": 375, 
-    "(1-x)Na0.2K2(x)Bi0.5TiO3 - (y)NaNbO3 where x=0.3, y=0.1": 425 
-  }},
-  "property_unit": "pC/N", 
-  "family": "NaNbO3"
-}}"""
+        default_expected_composition_property_example = render_example_json(
+            final_composition_fields
+        )
+        default_expected_variable_composition_property_example = render_example_json(
+            final_composition_fields, variant="variable"
         )
         if not expected_composition_property_example:
             self.state.expected_composition_property_example = (
@@ -299,13 +280,6 @@ class DataExtractionFlow(Flow[MaterialsState]):
         composition_property_extraction_default_notes = [
             "The unit, given here, along with other data, is just an example. It can change depending on the property."
         ]
-        synthesis_extraction_default_notes = [
-            "For precursors, just use the chemical name (no company or purity) and for characterization_techniques, only the instrument name or short name of the instrument for the instruments like XRD, Raman Spectroscopy, SEM, TEM etc."
-        ]
-        synthesis_formatting_default_notes = [
-            "Only modify 'methods' and 'characterization_techniques' values to match allowed entities",
-            "Keep 'steps' and 'precursors' values unmodified",
-        ]
 
         self.state.composition_property_extraction_agent_note = _update_notes(
             composition_property_extraction_agent_notes,
@@ -325,14 +299,15 @@ class DataExtractionFlow(Flow[MaterialsState]):
         self.state.synthesis_extraction_agent_note = _update_notes(
             synthesis_extraction_agent_notes
         )
+        # Field-specific synthesis guidance lives in each schema field's description and format_note.
         self.state.synthesis_extraction_task_note = _update_notes(
-            synthesis_extraction_task_notes, synthesis_extraction_default_notes
+            synthesis_extraction_task_notes
         )
         self.state.synthesis_formatting_agent_note = _update_notes(
             synthesis_formatting_agent_notes
         )
         self.state.synthesis_formatting_task_note = _update_notes(
-            synthesis_formatting_task_notes, synthesis_formatting_default_notes
+            synthesis_formatting_task_notes
         )
 
         # allowed synthesis methods and characterization techniques
