@@ -5,6 +5,7 @@ from .database_config import DatabaseConfig
 from .article_keywords import ArticleRelatedKeywords
 from .llm_config import LLMConfig
 from .custom_dictionary import CustomDictionary
+from .schema_config import ExtractionSchemaConfig, SchemaField, load_schema_config
 
 __all__ = [
     "BaseUrls",
@@ -14,4 +15,7 @@ __all__ = [
     "ArticleRelatedKeywords",
     "LLMConfig",
     "CustomDictionary",
+    "ExtractionSchemaConfig",
+    "SchemaField",
+    "load_schema_config",
 ]

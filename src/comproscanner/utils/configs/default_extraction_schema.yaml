@@ -1,0 +1,101 @@
+# ComProScanner's bundled extraction schema.
+#
+# It reproduces the historical output exactly: field names, field order, types and defaults all match the hand-written Pydantic models this file replaced. To extract something different, copy this file into your own project, edit it, and pass its path as `schema_config_path`; your file replaces this one entirely, except that the `abbreviations` field below is always attached to a custom schema that does not declare its own (the format crew needs it to expand abbreviated compositions).
+#
+# Per-field keys:
+#   name                 dict key in the extracted record (snake_case)
+#   type                 str | int | float | bool | None | list[...] | dict[str, ...] | object, unions with "|"
+#   description          guidance shown to the LLM; {main_extraction_keyword} is substituted
+#   required             rendered as required/optional in the prompt
+#   default              value used when the field is absent (derived from the type if omitted)
+#   allowed_values       inline list the formatter maps values onto
+#   allowed_values_ref   name of a runtime-supplied allowed-values list
+#   value_fields         sub-fields, for type "object" or "dict[str, object]"
+#   extraction_only      kept by the extraction crew only; the format crew consumes and drops it
+#   format_note          field-specific rule for the format crew
+#   example              example value for the prompt's example JSON
+#   variable_example     example value for the variable-composition example (falls back to example)
+
+version: "1.0"
+
+primary_composition_field: compositions_property_values
+
+composition_fields:
+  - name: compositions_property_values
+    type: "dict[str, int|float|None]"
+    description: >-
+      Mapping of every material composition reported in the article's own work to its {main_extraction_keyword} value. Keys are full chemical formulas with proper fractions; values are the numeric {main_extraction_keyword} values.
+    required: true
+    format_note: >-
+      Remove compositions whose {main_extraction_keyword} value is null, but never remove a composition that has a value.
+    example:
+      Ba0.99Ca0.01Ti0.68Zr0.32O3: 375
+      Ba0.98Ca0.02Ti0.78Zr0.22O3: 350
+      Ba0.97Ca0.03Ti0.88Zr0.12O3: 325
+      Ba0.96Ca0.04Ti0.98Zr0.02O3: 300
+    variable_example:
+      "0.5NaNbO3": 375
+      "(1-x)Na0.2K2(x)Bi0.5TiO3 - (y)NaNbO3 where x=0, y=0.5": 350
+      "(1-x)Na0.2K2(x)Bi0.5TiO3 - (y)NaNbO3 where x=0.1, y=0.4": 325
+      "(1-x)Na0.2K2(x)Bi0.5TiO3 - (y)NaNbO3 where x=0.2, y=0.3": 375
+      "(1-x)Na0.2K2(x)Bi0.5TiO3 - (y)NaNbO3 where x=0.3, y=0.1": 425
+
+  - name: abbreviations
+    type: "dict[str, str]"
+    description: >-
+      Only if a composition is referred to by an abbreviation: map each abbreviation to its full composition. Abbreviations written in all CAPITAL letters MUST be included. Don't treat Greek letters as abbreviations (α is not 'alpha'), don't treat English chemical names as abbreviations (ZnO is not 'zinc oxide'), and don't include abbreviations that only refer to other papers' materials.
+    required: false
+    # Historical quirk kept for byte-identical output: the hand-written model declared this dict field with a list default.
+    default: []
+    extraction_only: true
+    example:
+      g-CN: g-C3N4
+
+  - name: property_unit
+    type: str
+    description: The unit in which the {main_extraction_keyword} values are reported.
+    required: true
+    example: pC/N
+
+  - name: family
+    type: str
+    description: The material family (base or host material system) that the compositions belong to.
+    required: true
+    example: BaTiO3
+    variable_example: NaNbO3
+
+synthesis_fields:
+  - name: method
+    type: str
+    description: The experimental synthesis method used to prepare the materials, e.g. solid-state reaction or sol-gel.
+    required: true
+    allowed_values_ref: allowed_synthesis_methods
+    format_note: If allowed values are listed, change the method to the matching allowed value; otherwise keep it as it is.
+    example: solid-state reaction
+
+  - name: precursors
+    type: "list[str]"
+    description: >-
+      Starting chemicals used in the synthesis, given by chemical name only (no company names or purity). Return an empty list if the precursors are not clearly mentioned.
+    required: true
+    format_note: >-
+      If a precursor is given by an industry name or chemical name instead of a chemical composition, rewrite it as the chemical composition. Keep it a list of strings.
+    example: ["BaCO3", "CaCO3", "TiO2", "ZrO2"]
+
+  - name: steps
+    type: "list[str]"
+    description: The experimental synthesis procedure, as an ordered list of steps.
+    required: true
+    format_note: Keep the steps unmodified.
+    example: ["Raw powders were weighed in stoichiometric ratio and ball-milled for 24 h", "The mixture was calcined at 1200 °C for 2 h", "Pellets were sintered at 1450 °C for 4 h"]
+
+  - name: characterization_techniques
+    type: "list[str]"
+    description: >-
+      Characterization techniques used on the materials, given only as the instrument name or its short name, e.g. XRD, Raman Spectroscopy, SEM, TEM.
+    required: true
+    allowed_values_ref: allowed_characterization_techniques
+    format_note: If allowed values are listed, change each technique to the matching allowed value; otherwise keep them as they are.
+    example: ["XRD", "SEM", "Raman Spectroscopy"]
+
+extra_domains: {}

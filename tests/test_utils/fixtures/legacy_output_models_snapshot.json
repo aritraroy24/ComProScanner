@@ -1,0 +1,301 @@
+{
+  "composition_extraction": {
+    "model_json_schema": {
+      "$defs": {
+        "DetailedCompositionPropertyData": {
+          "description": "Detailed Composition Property",
+          "properties": {
+            "compositions_property_values": {
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "default": {},
+              "title": "Compositions Property Values",
+              "type": "object"
+            },
+            "abbreviations": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "default": [],
+              "title": "Abbreviations",
+              "type": "object"
+            },
+            "property_unit": {
+              "default": "",
+              "title": "Property Unit",
+              "type": "string"
+            },
+            "family": {
+              "default": "",
+              "title": "Family",
+              "type": "string"
+            }
+          },
+          "title": "DetailedCompositionPropertyData",
+          "type": "object"
+        }
+      },
+      "description": "Extracted Composition Property",
+      "properties": {
+        "composition_extracted_data": {
+          "$ref": "#/$defs/DetailedCompositionPropertyData",
+          "default": {
+            "compositions_property_values": {},
+            "abbreviations": [],
+            "property_unit": "",
+            "family": ""
+          }
+        }
+      },
+      "title": "ExtractedCompositionPropertyData",
+      "type": "object"
+    },
+    "model_description": "{\n  \"composition_extracted_data\": {\n  \"compositions_property_values\": Dict[str, Optional[Union[int, float]]],\n  \"abbreviations\": Dict[str, str],\n  \"property_unit\": str,\n  \"family\": str\n}\n}",
+    "schema_parser": "{\n    composition_extracted_data: DetailedCompositionPropertyData\n    {\n        compositions_property_values: Dict[str, Union],\n        abbreviations: Dict[str, str],\n        property_unit: str,\n        family: str\n    }\n}",
+    "default_dump": {
+      "composition_extracted_data": {
+        "compositions_property_values": {},
+        "abbreviations": [],
+        "property_unit": "",
+        "family": ""
+      }
+    },
+    "annotations": {
+      "composition_extracted_data": {
+        "compositions_property_values": "typing.Dict[str, typing.Union[int, float, NoneType]]",
+        "abbreviations": "typing.Dict[str, str]",
+        "property_unit": "<class 'str'>",
+        "family": "<class 'str'>"
+      }
+    }
+  },
+  "composition_format": {
+    "model_json_schema": {
+      "$defs": {
+        "DetailedCompositionPropertyData": {
+          "description": "Detailed Composition Property",
+          "properties": {
+            "compositions_property_values": {
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "default": {},
+              "title": "Compositions Property Values",
+              "type": "object"
+            },
+            "property_unit": {
+              "default": "",
+              "title": "Property Unit",
+              "type": "string"
+            },
+            "family": {
+              "default": "",
+              "title": "Family",
+              "type": "string"
+            }
+          },
+          "title": "DetailedCompositionPropertyData",
+          "type": "object"
+        }
+      },
+      "description": "Formatted Composition Property",
+      "properties": {
+        "composition_formatted_data": {
+          "$ref": "#/$defs/DetailedCompositionPropertyData",
+          "default": {
+            "compositions_property_values": {},
+            "property_unit": "",
+            "family": ""
+          }
+        }
+      },
+      "title": "FormattedCompositionPropertyData",
+      "type": "object"
+    },
+    "model_description": "{\n  \"composition_formatted_data\": {\n  \"compositions_property_values\": Dict[str, Optional[Union[int, float]]],\n  \"property_unit\": str,\n  \"family\": str\n}\n}",
+    "schema_parser": "{\n    composition_formatted_data: DetailedCompositionPropertyData\n    {\n        compositions_property_values: Dict[str, Union],\n        property_unit: str,\n        family: str\n    }\n}",
+    "default_dump": {
+      "composition_formatted_data": {
+        "compositions_property_values": {},
+        "property_unit": "",
+        "family": ""
+      }
+    },
+    "annotations": {
+      "composition_formatted_data": {
+        "compositions_property_values": "typing.Dict[str, typing.Union[int, float, NoneType]]",
+        "property_unit": "<class 'str'>",
+        "family": "<class 'str'>"
+      }
+    }
+  },
+  "synthesis_extraction": {
+    "model_json_schema": {
+      "$defs": {
+        "DetailedSynthesisData": {
+          "description": "Detailed Synthesis Data",
+          "properties": {
+            "method": {
+              "default": "",
+              "title": "Method",
+              "type": "string"
+            },
+            "precursors": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Precursors",
+              "type": "array"
+            },
+            "steps": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Steps",
+              "type": "array"
+            },
+            "characterization_techniques": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Characterization Techniques",
+              "type": "array"
+            }
+          },
+          "title": "DetailedSynthesisData",
+          "type": "object"
+        }
+      },
+      "description": "Extracted Synthesis Data",
+      "properties": {
+        "synthesis_extracted_data": {
+          "$ref": "#/$defs/DetailedSynthesisData",
+          "default": {
+            "method": "",
+            "precursors": [],
+            "steps": [],
+            "characterization_techniques": []
+          }
+        }
+      },
+      "title": "ExtractedSynthesisData",
+      "type": "object"
+    },
+    "model_description": "{\n  \"synthesis_extracted_data\": {\n  \"method\": str,\n  \"precursors\": List[str],\n  \"steps\": List[str],\n  \"characterization_techniques\": List[str]\n}\n}",
+    "schema_parser": "{\n    synthesis_extracted_data: DetailedSynthesisData\n    {\n        method: str,\n        precursors: List[str],\n        steps: List[str],\n        characterization_techniques: List[str]\n    }\n}",
+    "default_dump": {
+      "synthesis_extracted_data": {
+        "method": "",
+        "precursors": [],
+        "steps": [],
+        "characterization_techniques": []
+      }
+    },
+    "annotations": {
+      "synthesis_extracted_data": {
+        "method": "<class 'str'>",
+        "precursors": "typing.List[str]",
+        "steps": "typing.List[str]",
+        "characterization_techniques": "typing.List[str]"
+      }
+    }
+  },
+  "synthesis_format": {
+    "model_json_schema": {
+      "$defs": {
+        "DetailedSynthesisData": {
+          "description": "Detailed Synthesis Data",
+          "properties": {
+            "method": {
+              "default": "",
+              "title": "Method",
+              "type": "string"
+            },
+            "precursors": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Precursors",
+              "type": "array"
+            },
+            "steps": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Steps",
+              "type": "array"
+            },
+            "characterization_techniques": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Characterization Techniques",
+              "type": "array"
+            }
+          },
+          "title": "DetailedSynthesisData",
+          "type": "object"
+        }
+      },
+      "description": "Formatted Synthesis Data",
+      "properties": {
+        "synthesis_formatted_data": {
+          "$ref": "#/$defs/DetailedSynthesisData",
+          "default": {
+            "method": "",
+            "precursors": [],
+            "steps": [],
+            "characterization_techniques": []
+          }
+        }
+      },
+      "title": "FormattedSynthesisData",
+      "type": "object"
+    },
+    "model_description": "{\n  \"synthesis_formatted_data\": {\n  \"method\": str,\n  \"precursors\": List[str],\n  \"steps\": List[str],\n  \"characterization_techniques\": List[str]\n}\n}",
+    "schema_parser": "{\n    synthesis_formatted_data: DetailedSynthesisData\n    {\n        method: str,\n        precursors: List[str],\n        steps: List[str],\n        characterization_techniques: List[str]\n    }\n}",
+    "default_dump": {
+      "synthesis_formatted_data": {
+        "method": "",
+        "precursors": [],
+        "steps": [],
+        "characterization_techniques": []
+      }
+    },
+    "annotations": {
+      "synthesis_formatted_data": {
+        "method": "<class 'str'>",
+        "precursors": "typing.List[str]",
+        "steps": "typing.List[str]",
+        "characterization_techniques": "typing.List[str]"
+      }
+    }
+  }
+}
