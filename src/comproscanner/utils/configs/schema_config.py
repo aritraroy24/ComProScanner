@@ -117,6 +117,7 @@ class SchemaField:
         similarity_threshold (float, optional): Matching threshold (default: per match mode).
         similarity_threshold_mode (str, optional): "relative" or "absolute" tolerance for numeric fields (default: "relative").
         plot_kind (str, optional): "categorical_distribution", "numeric_distribution" or "none" (default: "none").
+        evaluation_note (str, optional): Field-specific judging rule for the agentic evaluator.
     """
 
     name: str
@@ -136,6 +137,7 @@ class SchemaField:
     similarity_threshold: Optional[float] = None
     similarity_threshold_mode: str = "relative"
     plot_kind: str = "none"
+    evaluation_note: Optional[str] = None
     parsed_type: ParsedType = field(init=False, repr=False)
     effective_weight: float = field(init=False, default=0.0)
 
@@ -234,6 +236,7 @@ _FIELD_KEYS = {
     "similarity_threshold",
     "similarity_threshold_mode",
     "plot_kind",
+    "evaluation_note",
 }
 
 
@@ -289,9 +292,13 @@ def _parse_fields(raw_fields: Any, location: str) -> List[SchemaField]:
 
 # Allowed-values lists supplied at runtime by the API
 ALLOWED_VALUES_REFS = {"allowed_synthesis_methods", "allowed_characterization_techniques"}
-# Placeholders allowed in descriptions per domain (CrewAI fails on unknown ones)
+# Placeholders allowed per domain and attribute (CrewAI fails on unknown ones)
 _PROMPT_PLACEHOLDERS = {
     "composition": {"main_extraction_keyword"},
+    "synthesis": set(),
+}
+_EVALUATION_PLACEHOLDERS = {
+    "composition": {"value_error_threshold_instructions"},
     "synthesis": set(),
 }
 _PLACEHOLDER = re.compile(r"\{([A-Za-z_][A-Za-z0-9_\-]*)\}")
@@ -305,9 +312,12 @@ def _iter_fields(fields: List[SchemaField]):
 
 
 def _validate_prompt_text(fields: List[SchemaField], domain: str) -> None:
-    allowed = _PROMPT_PLACEHOLDERS.get(domain, set())
     for schema_field in _iter_fields(fields):
-        for attr in ("description", "format_note"):
+        for attr in ("description", "format_note", "evaluation_note"):
+            if attr == "evaluation_note":
+                allowed = _EVALUATION_PLACEHOLDERS.get(domain, set())
+            else:
+                allowed = _PROMPT_PLACEHOLDERS.get(domain, set())
             used = set(_PLACEHOLDER.findall(getattr(schema_field, attr) or ""))
             if used - allowed:
                 supported = sorted(allowed) or "none"

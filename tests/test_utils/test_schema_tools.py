@@ -18,9 +18,12 @@ from comproscanner.utils.configs.schema_config import (
     ExtractionSchemaConfig,
 )
 from comproscanner.utils.schema_tools import (
+    build_evaluation_model,
     build_example,
     build_output_model,
     fill_schema_placeholders,
+    render_evaluation_criteria,
+    render_evaluation_output_format,
     render_fields_description,
     schema_prompt_values,
 )
@@ -264,3 +267,84 @@ class TestPromptRendering:
         for domain in ("composition", "synthesis"):
             values = schema_prompt_values(DEFAULT_SCHEMA_CONFIG.fields(domain), "format")
             assert not re.search(r"\{[A-Za-z_][A-Za-z0-9_\-]*\}", values["schema_example_json"])
+
+
+EVALUATION_SNAPSHOT = json.loads(
+    (
+        Path(__file__).parents[1]
+        / "test_post_processing"
+        / "test_evaluation"
+        / "fixtures"
+        / "legacy_evaluation_models_snapshot.json"
+    ).read_text(encoding="utf-8")
+)
+
+
+def sort_required(schema):
+    """Sort 'required' lists, since field order follows the schema rather than the legacy models"""
+    if isinstance(schema, dict):
+        return {
+            k: sorted(v) if k == "required" else sort_required(v)
+            for k, v in schema.items()
+        }
+    return schema
+
+
+class TestEvaluationModels:
+    @pytest.mark.parametrize("domain", ["composition", "synthesis"])
+    def test_default_models_match_legacy_apart_from_field_order(self, domain):
+        model = build_evaluation_model(
+            DEFAULT_SCHEMA_CONFIG.fields(domain, final_only=True), domain
+        )
+        assert sort_required(model.model_json_schema()) == sort_required(
+            EVALUATION_SNAPSHOT[f"{domain}_evaluation"]["model_json_schema"]
+        )
+
+    def test_default_criteria_use_legacy_wording(self):
+        text = render_evaluation_criteria(
+            DEFAULT_SCHEMA_CONFIG.fields("composition", final_only=True), "composition"
+        )
+        assert "For 'property_unit': Decide if the units match exactly (1) or not (0)" in text
+        assert "{value_error_threshold_instructions}" in text
+        assert "BE STRICT about composition matching" in text
+
+    def test_branched_model_accepts_leaf_matches(self):
+        schema = ExtractionSchemaConfig.from_dict(
+            {
+                "version": "1.0",
+                "composition_fields": [
+                    {
+                        "name": "compositions_property_values",
+                        "type": "dict[str, object]",
+                        "value_fields": [{"name": "d33_value", "type": "float|None"}],
+                    }
+                ],
+                "synthesis_fields": [{"name": "method", "type": "str"}],
+            }
+        )
+        model = build_evaluation_model(
+            schema.fields("composition", final_only=True), "composition"
+        )
+        response = {
+            "composition_data": {
+                "compositions_property_values": {
+                    "value_matches": [
+                        {
+                            "reference_key": "BaTiO3",
+                            "test_key": "BaTiO3",
+                            "leaf": "d33_value",
+                            "reference_value": 190,
+                            "test_value": 190,
+                            "match_value": 1,
+                        }
+                    ]
+                }
+            }
+        }
+        parsed = model.model_validate(response).model_dump()
+        entry = parsed["composition_data"]["compositions_property_values"]["value_matches"][0]
+        assert entry["leaf"] == "d33_value"
+        output_format = render_evaluation_output_format(
+            schema.fields("composition", final_only=True), "composition"
+        )
+        assert '"leaf": "d33_value"' in output_format

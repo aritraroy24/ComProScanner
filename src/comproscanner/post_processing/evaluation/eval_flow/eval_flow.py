@@ -21,8 +21,13 @@ from crewai.flow.flow import Flow, listen, start, router, or_
 from crewai import LLM
 
 from comproscanner.utils.configs import DefaultPaths
+from comproscanner.utils.configs.schema_config import (
+    DEFAULT_SCHEMA_CONFIG,
+    load_schema_config,
+)
 from comproscanner.utils.error_handler import ValueErrorHandler
 from comproscanner.utils.logger import setup_logger
+from ..schema_items import count_record_items, count_value_items, leaf_weights
 from .crews.composition_evaluation_crew.composition_evaluation_crew import (
     CompositionEvaluationCrew,
 )
@@ -87,6 +92,7 @@ class MaterialsDataAgenticEvaluatorFlow(Flow[AgentEvaluationState]):
         is_synthesis_evaluation (bool, optional): Whether to evaluate synthesis data. Default: True
         weights (Dict[str, float], optional): Custom weights for different components. Default: None
         llm (LLM, optional): LLM instance for the agents. Default: None
+        schema_config_path (str | Path, optional): Path to the extraction schema YAML file. Default: None (bundled default schema)
 
     Returns:
         Dict: Detailed evaluation results with binary match decisions and metrics
@@ -102,6 +108,7 @@ class MaterialsDataAgenticEvaluatorFlow(Flow[AgentEvaluationState]):
         weights: Dict[str, float] = None,
         llm: Optional[LLM] = None,
         value_error_thresholds: Dict = None,
+        schema_config_path: Optional[str] = None,
     ):
 
         # Validate required inputs
@@ -119,6 +126,13 @@ class MaterialsDataAgenticEvaluatorFlow(Flow[AgentEvaluationState]):
             raise ValueErrorHandler(f"Test data file not found: {test_data_file}")
 
         super().__init__()
+        self.schema_config = load_schema_config(schema_config_path)
+        # Pass schema to crews only when custom (crews default to the bundled one)
+        self._crew_schema_kwargs = (
+            {}
+            if self.schema_config is DEFAULT_SCHEMA_CONFIG
+            else {"schema_config": self.schema_config}
+        )
 
         # Set state parameters
         self.state.ground_truth_file = ground_truth_file
@@ -128,15 +142,11 @@ class MaterialsDataAgenticEvaluatorFlow(Flow[AgentEvaluationState]):
         self.state.is_synthesis_evaluation = is_synthesis_evaluation
         self.state.llm = llm
 
-        # Set up weights with defaults if not provided
+        # Set up weights with defaults from the schema, each section summing to 0.5
         default_weights = {
-            "compositions_property_values": 0.3,
-            "property_unit": 0.1,
-            "family": 0.1,
-            "method": 0.1,
-            "precursors": 0.15,
-            "characterization_techniques": 0.15,
-            "steps": 0.1,
+            field.name: field.effective_weight * 0.5
+            for domain in ("composition", "synthesis")
+            for field in self.schema_config.fields(domain, final_only=True)
         }
         self.state.weights = default_weights.copy()
         if weights:
@@ -144,6 +154,40 @@ class MaterialsDataAgenticEvaluatorFlow(Flow[AgentEvaluationState]):
 
         # Store optional per-range error tolerances for numeric property values
         self.state.value_error_thresholds = value_error_thresholds or {}
+
+    def _section_fields(self, section):
+        """Evaluated schema fields of a section ("composition_data" or "synthesis_data")."""
+        return self.schema_config.fields(section.replace("_data", ""), final_only=True)
+
+    def _leaf_fraction(self, field, entries):
+        """Weighted fraction of matched leaves in a list of leaf match entries."""
+        weights = leaf_weights(field)
+        total = sum(weights.get(entry.get("leaf"), 0.0) for entry in entries)
+        if total <= 0:
+            return 0.0
+        matched = sum(
+            weights.get(entry.get("leaf"), 0.0)
+            for entry in entries
+            if entry.get("match_value", 0) == 1
+        )
+        return matched / total
+
+    def _nested_total_match(self, field, field_data):
+        """Matched keys of a nested keyed field, each credited with its matched leaf fraction."""
+        matched_keys = {
+            key_match.get("reference_key")
+            for key_match in field_data.get("key_matches", [])
+            if key_match.get("match_value", 0) == 1
+        }
+        total = 0.0
+        for key in matched_keys:
+            entries = [
+                entry
+                for entry in field_data.get("value_matches", [])
+                if entry.get("reference_key") == key
+            ]
+            total += self._leaf_fraction(field, entries)
+        return total
 
     def _calculate_tp_fp_fn(self, details, section):
         """
@@ -163,39 +207,27 @@ class MaterialsDataAgenticEvaluatorFlow(Flow[AgentEvaluationState]):
 
         section_data = details[section]
 
-        # Process composition data
-        if section == "composition_data":
-            # Property unit
-            if "property_unit" in section_data:
-                match_value = section_data["property_unit"].get("match_value", 0)
+        for field in self._section_fields(section):
+            if field.name not in section_data:
+                continue
+            field_data = section_data[field.name]
+            mode = field.match_mode
+
+            if mode in ("exact", "semantic", "numeric"):
+                match_value = field_data.get("match_value", 0)
                 if match_value == 1:
                     metrics["true_positives"] += 1
                 else:
                     # Count as false positive if test exists, false negative if reference exists
-                    if section_data["property_unit"].get("reference") is not None:
+                    if field_data.get("reference") is not None:
                         metrics["false_negatives"] += 1
-                    if section_data["property_unit"].get("test") is not None:
+                    if field_data.get("test") is not None:
                         metrics["false_positives"] += 1
 
-            # Family
-            if "family" in section_data:
-                match_value = section_data["family"].get("match_value", 0)
-                if match_value == 1:
-                    metrics["true_positives"] += 1
-                else:
-                    # Count as false positive if test exists, false negative if reference exists
-                    if section_data["family"].get("reference") is not None:
-                        metrics["false_negatives"] += 1
-                    if section_data["family"].get("test") is not None:
-                        metrics["false_positives"] += 1
-
-            # Compositions property values
-            if "compositions_property_values" in section_data:
-                cpv = section_data["compositions_property_values"]
-
+            elif mode == "keyed_values":
                 # Process key matches
-                if "key_matches" in cpv:
-                    for key_match in cpv["key_matches"]:
+                if "key_matches" in field_data:
+                    for key_match in field_data["key_matches"]:
                         if key_match.get("match_value", 0) == 1:
                             metrics["true_positives"] += 1
                         else:
@@ -204,9 +236,9 @@ class MaterialsDataAgenticEvaluatorFlow(Flow[AgentEvaluationState]):
                             if key_match.get("test_key"):
                                 metrics["false_positives"] += 1
 
-                # Process value matches
-                if "value_matches" in cpv:
-                    for value_match in cpv["value_matches"]:
+                # Process value matches (one entry per leaf for nested values)
+                if "value_matches" in field_data:
+                    for value_match in field_data["value_matches"]:
                         if value_match.get("match_value", 0) == 1:
                             metrics["true_positives"] += 1
                         else:
@@ -216,32 +248,28 @@ class MaterialsDataAgenticEvaluatorFlow(Flow[AgentEvaluationState]):
                                 metrics["false_positives"] += 1
 
                 # Process missing keys (count as false negatives)
-                metrics["false_negatives"] += len(cpv.get("missing_keys", []))
+                missing_keys = field_data.get("missing_keys", [])
+                metrics["false_negatives"] += len(missing_keys)
 
                 # Process extra keys (count as false positives)
-                metrics["false_positives"] += len(cpv.get("extra_keys", []))
+                extra_keys = field_data.get("extra_keys", [])
+                metrics["false_positives"] += len(extra_keys)
 
-        # Process synthesis data
-        elif section == "synthesis_data":
-            # Method
-            if "method" in section_data:
-                match_value = section_data["method"].get("match_value", 0)
-                if match_value == 1:
-                    metrics["true_positives"] += 1
-                else:
-                    # Count as false positive if test exists, false negative if reference exists
-                    if section_data["method"].get("reference") is not None:
-                        metrics["false_negatives"] += 1
-                    if section_data["method"].get("test") is not None:
-                        metrics["false_positives"] += 1
+                # Nested values also count every leaf of a missing or extra key
+                if field.value_fields:
+                    reference = field_data.get("reference") or {}
+                    test = field_data.get("test") or {}
+                    metrics["false_negatives"] += sum(
+                        count_value_items(field, reference.get(key)) for key in missing_keys
+                    )
+                    metrics["false_positives"] += sum(
+                        count_value_items(field, test.get(key)) for key in extra_keys
+                    )
 
-            # Precursors
-            if "precursors" in section_data:
-                pre = section_data["precursors"]
-
+            elif mode == "item_list":
                 # Process matches
-                if "matches" in pre:
-                    for match in pre["matches"]:
+                if "matches" in field_data:
+                    for match in field_data["matches"]:
                         if match.get("match_value", 0) == 1:
                             metrics["true_positives"] += 1
                         else:
@@ -251,53 +279,42 @@ class MaterialsDataAgenticEvaluatorFlow(Flow[AgentEvaluationState]):
                                 metrics["false_positives"] += 1
 
                 # Count missing items as false negatives
-                metrics["false_negatives"] += len(pre.get("missing_items", []))
+                metrics["false_negatives"] += len(field_data.get("missing_items", []))
 
                 # Count extra items as false positives
-                metrics["false_positives"] += len(pre.get("extra_items", []))
+                metrics["false_positives"] += len(field_data.get("extra_items", []))
 
-            # Characterization techniques
-            if "characterization_techniques" in section_data:
-                tech = section_data["characterization_techniques"]
+            elif mode == "joined_text":
+                text_match = field_data.get("match_value", 0)
 
-                # Process matches
-                if "matches" in tech:
-                    for match in tech["matches"]:
-                        if match.get("match_value", 0) == 1:
-                            metrics["true_positives"] += 1
-                        else:
-                            if match.get("reference_item") is not None:
-                                metrics["false_negatives"] += 1
-                            if match.get("test_item") is not None:
-                                metrics["false_positives"] += 1
-
-                # Count missing items as false negatives
-                metrics["false_negatives"] += len(tech.get("missing_items", []))
-
-                # Count extra items as false positives
-                metrics["false_positives"] += len(tech.get("extra_items", []))
-
-            # Steps
-            if "steps" in section_data:
-                steps_match = section_data["steps"].get("match_value", 0)
-
-                # If steps_match is a float between 0 and 1
-                if isinstance(steps_match, float):
-                    if steps_match > 0.5:  # Partial match above threshold
+                # If text_match is a float between 0 and 1
+                if isinstance(text_match, float):
+                    if text_match > 0.5:  # Partial match above threshold
                         metrics["true_positives"] += 1
                     else:
-                        if section_data["steps"].get("reference_steps"):
+                        if field_data.get("reference_steps"):
                             metrics["false_negatives"] += 1
-                        if section_data["steps"].get("test_steps"):
+                        if field_data.get("test_steps"):
                             metrics["false_positives"] += 1
-                # If steps_match is binary (0 or 1)
-                elif steps_match == 1:
+                # If text_match is binary (0 or 1)
+                elif text_match == 1:
                     metrics["true_positives"] += 1
                 else:
-                    if section_data["steps"].get("reference_steps"):
+                    if field_data.get("reference_steps"):
                         metrics["false_negatives"] += 1
-                    if section_data["steps"].get("test_steps"):
+                    if field_data.get("test_steps"):
                         metrics["false_positives"] += 1
+
+            else:
+                # Nested object: one item per leaf
+                for leaf_match in field_data.get("leaf_matches", []):
+                    if leaf_match.get("match_value", 0) == 1:
+                        metrics["true_positives"] += 1
+                    else:
+                        if leaf_match.get("reference_value") is not None:
+                            metrics["false_negatives"] += 1
+                        if leaf_match.get("test_value") is not None:
+                            metrics["false_positives"] += 1
 
         return metrics
 
@@ -355,85 +372,52 @@ class MaterialsDataAgenticEvaluatorFlow(Flow[AgentEvaluationState]):
 
         section_data = details[section]
 
-        if section == "composition_data":
-            # Property unit
-            if (
-                "property_unit" in section_data
-                and section_data["property_unit"]["match_value"] == 0
-            ):
-                score -= weights["property_unit"]
+        for field in self._section_fields(section):
+            if field.name not in section_data:
+                continue
+            field_data = section_data[field.name]
+            weight = weights[field.name]
+            mode = field.match_mode
 
-            # Family
-            if "family" in section_data and section_data["family"]["match_value"] == 0:
-                score -= weights["family"]
+            if mode in ("exact", "semantic", "numeric"):
+                if field_data["match_value"] == 0:
+                    score -= weight
 
-            # Compositions property values - calculate based on total_match and total_ground_truth_keys
-            if "compositions_property_values" in section_data:
-                cpv = section_data["compositions_property_values"]
-                total_match = cpv.get("total_match", 0)
-                total_ground_truth_keys = cpv.get("total_ground_truth_keys", 0)
+            elif mode in ("keyed_values", "item_list"):
+                # Calculate based on total_match and the ground truth total
+                total_key = (
+                    "total_ground_truth_keys"
+                    if mode == "keyed_values"
+                    else "total_ground_truth_items"
+                )
+                total_match = field_data.get("total_match", 0)
+                if mode == "keyed_values" and field.value_fields:
+                    total_match = self._nested_total_match(field, field_data)
+                total_ground_truth = field_data.get(total_key, 0)
 
-                # Calculate match ratio if there are test keys
-                if total_ground_truth_keys > 0:
-                    match_ratio = total_match / total_ground_truth_keys
+                # Calculate match ratio if there are ground truth entries
+                if total_ground_truth > 0:
+                    match_ratio = total_match / total_ground_truth
                     # Apply penalty proportional to match ratio
                     if match_ratio < 1.0:
-                        score -= weights["compositions_property_values"] * (
-                            1 - match_ratio
-                        )
-                # If no match info or no test keys, apply full penalty
-                elif not total_match and not total_ground_truth_keys:
-                    score -= weights["compositions_property_values"]
+                        score -= weight * (1 - match_ratio)
+                # If no match info or no ground truth entries, apply full penalty
+                elif not total_match and not total_ground_truth:
+                    score -= weight
 
-        elif section == "synthesis_data":
-            # Method
-            if "method" in section_data and section_data["method"]["match_value"] == 0:
-                score -= weights["method"]
-
-            # Precursors - calculate based on total_match and total_ground_truth_items
-            if "precursors" in section_data:
-                pre = section_data["precursors"]
-                total_match = pre.get("total_match", 0)
-                total_ground_truth_items = pre.get("total_ground_truth_items", 0)
-
-                # Calculate match ratio if there are test items
-                if total_ground_truth_items > 0:
-                    match_ratio = total_match / total_ground_truth_items
-                    # Apply penalty proportional to match ratio
-                    if match_ratio < 1.0:
-                        score -= weights["precursors"] * (1 - match_ratio)
-                # If no match info or no test items, apply full penalty
-                elif not total_match and not total_ground_truth_items:
-                    score -= weights["precursors"]
-
-            # Characterization techniques - calculate based on total_match and total_ground_truth_items
-            if "characterization_techniques" in section_data:
-                tech = section_data["characterization_techniques"]
-                total_match = tech.get("total_match", 0)
-                total_ground_truth_items = tech.get("total_ground_truth_items", 0)
-
-                # Calculate match ratio if there are test items
-                if total_ground_truth_items > 0:
-                    match_ratio = total_match / total_ground_truth_items
-                    # Apply penalty proportional to match ratio
-                    if match_ratio < 1.0:
-                        score -= weights["characterization_techniques"] * (
-                            1 - match_ratio
-                        )
-                # If no match info or no test items, apply full penalty
-                elif not total_match and not total_ground_truth_items:
-                    score -= weights["characterization_techniques"]
-
-            # Steps - now using float value between 0 and 1
-            if "steps" in section_data:
-                steps_match = section_data["steps"]["match_value"]
-                # If steps_match is a float, use it directly
-                if isinstance(steps_match, float):
-                    if steps_match < 1.0:
-                        score -= weights["steps"] * (1 - steps_match)
+            elif mode == "joined_text":
+                text_match = field_data["match_value"]
+                # If text_match is a float, use it directly
+                if isinstance(text_match, float):
+                    if text_match < 1.0:
+                        score -= weight * (1 - text_match)
                 # If it's binary (0 or 1)
-                elif steps_match == 0:
-                    score -= weights["steps"]
+                elif text_match == 0:
+                    score -= weight
+
+            else:
+                fraction = self._leaf_fraction(field, field_data.get("leaf_matches", []))
+                score -= weight * (1 - fraction)
 
         return max(0.0, score)
 
@@ -481,34 +465,17 @@ class MaterialsDataAgenticEvaluatorFlow(Flow[AgentEvaluationState]):
         Normalize weights for each category (composition and synthesis) to sum to 0.5.
         This ensures that the weights are balanced while calculating normalized classification scores.
         """
-        composition_weights = {
-            "property_unit": self.state.weights["property_unit"],
-            "family": self.state.weights["family"],
-            "compositions_property_values": self.state.weights[
-                "compositions_property_values"
-            ],
-        }
-
-        synthesis_weights = {
-            "method": self.state.weights["method"],
-            "precursors": self.state.weights["precursors"],
-            "characterization_techniques": self.state.weights[
-                "characterization_techniques"
-            ],
-            "steps": self.state.weights["steps"],
-        }
-
-        # Calculate total weights for each category
-        comp_total = sum(composition_weights.values())
-        synth_total = sum(synthesis_weights.values())
-
-        # Normalize weights to sum to 0.5 for each category
         normalized_weights = {}
-        for key, value in composition_weights.items():
-            normalized_weights[key] = (value / comp_total) * 0.5
-
-        for key, value in synthesis_weights.items():
-            normalized_weights[key] = (value / synth_total) * 0.5
+        for domain in ("composition", "synthesis"):
+            names = [
+                field.name
+                for field in self.schema_config.fields(domain, final_only=True)
+            ]
+            # Calculate total weights for the category
+            total = sum(self.state.weights[name] for name in names)
+            # Normalize weights to sum to 0.5 for the category
+            for name in names:
+                normalized_weights[name] = (self.state.weights[name] / total) * 0.5
 
         return normalized_weights
 
@@ -535,54 +502,49 @@ class MaterialsDataAgenticEvaluatorFlow(Flow[AgentEvaluationState]):
 
         section_data = details[section]
 
-        if section == "composition_data":
-            # Property unit
-            if "property_unit" in section_data:
-                match_value = section_data["property_unit"].get("match_value", 0)
+        for field in self._section_fields(section):
+            if field.name not in section_data:
+                continue
+            field_data = section_data[field.name]
+            weight = normalized_weights[field.name]
+            mode = field.match_mode
+
+            if mode in ("exact", "semantic", "numeric"):
+                match_value = field_data.get("match_value", 0)
                 if match_value == 1:
-                    metrics["true_positives"] += normalized_weights["property_unit"]
+                    metrics["true_positives"] += weight
                 else:
                     # Split the weight between false positives and false negatives
-                    if section_data["property_unit"].get("reference") is not None:
-                        metrics["false_negatives"] += (
-                            normalized_weights["property_unit"] / 2
-                        )
-                    if section_data["property_unit"].get("test") is not None:
-                        metrics["false_positives"] += (
-                            normalized_weights["property_unit"] / 2
-                        )
+                    if field_data.get("reference") is not None:
+                        metrics["false_negatives"] += weight / 2
+                    if field_data.get("test") is not None:
+                        metrics["false_positives"] += weight / 2
 
-            # Family
-            if "family" in section_data:
-                match_value = section_data["family"].get("match_value", 0)
-                if match_value == 1:
-                    metrics["true_positives"] += normalized_weights["family"]
-                else:
-                    # Split the weight between false positives and false negatives
-                    if section_data["family"].get("reference") is not None:
-                        metrics["false_negatives"] += normalized_weights["family"] / 2
-                    if section_data["family"].get("test") is not None:
-                        metrics["false_positives"] += normalized_weights["family"] / 2
-
-            # Compositions property values
-            if "compositions_property_values" in section_data:
-                cpv = section_data["compositions_property_values"]
-                total_ground_truth_keys = cpv.get("total_ground_truth_keys", 0)
+            elif mode == "keyed_values":
+                total_ground_truth_keys = field_data.get("total_ground_truth_keys", 0)
 
                 if total_ground_truth_keys > 0:
                     # Split the component weight between keys and values
-                    key_weight = normalized_weights["compositions_property_values"] / 2
-                    value_weight = (
-                        normalized_weights["compositions_property_values"] / 2
-                    )
+                    key_weight = weight / 2
+                    value_weight = weight / 2
 
                     # Calculate per-item weight
                     key_item_weight = key_weight / total_ground_truth_keys
                     value_item_weight = value_weight / total_ground_truth_keys
 
+                    # Nested values share the value weight between leaves
+                    leaf_shares = None
+                    if field.value_fields:
+                        weights = leaf_weights(field)
+                        total_leaf_weight = sum(weights.values())
+                        leaf_shares = {
+                            path: (w / total_leaf_weight if total_leaf_weight else 0.0)
+                            for path, w in weights.items()
+                        }
+
                     # Process key matches
-                    if "key_matches" in cpv:
-                        for key_match in cpv["key_matches"]:
+                    if "key_matches" in field_data:
+                        for key_match in field_data["key_matches"]:
                             if key_match.get("match_value", 0) == 1:
                                 metrics["true_positives"] += key_item_weight
                             else:
@@ -592,57 +554,43 @@ class MaterialsDataAgenticEvaluatorFlow(Flow[AgentEvaluationState]):
                                     metrics["false_positives"] += key_item_weight / 2
 
                     # Process value matches
-                    if "value_matches" in cpv:
-                        for value_match in cpv["value_matches"]:
+                    if "value_matches" in field_data:
+                        for value_match in field_data["value_matches"]:
+                            entry_weight = value_item_weight
+                            if leaf_shares is not None:
+                                entry_weight *= leaf_shares.get(value_match.get("leaf"), 0.0)
                             if value_match.get("match_value", 0) == 1:
-                                metrics["true_positives"] += value_item_weight
+                                metrics["true_positives"] += entry_weight
                             else:
                                 if value_match.get("reference_value") is not None:
-                                    metrics["false_negatives"] += value_item_weight / 2
+                                    metrics["false_negatives"] += entry_weight / 2
                                 if value_match.get("test_value") is not None:
-                                    metrics["false_positives"] += value_item_weight / 2
+                                    metrics["false_positives"] += entry_weight / 2
 
                     # Missing keys (just add as false negatives)
-                    missing_keys_count = len(cpv.get("missing_keys", []))
+                    missing_keys_count = len(field_data.get("missing_keys", []))
                     if missing_keys_count > 0:
                         metrics["false_negatives"] += missing_keys_count * (
                             key_item_weight + value_item_weight
                         )
 
                     # Extra keys (just add as false positives)
-                    extra_keys_count = len(cpv.get("extra_keys", []))
+                    extra_keys_count = len(field_data.get("extra_keys", []))
                     if extra_keys_count > 0:
                         metrics["false_positives"] += extra_keys_count * (
                             key_item_weight + value_item_weight
                         )
 
-        elif section == "synthesis_data":
-            # Method
-            if "method" in section_data:
-                match_value = section_data["method"].get("match_value", 0)
-                if match_value == 1:
-                    metrics["true_positives"] += normalized_weights["method"]
-                else:
-                    # Split the weight between false positives and false negatives
-                    if section_data["method"].get("reference") is not None:
-                        metrics["false_negatives"] += normalized_weights["method"] / 2
-                    if section_data["method"].get("test") is not None:
-                        metrics["false_positives"] += normalized_weights["method"] / 2
-
-            # Precursors
-            if "precursors" in section_data:
-                pre = section_data["precursors"]
-                total_ground_truth_items = pre.get("total_ground_truth_items", 0)
+            elif mode == "item_list":
+                total_ground_truth_items = field_data.get("total_ground_truth_items", 0)
 
                 if total_ground_truth_items > 0:
                     # Calculate per-item weight
-                    item_weight = (
-                        normalized_weights["precursors"] / total_ground_truth_items
-                    )
+                    item_weight = weight / total_ground_truth_items
 
                     # Process matches
-                    if "matches" in pre:
-                        for match in pre["matches"]:
+                    if "matches" in field_data:
+                        for match in field_data["matches"]:
                             if match.get("match_value", 0) == 1:
                                 metrics["true_positives"] += item_weight
                             else:
@@ -652,73 +600,51 @@ class MaterialsDataAgenticEvaluatorFlow(Flow[AgentEvaluationState]):
                                     metrics["false_positives"] += item_weight / 2
 
                     # Missing items
-                    missing_items_count = len(pre.get("missing_items", []))
+                    missing_items_count = len(field_data.get("missing_items", []))
                     if missing_items_count > 0:
                         metrics["false_negatives"] += missing_items_count * item_weight
 
                     # Extra items
-                    extra_items_count = len(pre.get("extra_items", []))
+                    extra_items_count = len(field_data.get("extra_items", []))
                     if extra_items_count > 0:
                         metrics["false_positives"] += extra_items_count * item_weight
 
-            # Characterization techniques
-            if "characterization_techniques" in section_data:
-                tech = section_data["characterization_techniques"]
-                total_ground_truth_items = tech.get("total_ground_truth_items", 0)
+            elif mode == "joined_text":
+                text_match = field_data.get("match_value", 0)
 
-                if total_ground_truth_items > 0:
-                    # Calculate per-item weight
-                    item_weight = (
-                        normalized_weights["characterization_techniques"]
-                        / total_ground_truth_items
-                    )
-
-                    # Process matches
-                    if "matches" in tech:
-                        for match in tech["matches"]:
-                            if match.get("match_value", 0) == 1:
-                                metrics["true_positives"] += item_weight
-                            else:
-                                if match.get("reference_item") is not None:
-                                    metrics["false_negatives"] += item_weight / 2
-                                if match.get("test_item") is not None:
-                                    metrics["false_positives"] += item_weight / 2
-
-                    # Missing items
-                    missing_items_count = len(tech.get("missing_items", []))
-                    if missing_items_count > 0:
-                        metrics["false_negatives"] += missing_items_count * item_weight
-
-                    # Extra items
-                    extra_items_count = len(tech.get("extra_items", []))
-                    if extra_items_count > 0:
-                        metrics["false_positives"] += extra_items_count * item_weight
-
-            # Steps
-            if "steps" in section_data:
-                steps_match = section_data["steps"].get("match_value", 0)
-
-                # If steps_match is a float (0.0 to 1.0)
-                if isinstance(steps_match, float):
-                    metrics["true_positives"] += (
-                        normalized_weights["steps"] * steps_match
-                    )
-                    remaining = normalized_weights["steps"] * (1 - steps_match)
+                # If text_match is a float (0.0 to 1.0)
+                if isinstance(text_match, float):
+                    metrics["true_positives"] += weight * text_match
+                    remaining = weight * (1 - text_match)
                     metrics["false_negatives"] += remaining / 2
                     metrics["false_positives"] += remaining / 2
                 # If it's binary (0 or 1)
-                elif steps_match == 1:
-                    metrics["true_positives"] += normalized_weights["steps"]
+                elif text_match == 1:
+                    metrics["true_positives"] += weight
                 else:
                     # Split weight between false positives and negatives
-                    metrics["false_negatives"] += normalized_weights["steps"] / 2
-                    metrics["false_positives"] += normalized_weights["steps"] / 2
+                    metrics["false_negatives"] += weight / 2
+                    metrics["false_positives"] += weight / 2
+
+            else:
+                weights = leaf_weights(field)
+                total_leaf_weight = sum(weights.values())
+                for leaf_match in field_data.get("leaf_matches", []):
+                    share = weights.get(leaf_match.get("leaf"), 0.0)
+                    entry_weight = weight * (share / total_leaf_weight if total_leaf_weight else 0.0)
+                    if leaf_match.get("match_value", 0) == 1:
+                        metrics["true_positives"] += entry_weight
+                    else:
+                        if leaf_match.get("reference_value") is not None:
+                            metrics["false_negatives"] += entry_weight / 2
+                        if leaf_match.get("test_value") is not None:
+                            metrics["false_positives"] += entry_weight / 2
 
         return metrics
 
     def _calculate_key_value_match_ratios(self, details):
         """
-        Calculate key-value pair match ratios for composition data similar to the semantic evaluator.
+        Calculate key-value pair match ratios for keyed fields similar to the semantic evaluator.
 
         Args:
             details (dict): The evaluation details for a DOI
@@ -726,70 +652,68 @@ class MaterialsDataAgenticEvaluatorFlow(Flow[AgentEvaluationState]):
         Returns:
             dict: Updated details with match ratios
         """
-        if "composition_data" not in details or not details["composition_data"]:
-            return details
+        for section in ("composition_data", "synthesis_data"):
+            if section not in details or not details[section]:
+                continue
+            section_data = details[section]
+            for field in self._section_fields(section):
+                if field.match_mode != "keyed_values" or field.name not in section_data:
+                    continue
+                field_data = section_data[field.name]
 
-        comp_data = details["composition_data"]
-        if "compositions_property_values" not in comp_data:
-            return details
+                # Initialize counters
+                key_matches_count = 0
+                value_matches_count = 0
+                pair_matches_count = 0
+                total_ref_keys = field_data.get("total_ground_truth_keys", 0)
 
-        cpv = comp_data["compositions_property_values"]
+                # Count key matches from key_matches section
+                if "key_matches" in field_data:
+                    for key_match in field_data["key_matches"]:
+                        if key_match.get("match_value", 0) == 1:
+                            key_matches_count += 1
 
-        # Initialize counters
-        key_matches_count = 0
-        value_matches_count = 0
-        pair_matches_count = 0
-        total_ref_keys = cpv.get("total_ground_truth_keys", 0)
+                # Count value matches from value_matches section
+                if "value_matches" in field_data:
+                    for value_match in field_data["value_matches"]:
+                        if value_match.get("match_value", 0) == 1:
+                            value_matches_count += 1
 
-        # Count key matches from key_matches section
-        if "key_matches" in cpv:
-            for key_match in cpv["key_matches"]:
-                if key_match.get("match_value", 0) == 1:
-                    key_matches_count += 1
+                # Count pair matches from pair_matches section (keys that match AND values that match)
+                if "pair_matches" in field_data:
+                    for pair_match in field_data["pair_matches"]:
+                        if pair_match.get("match_value", 0) == 1:
+                            pair_matches_count += 1
 
-        # Count value matches from value_matches section
-        if "value_matches" in cpv:
-            for value_match in cpv["value_matches"]:
-                if value_match.get("match_value", 0) == 1:
-                    value_matches_count += 1
+                # Calculate ratios if there are reference keys
+                if total_ref_keys > 0:
+                    key_match_ratio = key_matches_count / total_ref_keys
+                    value_match_ratio = value_matches_count / total_ref_keys
+                    pair_match_ratio = pair_matches_count / total_ref_keys
 
-        # Count pair matches from pair_matches section (keys that match AND values that match)
-        if "pair_matches" in cpv:
-            for pair_match in cpv["pair_matches"]:
-                if pair_match.get("match_value", 0) == 1:
-                    pair_matches_count += 1
+                    # Calculate overall match ratio (weighted combination of key and pair match)
+                    overall_match_ratio = 0.4 * key_match_ratio + 0.6 * pair_match_ratio
+                else:
+                    key_match_ratio = 0.0
+                    value_match_ratio = 0.0
+                    pair_match_ratio = 0.0
+                    overall_match_ratio = 0.0
 
-        # Calculate ratios if there are reference keys
-        if total_ref_keys > 0:
-            key_match_ratio = key_matches_count / total_ref_keys
-            value_match_ratio = value_matches_count / total_ref_keys
-            pair_match_ratio = pair_matches_count / total_ref_keys
+                # Add match ratios to the details
+                field_data.update(
+                    {
+                        "key_match_ratio": key_match_ratio,
+                        "value_match_ratio": value_match_ratio,
+                        "pair_match_ratio": pair_match_ratio,
+                        "overall_match_ratio": overall_match_ratio,
+                    }
+                )
 
-            # Calculate overall match ratio (weighted combination of key and pair match)
-            overall_match_ratio = 0.4 * key_match_ratio + 0.6 * pair_match_ratio
-        else:
-            key_match_ratio = 0.0
-            value_match_ratio = 0.0
-            pair_match_ratio = 0.0
-            overall_match_ratio = 0.0
+                # Add a similarity_score for compatibility with the semantic evaluator format
+                field_data["similarity_score"] = overall_match_ratio
 
-        # Add match ratios to the details
-        cpv.update(
-            {
-                "key_match_ratio": key_match_ratio,
-                "value_match_ratio": value_match_ratio,
-                "pair_match_ratio": pair_match_ratio,
-                "overall_match_ratio": overall_match_ratio,
-            }
-        )
-
-        # Add a similarity_score for compatibility with the semantic evaluator format
-        comp_data["compositions_property_values"][
-            "similarity_score"
-        ] = overall_match_ratio
-
-        # Update the match flag based on overall_match_ratio with a threshold of 0.85
-        comp_data["compositions_property_values"]["match"] = overall_match_ratio > 0.85
+                # Update the match flag based on overall_match_ratio with a threshold of 0.85
+                field_data["match"] = overall_match_ratio > 0.85
 
         return details
 
@@ -807,71 +731,55 @@ class MaterialsDataAgenticEvaluatorFlow(Flow[AgentEvaluationState]):
         if not details or not isinstance(details, dict):
             return details
 
-        # Enhanced the composition data with key-value match ratios
+        # Enhance keyed fields with key-value match ratios
         details = self._calculate_key_value_match_ratios(details)
 
-        # Add similarity scores and match flags to synthesis data if needed
-        if "synthesis_data" in details and details["synthesis_data"]:
-            synth_data = details["synthesis_data"]
+        # Add similarity scores and match flags where needed
+        for section in ("composition_data", "synthesis_data"):
+            if section not in details or not details[section]:
+                continue
+            section_data = details[section]
+            for field in self._section_fields(section):
+                if field.name not in section_data:
+                    continue
+                field_data = section_data[field.name]
+                mode = field.match_mode
 
-            # Method
-            if "method" in synth_data:
-                match_value = synth_data["method"].get("match_value", 0)
-                synth_data["method"]["similarity"] = 1.0 if match_value == 1 else 0.0
-                synth_data["method"]["match"] = match_value == 1
+                if mode == "semantic":
+                    match_value = field_data.get("match_value", 0)
+                    field_data["similarity"] = 1.0 if match_value == 1 else 0.0
+                    field_data["match"] = match_value == 1
 
-            # Precursors
-            if "precursors" in synth_data:
-                pre = synth_data["precursors"]
-                total_ground_truth_items = pre.get("total_ground_truth_items", 0)
-                total_match = pre.get("total_match", 0)
+                elif mode == "item_list":
+                    total_ground_truth_items = field_data.get("total_ground_truth_items", 0)
+                    total_match = field_data.get("total_match", 0)
 
-                if total_ground_truth_items > 0:
-                    pre["similarity"] = total_match / total_ground_truth_items
-                    pre["match"] = pre["similarity"] >= 0.8
-                else:
-                    # If both reference and test are empty, it's a perfect match
-                    if (
-                        not pre.get("reference") or len(pre.get("reference", [])) == 0
-                    ) and (not pre.get("test") or len(pre.get("test", [])) == 0):
-                        pre["similarity"] = 1.0
-                        pre["match"] = True
+                    if total_ground_truth_items > 0:
+                        field_data["similarity"] = total_match / total_ground_truth_items
+                        field_data["match"] = field_data["similarity"] >= 0.8
                     else:
-                        pre["similarity"] = 0.0
-                        pre["match"] = False
+                        # If both reference and test are empty, it's a perfect match
+                        if (
+                            not field_data.get("reference")
+                            or len(field_data.get("reference", [])) == 0
+                        ) and (
+                            not field_data.get("test")
+                            or len(field_data.get("test", [])) == 0
+                        ):
+                            field_data["similarity"] = 1.0
+                            field_data["match"] = True
+                        else:
+                            field_data["similarity"] = 0.0
+                            field_data["match"] = False
 
-            # Characterization techniques
-            if "characterization_techniques" in synth_data:
-                tech = synth_data["characterization_techniques"]
-                total_ground_truth_items = tech.get("total_ground_truth_items", 0)
-                total_match = tech.get("total_match", 0)
+                elif mode == "joined_text":
+                    # Rename match_value to steps_match for compatibility
+                    text_match = field_data.get("match_value", 0)
 
-                if total_ground_truth_items > 0:
-                    tech["similarity"] = total_match / total_ground_truth_items
-                    tech["match"] = tech["similarity"] >= 0.8
-                else:
-                    # If both reference and test are empty, it's a perfect match
-                    if (
-                        not tech.get("reference") or len(tech.get("reference", [])) == 0
-                    ) and (not tech.get("test") or len(tech.get("test", [])) == 0):
-                        tech["similarity"] = 1.0
-                        tech["match"] = True
+                    if isinstance(text_match, float):
+                        field_data["steps_match"] = "true" if text_match > 0.6 else "false"
                     else:
-                        tech["similarity"] = 0.0
-                        tech["match"] = False
-
-            # Steps - rename match_value to steps_match for compatibility
-            if "steps" in synth_data:
-                steps_match = synth_data["steps"].get("match_value", 0)
-
-                if isinstance(steps_match, float):
-                    synth_data["steps"]["steps_match"] = (
-                        "true" if steps_match > 0.6 else "false"
-                    )
-                else:
-                    synth_data["steps"]["steps_match"] = (
-                        "true" if steps_match == 1 else "false"
-                    )
+                        field_data["steps_match"] = "true" if text_match == 1 else "false"
 
         return details
 
@@ -902,30 +810,7 @@ class MaterialsDataAgenticEvaluatorFlow(Flow[AgentEvaluationState]):
 
     def _count_all_items(self, item):
         """Count all individual items in a data entry"""
-        count = 0
-
-        # Count composition items
-        comp_data = item.get("composition_data", {})
-        if comp_data is not None:  # handles None values
-            if "property_unit" in comp_data:
-                count += 1
-            if "family" in comp_data:
-                count += 1
-            count += (
-                len(comp_data.get("compositions_property_values", {})) * 2
-            )  # Keys and values
-
-        # Count synthesis items
-        synth_data = item.get("synthesis_data", {})
-        if synth_data is not None:  # handles None values
-            if "method" in synth_data:
-                count += 1
-            count += len(synth_data.get("precursors", []))
-            count += len(synth_data.get("characterization_techniques", []))
-            if synth_data.get("steps"):
-                count += 2  # Count steps as 2 items (presence + content)
-
-        return count
+        return count_record_items(self.schema_config, item)
 
     @start()
     def load_data(self):
@@ -1044,9 +929,12 @@ class MaterialsDataAgenticEvaluatorFlow(Flow[AgentEvaluationState]):
         composition_crew = CompositionEvaluationCrew(
             llm=self.state.llm,
             value_error_thresholds=self.state.value_error_thresholds,
+            **self._crew_schema_kwargs,
         ).crew()
         if self.state.is_synthesis_evaluation:
-            synthesis_crew = SynthesisEvaluationCrew(llm=self.state.llm).crew()
+            synthesis_crew = SynthesisEvaluationCrew(
+                llm=self.state.llm, **self._crew_schema_kwargs
+            ).crew()
 
         # Initialize the combined results with existing data
         combined_results = {

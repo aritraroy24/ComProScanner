@@ -8,65 +8,21 @@ Date: 20-04-2025
 """
 
 # Standard library imports
-from typing import Dict, Optional, Any, List, Union
+from typing import Optional
 import json
 
 # Third party imports
 from crewai import Agent, Task, Crew, Process
 from crewai.project import CrewBase, agent, crew, task
 from crewai import LLM
-from pydantic import BaseModel, Field
 
-
-class SynthesisMatch(BaseModel):
-    """Basic match structure with reference and test values"""
-
-    match_value: int
-    reference: Optional[Any] = None
-    test: Optional[Any] = None
-
-
-class ItemMatch(BaseModel):
-    """Model for individual item match evaluation"""
-
-    reference_item: str
-    test_item: str
-    match_value: int
-
-
-class ListItemsMatch(BaseModel):
-    """Model for list items match evaluation (precursors, characterization_techniques)"""
-
-    reference: List[str] = Field(default_factory=list)
-    test: List[str] = Field(default_factory=list)
-    matches: List[ItemMatch] = Field(default_factory=list)
-    total_ground_truth_items: int = 0
-    total_match: int = 0
-    missing_items: List[str] = Field(default_factory=list)
-    extra_items: List[str] = Field(default_factory=list)
-
-
-class StepsMatch(BaseModel):
-    """Model for synthesis steps match evaluation"""
-
-    match_value: float = 0.0  # Changed to float for value between 0 and 1
-    reference_steps: List[str] = Field(default_factory=list)
-    test_steps: List[str] = Field(default_factory=list)
-
-
-class SynthesisDataDetails(BaseModel):
-    """Synthesis data details"""
-
-    method: SynthesisMatch
-    precursors: ListItemsMatch
-    characterization_techniques: ListItemsMatch
-    steps: StepsMatch
-
-
-class SynthesisDataWrapper(BaseModel):
-    """Wrapper for synthesis data - the output from the evaluation task"""
-
-    synthesis_data: SynthesisDataDetails
+# Custom imports
+from ......utils.configs.schema_config import ExtractionSchemaConfig, load_schema_config
+from ......utils.schema_tools import (
+    build_evaluation_model,
+    evaluation_prompt_values,
+    fill_schema_placeholders,
+)
 
 
 @CrewBase
@@ -76,22 +32,42 @@ class SynthesisEvaluationCrew:
     This crew uses binary matching (yes/no) rather than semantic similarity or exact matching.
     """
 
-    def __init__(self, llm: Optional[LLM] = None):
+    def __init__(
+        self,
+        llm: Optional[LLM] = None,
+        schema_config: Optional[ExtractionSchemaConfig] = None,
+    ):
+        """
+        Args:
+            llm: LLM instance for the agent.
+            schema_config: Extraction schema defining the evaluated fields. Defaults to the bundled default schema.
+        """
         self.llm = llm or LLM(model="o3-mini")
+        self.schema_config = schema_config or load_schema_config()
+        fields = self.schema_config.fields("synthesis", final_only=True)
+        self.output_model = build_evaluation_model(fields, "synthesis")
+        self.schema_prompt_values = evaluation_prompt_values(fields, "synthesis")
 
     @agent
     def synthesis_evaluator_agent(self) -> Agent:
         """Agent that evaluates synthesis data with binary decisions."""
         return Agent(
-            config=self.agents_config["synthesis_evaluator_agent"], llm=self.llm
+            config=fill_schema_placeholders(
+                self.agents_config["synthesis_evaluator_agent"],
+                self.schema_prompt_values,
+            ),
+            llm=self.llm,
         )
 
     @task
     def evaluate_synthesis_data_task(self) -> Task:
         """Task for evaluating synthesis data with binary decisions."""
         return Task(
-            config=self.tasks_config["evaluate_synthesis_data_task"],
-            output_pydantic=SynthesisDataWrapper,
+            config=fill_schema_placeholders(
+                self.tasks_config["evaluate_synthesis_data_task"],
+                self.schema_prompt_values,
+            ),
+            output_pydantic=self.output_model,
         )
 
     @crew

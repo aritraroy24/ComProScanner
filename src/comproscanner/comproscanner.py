@@ -987,6 +987,7 @@ class ComProScanner:
             weights=weights,
             llm=llm,
             value_error_thresholds=value_error_thresholds,
+            schema_config_path=self.schema_config_path,
         )
         results = evaluator.kickoff()
         return results

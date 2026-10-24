@@ -16,6 +16,7 @@ from pathlib import Path
 # Custom imports
 from ...utils.configs import CustomDictionary, DefaultPaths
 from ...utils.configs.schema_config import load_schema_config
+from .schema_items import count_record_items, count_value_items, leaf_values
 from ...utils.error_handler import ValueErrorHandler
 
 class MaterialsDataSemanticEvaluator:
@@ -447,17 +448,6 @@ class MaterialsDataSemanticEvaluator:
             tolerance = abs(ref_num) * tolerance
         return abs(ref_num - test_num) <= tolerance
 
-    def _leaf_values(self, fields, value, path=()):
-        """Yield (leaf_field, path, value) for every leaf of a nested value."""
-        for field in fields:
-            sub_value = value.get(field.name) if isinstance(value, dict) else None
-            if field.value_fields and field.is_object:
-                yield from self._leaf_values(
-                    field.value_fields, sub_value, path + (field.name,)
-                )
-            else:
-                yield field, path + (field.name,), sub_value
-
     def _compare_values(self, field, ref_val, test_val):
         """
         Compare two values of a field leaf by leaf.
@@ -493,10 +483,10 @@ class MaterialsDataSemanticEvaluator:
         leaves = {}
         matched_weight = 0.0
         total_weight = 0.0
-        ref_leaves = list(self._leaf_values(field.value_fields, ref_val))
+        ref_leaves = list(leaf_values(field.value_fields, ref_val))
         test_leaves = {
             path: value
-            for _, path, value in self._leaf_values(field.value_fields, test_val)
+            for _, path, value in leaf_values(field.value_fields, test_val)
         }
         for leaf, path, ref_leaf in ref_leaves:
             test_leaf = test_leaves.get(path)
@@ -534,16 +524,6 @@ class MaterialsDataSemanticEvaluator:
             "metrics": metrics,
             "leaves": leaves,
         }
-
-    def _count_value_items(self, field, value):
-        """Number of evaluation items in one value of a field (one per present leaf)."""
-        if not field.value_fields:
-            return 1
-        return sum(
-            1
-            for _, _, leaf_value in self._leaf_values(field.value_fields, value)
-            if leaf_value is not None
-        )
 
     def _evaluate_scalar_field(self, field, ref_value, test_value, weight):
         """Evaluate a single-value field with exact or numeric matching."""
@@ -918,7 +898,7 @@ class MaterialsDataSemanticEvaluator:
                 "details": {"message": f"Reference {field.name} is empty"},
             }
             metrics["false_positives"] += sum(
-                1 + self._count_value_items(field, v) for v in test_values.values()
+                1 + count_value_items(field, v) for v in test_values.values()
             )
             return penalty, details, metrics
 
@@ -928,7 +908,7 @@ class MaterialsDataSemanticEvaluator:
                 "details": {"message": f"Test {field.name} is empty"},
             }
             metrics["false_negatives"] += sum(
-                1 + self._count_value_items(field, v) for v in ref_values.values()
+                1 + count_value_items(field, v) for v in ref_values.values()
             )
             penalty += weight
             return penalty, details, metrics
@@ -1070,7 +1050,7 @@ class MaterialsDataSemanticEvaluator:
         if unmatched_ref_keys:
             # Missing keys - count as false negatives for the key and every value item
             metrics["false_negatives"] += sum(
-                1 + self._count_value_items(field, ref_values[key])
+                1 + count_value_items(field, ref_values[key])
                 for key in unmatched_ref_keys
             )
 
@@ -1095,7 +1075,7 @@ class MaterialsDataSemanticEvaluator:
         if unmatched_test_keys:
             # Extra keys - count as false positives for the key and every value item
             metrics["false_positives"] += sum(
-                1 + self._count_value_items(field, test_values[key])
+                1 + count_value_items(field, test_values[key])
                 for key in unmatched_test_keys
             )
 
@@ -1177,29 +1157,7 @@ class MaterialsDataSemanticEvaluator:
 
     def _count_all_items(self, item):
         """Count all individual items in a data entry"""
-        count = 0
-        for domain in ("composition", "synthesis"):
-            section = item.get(f"{domain}_data", {})
-            if section is None:
-                continue
-            for field in self.schema_config.fields(domain, final_only=True):
-                if field.match_mode == "keyed_values":
-                    # Keys and value items
-                    count += sum(
-                        1 + self._count_value_items(field, value)
-                        for value in (section.get(field.name) or {}).values()
-                    )
-                elif field.match_mode == "item_list":
-                    count += len(section.get(field.name) or [])
-                elif field.match_mode == "joined_text":
-                    if section.get(field.name):
-                        count += 2  # Count as 2 items (presence + content)
-                elif field.match_mode is None:
-                    count += self._count_value_items(field, section.get(field.name))
-                elif field.name in section:
-                    count += 1
-
-        return count
+        return count_record_items(self.schema_config, item)
 
     def evaluate(
         self,

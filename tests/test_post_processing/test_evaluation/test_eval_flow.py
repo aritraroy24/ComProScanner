@@ -1176,3 +1176,152 @@ class TestMaterialsDataAgenticEvaluatorFlow:
         assert len(flow.state.remaining_dois) == 2  # All ground truth DOIs
         assert "10.1000/test1" in flow.state.remaining_dois
         assert "10.1000/test2" in flow.state.remaining_dois
+
+
+BRANCHED_SCHEMA_YAML = """
+version: "1.0"
+composition_fields:
+  - name: compositions_property_values
+    type: "dict[str, object]"
+    weight: 0.8
+    value_fields:
+      - name: d33_data
+        type: object
+        weight: 0.6
+        value_fields:
+          - {name: value, type: "float|int|None", weight: 0.5}
+          - {name: unit, type: str}
+      - name: grain
+        type: object
+        weight: 0.4
+        value_fields:
+          - {name: grain_size, type: "list[float]"}
+  - {name: property_unit, type: str, weight: 0.2, match_mode: exact}
+synthesis_fields:
+  - {name: method, type: str, weight: 0.5}
+  - name: sintering_conditions
+    type: object
+    weight: 0.5
+    value_fields:
+      - {name: temperature, type: "float|None", weight: 0.75}
+      - {name: atmosphere, type: str}
+"""
+
+
+class TestAgenticEvaluationCustomSchema:
+    """Test agentic scoring with a branched custom schema"""
+
+    @pytest.fixture
+    def flow(self, tmp_path):
+        schema_path = tmp_path / "schema.yaml"
+        schema_path.write_text(BRANCHED_SCHEMA_YAML, encoding="utf-8")
+        ground_truth = tmp_path / "ground_truth.json"
+        test_data = tmp_path / "test_data.json"
+        ground_truth.write_text("{}", encoding="utf-8")
+        test_data.write_text("{}", encoding="utf-8")
+        return MaterialsDataAgenticEvaluatorFlow(
+            ground_truth_file=str(ground_truth),
+            test_data_file=str(test_data),
+            extraction_agent_model_name="test",
+            schema_config_path=str(schema_path),
+        )
+
+    @staticmethod
+    def leaf(key, leaf, match, ref="x", test="x"):
+        return {
+            "reference_key": key,
+            "test_key": key,
+            "leaf": leaf,
+            "reference_value": ref,
+            "test_value": test,
+            "match_value": match,
+        }
+
+    def composition_details(self, missing_keys=(), reference=None):
+        value_matches = [
+            self.leaf("BaTiO3", "d33_data.value", 1),
+            self.leaf("BaTiO3", "d33_data.unit", 1),
+            self.leaf("BaTiO3", "grain.grain_size", 1),
+            self.leaf("KNbO3", "d33_data.value", 1),
+            self.leaf("KNbO3", "d33_data.unit", 1),
+            self.leaf("KNbO3", "grain.grain_size", 0, [2.8], [4.0]),
+        ]
+        return {
+            "composition_data": {
+                "compositions_property_values": {
+                    "reference": reference or {},
+                    "test": {},
+                    "key_matches": [
+                        {"reference_key": k, "test_key": k, "match_value": 1}
+                        for k in ("BaTiO3", "KNbO3")
+                    ],
+                    "value_matches": value_matches,
+                    "pair_matches": [],
+                    "total_ground_truth_keys": 2 + len(missing_keys),
+                    "total_match": 1,
+                    "missing_keys": list(missing_keys),
+                    "extra_keys": [],
+                },
+                "property_unit": {"match_value": 1, "reference": "pC/N", "test": "pC/N"},
+            }
+        }
+
+    def test_default_weights_from_schema(self, flow):
+        assert flow.state.weights == pytest.approx(
+            {
+                "compositions_property_values": 0.4,
+                "property_unit": 0.1,
+                "method": 0.25,
+                "sintering_conditions": 0.25,
+            }
+        )
+
+    def test_each_leaf_is_one_item(self, flow):
+        metrics = flow._calculate_tp_fp_fn(self.composition_details(), "composition_data")
+        # 2 keys + 5 matching leaves + property_unit
+        assert metrics == {"true_positives": 8, "false_positives": 1, "false_negatives": 1}
+
+    def test_missing_key_counts_its_leaves(self, flow):
+        details = self.composition_details(
+            missing_keys=["SrTiO3"],
+            reference={"SrTiO3": {"d33_data": {"value": 80, "unit": "pC/N"}}},
+        )
+        metrics = flow._calculate_tp_fp_fn(details, "composition_data")
+        # Missing key plus its 2 present leaves
+        assert metrics["false_negatives"] == 1 + 1 + 2
+
+    def test_score_credits_leaf_fractions(self, flow):
+        # KNbO3 earns its d33_data share (0.6); agent total_match is ignored for nested values
+        score = flow._calculate_score(
+            self.composition_details(), "composition_data", flow.state.weights
+        )
+        assert score == pytest.approx(1.0 - 0.4 * (1 - 1.6 / 2))
+
+    def test_normalized_metrics_share_value_weight_between_leaves(self, flow):
+        metrics = flow._calculate_normalized_metrics(
+            self.composition_details(), "composition_data", flow._normalize_weights()
+        )
+        # Keys 0.2, BaTiO3 value 0.1, KNbO3 d33 leaves 0.06, property_unit 0.1
+        assert metrics["true_positives"] == pytest.approx(0.46)
+        assert metrics["false_negatives"] == pytest.approx(0.02)
+        assert metrics["false_positives"] == pytest.approx(0.02)
+
+    def test_nested_object_field(self, flow):
+        details = {
+            "synthesis_data": {
+                "method": {"match_value": 1, "reference": "sol-gel", "test": "sol-gel"},
+                "sintering_conditions": {
+                    "leaf_matches": [
+                        {"leaf": "temperature", "reference_value": 1200, "test_value": 1200, "match_value": 1},
+                        {"leaf": "atmosphere", "reference_value": "air", "test_value": "O2", "match_value": 0},
+                    ]
+                },
+            }
+        }
+        score = flow._calculate_score(details, "synthesis_data", flow.state.weights)
+        assert score == pytest.approx(1.0 - 0.25 * 0.25)
+        metrics = flow._calculate_tp_fp_fn(details, "synthesis_data")
+        assert metrics == {"true_positives": 2, "false_positives": 1, "false_negatives": 1}
+
+    def test_custom_schema_passed_to_crews(self, flow):
+        assert flow._crew_schema_kwargs == {"schema_config": flow.schema_config}

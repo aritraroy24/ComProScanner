@@ -8,7 +8,7 @@ Date: 20-04-2025
 """
 
 # Standard library imports
-from typing import Dict, Optional, Any, List, Union, Tuple, Type
+from typing import Dict, Optional, List, Tuple, Type
 
 # Third party imports
 from crewai import Agent, Task, Crew, Process
@@ -16,6 +16,14 @@ from crewai.project import CrewBase, agent, crew, task
 from crewai import LLM
 from crewai.tools import BaseTool
 from pydantic import BaseModel, Field
+
+# Custom imports
+from ......utils.configs.schema_config import ExtractionSchemaConfig, load_schema_config
+from ......utils.schema_tools import (
+    build_evaluation_model,
+    evaluation_prompt_values,
+    fill_schema_placeholders,
+)
 
 
 class ThresholdToolInput(BaseModel):
@@ -66,68 +74,6 @@ class GetValueErrorThresholdTool(BaseTool):
         return "exact"
 
 
-class CompositionMatch(BaseModel):
-    """Basic match structure with reference and test values"""
-
-    match_value: int
-    reference: Optional[Any] = None
-    test: Optional[Any] = None
-
-
-class KeyMatch(BaseModel):
-    """Model for key match evaluation"""
-
-    reference_key: str
-    test_key: str
-    match_value: int
-
-
-class ValueMatch(BaseModel):
-    """Model for value match evaluation"""
-
-    reference_key: str
-    test_key: str
-    reference_value: Any
-    test_value: Any
-    match_value: int
-
-
-class PairMatch(BaseModel):
-    """Model for key-value pair match evaluation"""
-
-    reference_pair: Dict[str, Union[int, float]] = Field(default_factory=dict)
-    test_pair: Dict[str, Union[int, float]] = Field(default_factory=dict)
-    match_value: int
-
-
-class CompositionsPropertyValuesMatch(BaseModel):
-    """Model for compositions_property_values match evaluation"""
-
-    reference: Dict[str, Any] = Field(default_factory=dict)
-    test: Dict[str, Any] = Field(default_factory=dict)
-    key_matches: List[KeyMatch] = Field(default_factory=list)
-    value_matches: List[ValueMatch] = Field(default_factory=list)
-    pair_matches: List[PairMatch] = Field(default_factory=list)
-    total_ground_truth_keys: int = 0
-    total_match: int = 0
-    missing_keys: List[str] = Field(default_factory=list)
-    extra_keys: List[str] = Field(default_factory=list)
-
-
-class CompositionDataDetails(BaseModel):
-    """Composition data details"""
-
-    property_unit: CompositionMatch
-    family: CompositionMatch
-    compositions_property_values: CompositionsPropertyValuesMatch
-
-
-class CompositionDataWrapper(BaseModel):
-    """Wrapper for composition data - the output from the evaluation task"""
-
-    composition_data: CompositionDataDetails
-
-
 @CrewBase
 class CompositionEvaluationCrew:
     """
@@ -139,6 +85,7 @@ class CompositionEvaluationCrew:
         self,
         llm: Optional[LLM] = None,
         value_error_thresholds: Optional[Dict] = None,
+        schema_config: Optional[ExtractionSchemaConfig] = None,
     ):
         """
         Args:
@@ -154,8 +101,13 @@ class CompositionEvaluationCrew:
                         (-1000, 1000): 2,
                         (float('-inf'), float('inf')): 5,
                     }
+            schema_config: Extraction schema defining the evaluated fields. Defaults to the bundled default schema.
         """
         self.llm = llm or LLM(model="o3-mini")
+        self.schema_config = schema_config or load_schema_config()
+        fields = self.schema_config.fields("composition", final_only=True)
+        self.output_model = build_evaluation_model(fields, "composition")
+        self.schema_prompt_values = evaluation_prompt_values(fields, "composition")
         # Convert the dict to an internal list of (lo, hi, threshold) triples sorted by
         # span ascending so the narrowest matching range always wins (layered semantics).
         self._thresholds_list: List[Tuple[float, float, float]] = []
@@ -176,7 +128,10 @@ class CompositionEvaluationCrew:
                 GetValueErrorThresholdTool(thresholds_list=self._thresholds_list)
             ]
         return Agent(
-            config=self.agents_config["composition_evaluator_agent"],
+            config=fill_schema_placeholders(
+                self.agents_config["composition_evaluator_agent"],
+                self.schema_prompt_values,
+            ),
             llm=self.llm,
             tools=tools,
         )
@@ -185,8 +140,11 @@ class CompositionEvaluationCrew:
     def evaluate_composition_data_task(self) -> Task:
         """Task for evaluating composition data with binary decisions."""
         return Task(
-            config=self.tasks_config["evaluate_composition_data_task"],
-            output_pydantic=CompositionDataWrapper,
+            config=fill_schema_placeholders(
+                self.tasks_config["evaluate_composition_data_task"],
+                self.schema_prompt_values,
+            ),
+            output_pydantic=self.output_model,
         )
 
     @crew

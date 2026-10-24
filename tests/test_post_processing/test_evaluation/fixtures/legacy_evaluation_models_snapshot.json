@@ -1,0 +1,510 @@
+{
+  "composition_evaluation": {
+    "model_json_schema": {
+      "$defs": {
+        "CompositionDataDetails": {
+          "description": "Composition data details",
+          "properties": {
+            "property_unit": {
+              "$ref": "#/$defs/CompositionMatch"
+            },
+            "family": {
+              "$ref": "#/$defs/CompositionMatch"
+            },
+            "compositions_property_values": {
+              "$ref": "#/$defs/CompositionsPropertyValuesMatch"
+            }
+          },
+          "required": [
+            "property_unit",
+            "family",
+            "compositions_property_values"
+          ],
+          "title": "CompositionDataDetails",
+          "type": "object"
+        },
+        "CompositionMatch": {
+          "description": "Basic match structure with reference and test values",
+          "properties": {
+            "match_value": {
+              "title": "Match Value",
+              "type": "integer"
+            },
+            "reference": {
+              "anyOf": [
+                {},
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Reference"
+            },
+            "test": {
+              "anyOf": [
+                {},
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Test"
+            }
+          },
+          "required": [
+            "match_value"
+          ],
+          "title": "CompositionMatch",
+          "type": "object"
+        },
+        "CompositionsPropertyValuesMatch": {
+          "description": "Model for compositions_property_values match evaluation",
+          "properties": {
+            "reference": {
+              "additionalProperties": true,
+              "title": "Reference",
+              "type": "object"
+            },
+            "test": {
+              "additionalProperties": true,
+              "title": "Test",
+              "type": "object"
+            },
+            "key_matches": {
+              "items": {
+                "$ref": "#/$defs/KeyMatch"
+              },
+              "title": "Key Matches",
+              "type": "array"
+            },
+            "value_matches": {
+              "items": {
+                "$ref": "#/$defs/ValueMatch"
+              },
+              "title": "Value Matches",
+              "type": "array"
+            },
+            "pair_matches": {
+              "items": {
+                "$ref": "#/$defs/PairMatch"
+              },
+              "title": "Pair Matches",
+              "type": "array"
+            },
+            "total_ground_truth_keys": {
+              "default": 0,
+              "title": "Total Ground Truth Keys",
+              "type": "integer"
+            },
+            "total_match": {
+              "default": 0,
+              "title": "Total Match",
+              "type": "integer"
+            },
+            "missing_keys": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Missing Keys",
+              "type": "array"
+            },
+            "extra_keys": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Extra Keys",
+              "type": "array"
+            }
+          },
+          "title": "CompositionsPropertyValuesMatch",
+          "type": "object"
+        },
+        "KeyMatch": {
+          "description": "Model for key match evaluation",
+          "properties": {
+            "reference_key": {
+              "title": "Reference Key",
+              "type": "string"
+            },
+            "test_key": {
+              "title": "Test Key",
+              "type": "string"
+            },
+            "match_value": {
+              "title": "Match Value",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "reference_key",
+            "test_key",
+            "match_value"
+          ],
+          "title": "KeyMatch",
+          "type": "object"
+        },
+        "PairMatch": {
+          "description": "Model for key-value pair match evaluation",
+          "properties": {
+            "reference_pair": {
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ]
+              },
+              "title": "Reference Pair",
+              "type": "object"
+            },
+            "test_pair": {
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ]
+              },
+              "title": "Test Pair",
+              "type": "object"
+            },
+            "match_value": {
+              "title": "Match Value",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "match_value"
+          ],
+          "title": "PairMatch",
+          "type": "object"
+        },
+        "ValueMatch": {
+          "description": "Model for value match evaluation",
+          "properties": {
+            "reference_key": {
+              "title": "Reference Key",
+              "type": "string"
+            },
+            "test_key": {
+              "title": "Test Key",
+              "type": "string"
+            },
+            "reference_value": {
+              "title": "Reference Value"
+            },
+            "test_value": {
+              "title": "Test Value"
+            },
+            "match_value": {
+              "title": "Match Value",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "reference_key",
+            "test_key",
+            "reference_value",
+            "test_value",
+            "match_value"
+          ],
+          "title": "ValueMatch",
+          "type": "object"
+        }
+      },
+      "description": "Wrapper for composition data - the output from the evaluation task",
+      "properties": {
+        "composition_data": {
+          "$ref": "#/$defs/CompositionDataDetails"
+        }
+      },
+      "required": [
+        "composition_data"
+      ],
+      "title": "CompositionDataWrapper",
+      "type": "object"
+    },
+    "model_description": "{\n  \"composition_data\": {\n  \"property_unit\": {\n  \"match_value\": int,\n  \"reference\": Optional[Any],\n  \"test\": Optional[Any]\n},\n  \"family\": {\n  \"match_value\": int,\n  \"reference\": Optional[Any],\n  \"test\": Optional[Any]\n},\n  \"compositions_property_values\": {\n  \"reference\": Dict[str, Any],\n  \"test\": Dict[str, Any],\n  \"key_matches\": List[{\n  \"reference_key\": str,\n  \"test_key\": str,\n  \"match_value\": int\n}],\n  \"value_matches\": List[{\n  \"reference_key\": str,\n  \"test_key\": str,\n  \"reference_value\": Any,\n  \"test_value\": Any,\n  \"match_value\": int\n}],\n  \"pair_matches\": List[{\n  \"reference_pair\": Dict[str, Optional[Union[int, float]]],\n  \"test_pair\": Dict[str, Optional[Union[int, float]]],\n  \"match_value\": int\n}],\n  \"total_ground_truth_keys\": int,\n  \"total_match\": int,\n  \"missing_keys\": List[str],\n  \"extra_keys\": List[str]\n}\n}\n}",
+    "schema_parser": "{\n    composition_data: CompositionDataDetails\n    {\n        property_unit: CompositionMatch\n        {\n            match_value: int,\n            reference: Optional[Any],\n            test: Optional[Any]\n        },\n        family: CompositionMatch\n        {\n            match_value: int,\n            reference: Optional[Any],\n            test: Optional[Any]\n        },\n        compositions_property_values: CompositionsPropertyValuesMatch\n        {\n            reference: Dict[str, Any],\n            test: Dict[str, Any],\n            key_matches: List[\n            {\n                    reference_key: str,\n                    test_key: str,\n                    match_value: int\n            }\n            ],\n            value_matches: List[\n            {\n                    reference_key: str,\n                    test_key: str,\n                    reference_value: Any,\n                    test_value: Any,\n                    match_value: int\n            }\n            ],\n            pair_matches: List[\n            {\n                    reference_pair: Dict[str, Union],\n                    test_pair: Dict[str, Union],\n                    match_value: int\n            }\n            ],\n            total_ground_truth_keys: int,\n            total_match: int,\n            missing_keys: List[str],\n            extra_keys: List[str]\n        }\n    }\n}",
+    "annotations": {
+      "composition_data": {
+        "property_unit": {
+          "match_value": "<class 'int'>",
+          "reference": "typing.Optional[typing.Any]",
+          "test": "typing.Optional[typing.Any]"
+        },
+        "family": {
+          "match_value": "<class 'int'>",
+          "reference": "typing.Optional[typing.Any]",
+          "test": "typing.Optional[typing.Any]"
+        },
+        "compositions_property_values": {
+          "reference": "typing.Dict[str, typing.Any]",
+          "test": "typing.Dict[str, typing.Any]",
+          "key_matches": {
+            "annotation": "typing.List[comproscanner.post_processing.evaluation.eval_flow.crews.composition_evaluation_crew.composition_evaluation_crew.KeyMatch]",
+            "items": {
+              "reference_key": "<class 'str'>",
+              "test_key": "<class 'str'>",
+              "match_value": "<class 'int'>"
+            }
+          },
+          "value_matches": {
+            "annotation": "typing.List[comproscanner.post_processing.evaluation.eval_flow.crews.composition_evaluation_crew.composition_evaluation_crew.ValueMatch]",
+            "items": {
+              "reference_key": "<class 'str'>",
+              "test_key": "<class 'str'>",
+              "reference_value": "typing.Any",
+              "test_value": "typing.Any",
+              "match_value": "<class 'int'>"
+            }
+          },
+          "pair_matches": {
+            "annotation": "typing.List[comproscanner.post_processing.evaluation.eval_flow.crews.composition_evaluation_crew.composition_evaluation_crew.PairMatch]",
+            "items": {
+              "reference_pair": "typing.Dict[str, typing.Union[int, float]]",
+              "test_pair": "typing.Dict[str, typing.Union[int, float]]",
+              "match_value": "<class 'int'>"
+            }
+          },
+          "total_ground_truth_keys": "<class 'int'>",
+          "total_match": "<class 'int'>",
+          "missing_keys": "typing.List[str]",
+          "extra_keys": "typing.List[str]"
+        }
+      }
+    }
+  },
+  "synthesis_evaluation": {
+    "model_json_schema": {
+      "$defs": {
+        "ItemMatch": {
+          "description": "Model for individual item match evaluation",
+          "properties": {
+            "reference_item": {
+              "title": "Reference Item",
+              "type": "string"
+            },
+            "test_item": {
+              "title": "Test Item",
+              "type": "string"
+            },
+            "match_value": {
+              "title": "Match Value",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "reference_item",
+            "test_item",
+            "match_value"
+          ],
+          "title": "ItemMatch",
+          "type": "object"
+        },
+        "ListItemsMatch": {
+          "description": "Model for list items match evaluation (precursors, characterization_techniques)",
+          "properties": {
+            "reference": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Reference",
+              "type": "array"
+            },
+            "test": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Test",
+              "type": "array"
+            },
+            "matches": {
+              "items": {
+                "$ref": "#/$defs/ItemMatch"
+              },
+              "title": "Matches",
+              "type": "array"
+            },
+            "total_ground_truth_items": {
+              "default": 0,
+              "title": "Total Ground Truth Items",
+              "type": "integer"
+            },
+            "total_match": {
+              "default": 0,
+              "title": "Total Match",
+              "type": "integer"
+            },
+            "missing_items": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Missing Items",
+              "type": "array"
+            },
+            "extra_items": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Extra Items",
+              "type": "array"
+            }
+          },
+          "title": "ListItemsMatch",
+          "type": "object"
+        },
+        "StepsMatch": {
+          "description": "Model for synthesis steps match evaluation",
+          "properties": {
+            "match_value": {
+              "default": 0.0,
+              "title": "Match Value",
+              "type": "number"
+            },
+            "reference_steps": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Reference Steps",
+              "type": "array"
+            },
+            "test_steps": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Test Steps",
+              "type": "array"
+            }
+          },
+          "title": "StepsMatch",
+          "type": "object"
+        },
+        "SynthesisDataDetails": {
+          "description": "Synthesis data details",
+          "properties": {
+            "method": {
+              "$ref": "#/$defs/SynthesisMatch"
+            },
+            "precursors": {
+              "$ref": "#/$defs/ListItemsMatch"
+            },
+            "characterization_techniques": {
+              "$ref": "#/$defs/ListItemsMatch"
+            },
+            "steps": {
+              "$ref": "#/$defs/StepsMatch"
+            }
+          },
+          "required": [
+            "method",
+            "precursors",
+            "characterization_techniques",
+            "steps"
+          ],
+          "title": "SynthesisDataDetails",
+          "type": "object"
+        },
+        "SynthesisMatch": {
+          "description": "Basic match structure with reference and test values",
+          "properties": {
+            "match_value": {
+              "title": "Match Value",
+              "type": "integer"
+            },
+            "reference": {
+              "anyOf": [
+                {},
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Reference"
+            },
+            "test": {
+              "anyOf": [
+                {},
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Test"
+            }
+          },
+          "required": [
+            "match_value"
+          ],
+          "title": "SynthesisMatch",
+          "type": "object"
+        }
+      },
+      "description": "Wrapper for synthesis data - the output from the evaluation task",
+      "properties": {
+        "synthesis_data": {
+          "$ref": "#/$defs/SynthesisDataDetails"
+        }
+      },
+      "required": [
+        "synthesis_data"
+      ],
+      "title": "SynthesisDataWrapper",
+      "type": "object"
+    },
+    "model_description": "{\n  \"synthesis_data\": {\n  \"method\": {\n  \"match_value\": int,\n  \"reference\": Optional[Any],\n  \"test\": Optional[Any]\n},\n  \"precursors\": {\n  \"reference\": List[str],\n  \"test\": List[str],\n  \"matches\": List[{\n  \"reference_item\": str,\n  \"test_item\": str,\n  \"match_value\": int\n}],\n  \"total_ground_truth_items\": int,\n  \"total_match\": int,\n  \"missing_items\": List[str],\n  \"extra_items\": List[str]\n},\n  \"characterization_techniques\": {\n  \"reference\": List[str],\n  \"test\": List[str],\n  \"matches\": List[{\n  \"reference_item\": str,\n  \"test_item\": str,\n  \"match_value\": int\n}],\n  \"total_ground_truth_items\": int,\n  \"total_match\": int,\n  \"missing_items\": List[str],\n  \"extra_items\": List[str]\n},\n  \"steps\": {\n  \"match_value\": float,\n  \"reference_steps\": List[str],\n  \"test_steps\": List[str]\n}\n}\n}",
+    "schema_parser": "{\n    synthesis_data: SynthesisDataDetails\n    {\n        method: SynthesisMatch\n        {\n            match_value: int,\n            reference: Optional[Any],\n            test: Optional[Any]\n        },\n        precursors: ListItemsMatch\n        {\n            reference: List[str],\n            test: List[str],\n            matches: List[\n            {\n                    reference_item: str,\n                    test_item: str,\n                    match_value: int\n            }\n            ],\n            total_ground_truth_items: int,\n            total_match: int,\n            missing_items: List[str],\n            extra_items: List[str]\n        },\n        characterization_techniques: ListItemsMatch\n        {\n            reference: List[str],\n            test: List[str],\n            matches: List[\n            {\n                    reference_item: str,\n                    test_item: str,\n                    match_value: int\n            }\n            ],\n            total_ground_truth_items: int,\n            total_match: int,\n            missing_items: List[str],\n            extra_items: List[str]\n        },\n        steps: StepsMatch\n        {\n            match_value: float,\n            reference_steps: List[str],\n            test_steps: List[str]\n        }\n    }\n}",
+    "annotations": {
+      "synthesis_data": {
+        "method": {
+          "match_value": "<class 'int'>",
+          "reference": "typing.Optional[typing.Any]",
+          "test": "typing.Optional[typing.Any]"
+        },
+        "precursors": {
+          "reference": "typing.List[str]",
+          "test": "typing.List[str]",
+          "matches": {
+            "annotation": "typing.List[comproscanner.post_processing.evaluation.eval_flow.crews.synthesis_evaluation_crew.synthesis_evaluation_crew.ItemMatch]",
+            "items": {
+              "reference_item": "<class 'str'>",
+              "test_item": "<class 'str'>",
+              "match_value": "<class 'int'>"
+            }
+          },
+          "total_ground_truth_items": "<class 'int'>",
+          "total_match": "<class 'int'>",
+          "missing_items": "typing.List[str]",
+          "extra_items": "typing.List[str]"
+        },
+        "characterization_techniques": {
+          "reference": "typing.List[str]",
+          "test": "typing.List[str]",
+          "matches": {
+            "annotation": "typing.List[comproscanner.post_processing.evaluation.eval_flow.crews.synthesis_evaluation_crew.synthesis_evaluation_crew.ItemMatch]",
+            "items": {
+              "reference_item": "<class 'str'>",
+              "test_item": "<class 'str'>",
+              "match_value": "<class 'int'>"
+            }
+          },
+          "total_ground_truth_items": "<class 'int'>",
+          "total_match": "<class 'int'>",
+          "missing_items": "typing.List[str]",
+          "extra_items": "typing.List[str]"
+        },
+        "steps": {
+          "match_value": "<class 'float'>",
+          "reference_steps": "typing.List[str]",
+          "test_steps": "typing.List[str]"
+        }
+      }
+    }
+  }
+}
