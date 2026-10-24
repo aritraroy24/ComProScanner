@@ -9,7 +9,10 @@ Date: 20-07-2025
 
 import json
 import os
+import subprocess
+import sys
 import tempfile
+from pathlib import Path
 import pytest
 from unittest.mock import Mock, patch, MagicMock
 from comproscanner.post_processing.evaluation.semantic_evaluator import (
@@ -805,3 +808,118 @@ class TestNumericTolerance:
             similarity_threshold_mode=mode,
         )
         assert evaluator._is_within_tolerance(field, ref, test) is expected
+
+
+class TestSwapCorrection:
+    """Test re-pairing of similar compositions whose values got interchanged"""
+
+    @pytest.fixture
+    def evaluator(self):
+        return MaterialsDataSemanticEvaluator(use_semantic_model=False)
+
+    @staticmethod
+    def similarities(table):
+        """Text similarity stub from a {(ref_key, test_key): similarity} table"""
+        return lambda a, b: table.get((a, b), table.get((b, a), 0.0))
+
+    def evaluate(self, evaluator, ref_values, test_values, table):
+        with patch.object(
+            evaluator, "_calculate_text_similarity", side_effect=self.similarities(table)
+        ):
+            _, details, metrics, _ = evaluator._evaluate_composition_data(
+                {"compositions_property_values": ref_values},
+                {"compositions_property_values": test_values},
+            )
+        return details["compositions_property_values"]["details"], metrics
+
+    def test_two_interchanged_pairs_are_swapped(self, evaluator):
+        # Semantic matching alone pairs c1-t1 and c2-t2, whose values are interchanged
+        table = {("c1", "t1"): 0.98, ("c1", "t2"): 0.95, ("c2", "t1"): 0.95, ("c2", "t2"): 0.98}
+        details, metrics = self.evaluate(
+            evaluator, {"c1": 10, "c2": 20}, {"t1": 20, "t2": 10}, table
+        )
+        assert details["key_matches"]["c1"]["matched_with"] == "t2"
+        assert details["key_matches"]["c2"]["matched_with"] == "t1"
+        assert {m["match_type"] for m in details["key_matches"].values()} == {"swap_corrected"}
+        assert details["value_matches"] == {"c1": True, "c2": True}
+        assert metrics == {"true_positives": 4, "false_positives": 0, "false_negatives": 0}
+
+    def test_three_way_rotation_is_corrected(self, evaluator):
+        keys = ["c1", "c2", "c3"]
+        tests = ["t1", "t2", "t3"]
+        table = {(c, t): (0.99 if c[1] == t[1] else 0.93) for c in keys for t in tests}
+        details, _ = self.evaluate(
+            evaluator,
+            {"c1": 10, "c2": 20, "c3": 30},
+            {"t1": 30, "t2": 10, "t3": 20},
+            table,
+        )
+        assert {k: m["matched_with"] for k, m in details["key_matches"].items()} == {
+            "c1": "t2",
+            "c2": "t3",
+            "c3": "t1",
+        }
+        assert all(details["value_matches"].values())
+
+    def test_correction_never_loses_a_key_match(self, evaluator):
+        # c1-t1 agree on value, but taking t1 would leave c2 without any partner above 0.9
+        table = {("c1", "t1"): 0.95, ("c1", "t2"): 0.97, ("c2", "t1"): 0.96}
+        details, _ = self.evaluate(
+            evaluator, {"c1": 10, "c2": 20}, {"t1": 10, "t2": 30}, table
+        )
+        assert details["key_matches"]["c1"]["matched_with"] == "t2"
+        assert details["key_matches"]["c2"]["matched_with"] == "t1"
+        assert details["missing_keys"] == []
+
+    def test_correct_pairs_are_kept(self, evaluator):
+        table = {("c1", "t1"): 0.98, ("c1", "t2"): 0.95, ("c2", "t1"): 0.95, ("c2", "t2"): 0.98}
+        details, _ = self.evaluate(
+            evaluator, {"c1": 10, "c2": 20}, {"t1": 10, "t2": 20}, table
+        )
+        assert {m["match_type"] for m in details["key_matches"].values()} == {
+            "high_similarity"
+        }
+        assert details["key_matches"]["c1"]["matched_with"] == "t1"
+
+    def test_results_do_not_depend_on_hash_seed(self, tmp_path):
+        ground_truth = {
+            "10.1/a": {
+                "composition_data": {
+                    "compositions_property_values": {
+                        f"(Ba0.95Ca0.05)(Ti0.89Sn0.11)O3 + 0.{i}%BiFeO3": 100 + i
+                        for i in range(1, 6)
+                    }
+                }
+            }
+        }
+        test_data = {
+            "10.1/a": {
+                "composition_data": {
+                    "compositions_property_values": {
+                        f"(Ba0.95Ca0.05)(Ti0.89Sn0.11)O3+0.{i}% BiFeO3": 100 + (i % 5) + 1
+                        for i in range(1, 6)
+                    }
+                }
+            }
+        }
+        (tmp_path / "gt.json").write_text(json.dumps(ground_truth), encoding="utf-8")
+        (tmp_path / "test.json").write_text(json.dumps(test_data), encoding="utf-8")
+        runner = (
+            "import json, sys\n"
+            "from comproscanner.post_processing.evaluation.semantic_evaluator import MaterialsDataSemanticEvaluator\n"
+            "r = MaterialsDataSemanticEvaluator(use_semantic_model=False).evaluate("
+            "ground_truth_file=sys.argv[1], test_data_file=sys.argv[2], "
+            "extraction_agent_model_name='x', output_file=sys.argv[3])\n"
+        )
+        src_dir = Path(__file__).resolve().parents[3] / "src"
+        outputs = []
+        for seed in ("1", "2"):
+            out = tmp_path / f"out_{seed}.json"
+            subprocess.run(
+                [sys.executable, "-c", runner, str(tmp_path / "gt.json"), str(tmp_path / "test.json"), str(out)],
+                env={**os.environ, "PYTHONHASHSEED": seed, "PYTHONPATH": str(src_dir)},
+                check=True,
+                capture_output=True,
+            )
+            outputs.append(out.read_text(encoding="utf-8"))
+        assert outputs[0] == outputs[1]

@@ -13,6 +13,10 @@ import string
 from difflib import SequenceMatcher
 from pathlib import Path
 
+# Third party imports
+import numpy as np
+from scipy.optimize import linear_sum_assignment
+
 # Custom imports
 from ...utils.configs import CustomDictionary, DefaultPaths
 from ...utils.configs.schema_config import load_schema_config
@@ -877,6 +881,70 @@ class MaterialsDataSemanticEvaluator:
         penalty = weight * (1 - comparison["match_fraction"])
         return penalty, details, comparison["metrics"]
 
+    def _correct_swapped_pairs(
+        self,
+        field,
+        ref_keys,
+        test_keys,
+        ref_values,
+        test_values,
+        similarity_matrix,
+        key_threshold,
+        proposed,
+    ):
+        """
+        Re-pair similar keys whose values got interchanged, without losing any key match.
+
+        Args:
+            field (SchemaField): Keyed field being compared
+            ref_keys (list): Remaining reference keys (sorted)
+            test_keys (list): Remaining test keys (sorted)
+            ref_values (dict): Reference values by key
+            test_values (dict): Test values by key
+            similarity_matrix (list): Key similarities, ref_keys x test_keys
+            key_threshold (float): Minimum similarity for a key match
+            proposed (dict): Semantic matching result, ref index -> test index
+
+        Returns:
+            dict: ref index -> (test index, value comparison)
+        """
+        final_pairs = {}
+        pool_refs, pool_tests = [], []
+        for i in range(len(ref_keys)):
+            j = proposed.get(i)
+            if j is not None:
+                comparison = self._compare_values(field, ref_values[ref_keys[i]], test_values[test_keys[j]])
+                if comparison["match"]:
+                    final_pairs[i] = (j, comparison)
+                    continue
+            pool_refs.append(i)
+        kept_tests = {j for j, _ in final_pairs.values()}
+        pool_tests = [j for j in range(len(test_keys)) if j not in kept_tests]
+        if not pool_refs or not pool_tests:
+            return final_pairs
+
+        # Lexicographic weights: matched key >> matching value >> similarity
+        size = max(len(pool_refs), len(pool_tests))
+        value_weight = size + 1.0
+        key_weight = value_weight * (size + 1.0) + size + 1.0
+        comparisons = {}
+        weights = np.zeros((len(pool_refs), len(pool_tests)))
+        for a, i in enumerate(pool_refs):
+            for b, j in enumerate(pool_tests):
+                similarity = similarity_matrix[i][j]
+                if similarity <= key_threshold:
+                    continue
+                comparison = self._compare_values(field, ref_values[ref_keys[i]], test_values[test_keys[j]])
+                comparisons[(i, j)] = comparison
+                weights[a, b] = key_weight + value_weight * comparison["match_fraction"] + similarity
+
+        rows, cols = linear_sum_assignment(weights, maximize=True)
+        for a, b in zip(rows, cols):
+            i, j = pool_refs[a], pool_tests[b]
+            if (i, j) in comparisons:
+                final_pairs[i] = (j, comparisons[(i, j)])
+        return final_pairs
+
     def _evaluate_keyed_values_field(self, field, ref_values, test_values, weight):
         """Evaluate a composition-keyed field: match keys semantically, then compare values leaf by leaf."""
         metrics = self._new_metrics()
@@ -934,7 +1002,7 @@ class MaterialsDataSemanticEvaluator:
                 metrics[metric] += comparison["metrics"][metric]
 
         # Process exact matches
-        for key in common_keys:
+        for key in sorted(common_keys):
             # The key exists in both sets - count as true positive for key
             metrics["true_positives"] += 1
 
@@ -966,10 +1034,10 @@ class MaterialsDataSemanticEvaluator:
                 }
             )
 
-        # Step 2: Apply similarity matching for remaining keys
-        # Convert remaining keys to lists for indexing
-        remaining_ref_keys_list = list(remaining_ref_keys)
-        remaining_test_keys_list = list(remaining_test_keys)
+        # Step 2: Match remaining keys by similarity, then correct interchanged values
+        # Sorted so the matching doesn't depend on set iteration order
+        remaining_ref_keys_list = sorted(remaining_ref_keys)
+        remaining_test_keys_list = sorted(remaining_test_keys)
 
         # Calculate similarity matrix between remaining ref keys and test keys
         similarity_matrix = []
@@ -984,17 +1052,52 @@ class MaterialsDataSemanticEvaluator:
         matched_ref_idxs = set()
         matched_test_idxs = set()
 
-        # Find high similarity matches (similarity > key threshold)
-        for i, ref_key in enumerate(remaining_ref_keys_list):
-            if i in matched_ref_idxs:
-                continue  # Skip already matched reference keys
+        def _record_fuzzy_match(i, j, similarity, comparison, match_type):
+            ref_key = remaining_ref_keys_list[i]
+            test_key = remaining_test_keys_list[j]
+            matched_ref_idxs.add(i)
+            matched_test_idxs.add(j)
 
+            # Store match information
+            key_matches[ref_key] = {
+                "matched_with": test_key,
+                "similarity": similarity,
+                "match_type": match_type,
+            }
+
+            # For high similarity matches, give partial credit for the key
+            metrics["true_positives"] += 1
+
+            _add_value_metrics(comparison)
+            value_matches[ref_key] = comparison["match"]
+            value_fractions[ref_key] = comparison["match_fraction"]
+            if comparison["leaves"] is not None:
+                leaf_matches[ref_key] = comparison["leaves"]
+
+            pair_matches.append(
+                {
+                    "match": False,  # Not a true match because key isn't exact
+                    "reference": {ref_key: ref_values[ref_key]},
+                    "test": {test_key: test_values[test_key]},
+                    "similarity": similarity,
+                    "match_type": (
+                        "high_similarity_same_value"
+                        if comparison["match"]
+                        else "high_similarity_different_value"
+                    ),
+                }
+            )
+
+        # Step 2a: Semantic matching of the remaining keys (similarity > key threshold)
+        proposed = {}
+        taken_test_idxs = set()
+        for i, ref_key in enumerate(remaining_ref_keys_list):
             best_match_idx = -1
             best_similarity = key_threshold
 
             # Find best match for this reference key
             for j, test_key in enumerate(remaining_test_keys_list):
-                if j in matched_test_idxs:
+                if j in taken_test_idxs:
                     continue  # Skip already matched test keys
 
                 if similarity_matrix[i][j] > best_similarity:
@@ -1003,42 +1106,23 @@ class MaterialsDataSemanticEvaluator:
 
             # If a high similarity match is found
             if best_match_idx >= 0:
-                test_key = remaining_test_keys_list[best_match_idx]
-                matched_ref_idxs.add(i)
-                matched_test_idxs.add(best_match_idx)
+                proposed[i] = best_match_idx
+                taken_test_idxs.add(best_match_idx)
 
-                # Store match information
-                key_matches[ref_key] = {
-                    "matched_with": test_key,
-                    "similarity": best_similarity,
-                    "match_type": "high_similarity",
-                }
-
-                # For high similarity matches, give partial credit for the key
-                metrics["true_positives"] += 1
-
-                ref_val = ref_values[ref_key]
-                test_val = test_values[test_key]
-                comparison = self._compare_values(field, ref_val, test_val)
-                _add_value_metrics(comparison)
-                value_matches[ref_key] = comparison["match"]
-                value_fractions[ref_key] = comparison["match_fraction"]
-                if comparison["leaves"] is not None:
-                    leaf_matches[ref_key] = comparison["leaves"]
-
-                pair_matches.append(
-                    {
-                        "match": False,  # Not a true match because key isn't exact
-                        "reference": {ref_key: ref_val},
-                        "test": {test_key: test_val},
-                        "similarity": best_similarity,
-                        "match_type": (
-                            "high_similarity_same_value"
-                            if comparison["match"]
-                            else "high_similarity_different_value"
-                        ),
-                    }
-                )
+        # Step 2b: Swap correction for compositions whose values got interchanged
+        final_pairs = self._correct_swapped_pairs(
+            field,
+            remaining_ref_keys_list,
+            remaining_test_keys_list,
+            ref_values,
+            test_values,
+            similarity_matrix,
+            key_threshold,
+            proposed,
+        )
+        for i, (j, comparison) in sorted(final_pairs.items()):
+            match_type = "high_similarity" if proposed.get(i) == j else "swap_corrected"
+            _record_fuzzy_match(i, j, similarity_matrix[i][j], comparison, match_type)
 
         # Process unmatched reference keys (truly missing keys)
         unmatched_ref_keys = [
@@ -1248,8 +1332,8 @@ class MaterialsDataSemanticEvaluator:
         total_composition_score = 0.0
         total_synthesis_score = 0.0
 
-        # Process all DOIs
-        for doi in all_dois:
+        # Process all DOIs in a fixed order
+        for doi in sorted(all_dois):
             # Initialize DOI-specific metrics
             item_results = {
                 "field_scores": {},

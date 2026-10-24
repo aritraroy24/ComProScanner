@@ -1822,16 +1822,6 @@
     },
     "details": {
      "composition_data": {
-      "property_unit": {
-       "match": true,
-       "reference": "pC/N",
-       "test": "pC/N"
-      },
-      "family": {
-       "match": true,
-       "reference": "BaTiO3",
-       "test": "BaTiO3"
-      },
       "compositions_property_values": {
        "match": false,
        "similarity_score": 0.55,
@@ -1842,13 +1832,13 @@
           "similarity": 1.0,
           "match_type": "exact"
          },
-         "(Ba0.95Ca0.05)(Ti0.89Sn0.11)O3 + 0.5%BiFeO3": {
-          "matched_with": "(Ba0.95Ca0.05)(Ti0.89Sn0.11)O3 - (0.5)BiFeO3",
+         "(Ba0.95Ca0.05)(Ti0.89Sn0.11)O3 + 0.1%BiFeO3": {
+          "matched_with": "(Ba0.95Ca0.05)(Ti0.89Sn0.11)O3 - (0.1)BiFeO3",
           "similarity": 1.0,
           "match_type": "high_similarity"
          },
-         "(Ba0.95Ca0.05)(Ti0.89Sn0.11)O3 + 0.1%BiFeO3": {
-          "matched_with": "(Ba0.95Ca0.05)(Ti0.89Sn0.11)O3 - (0.1)BiFeO3",
+         "(Ba0.95Ca0.05)(Ti0.89Sn0.11)O3 + 0.5%BiFeO3": {
+          "matched_with": "(Ba0.95Ca0.05)(Ti0.89Sn0.11)O3 - (0.5)BiFeO3",
           "similarity": 1.0,
           "match_type": "high_similarity"
          },
@@ -1860,8 +1850,8 @@
         },
         "value_matches": {
          "(Ba0.95Ca0.05)(Ti0.89Sn0.11)O3": true,
-         "(Ba0.95Ca0.05)(Ti0.89Sn0.11)O3 + 0.5%BiFeO3": true,
          "(Ba0.95Ca0.05)(Ti0.89Sn0.11)O3 + 0.1%BiFeO3": true,
+         "(Ba0.95Ca0.05)(Ti0.89Sn0.11)O3 + 0.5%BiFeO3": true,
          "(Ba0.95Ca0.05)(Ti0.89Sn0.11)O3 + 0.9%BiFeO3": true
         },
         "pair_matches": [
@@ -1879,10 +1869,10 @@
          {
           "match": false,
           "reference": {
-           "(Ba0.95Ca0.05)(Ti0.89Sn0.11)O3 + 0.5%BiFeO3": 20
+           "(Ba0.95Ca0.05)(Ti0.89Sn0.11)O3 + 0.1%BiFeO3": 188
           },
           "test": {
-           "(Ba0.95Ca0.05)(Ti0.89Sn0.11)O3 - (0.5)BiFeO3": 20
+           "(Ba0.95Ca0.05)(Ti0.89Sn0.11)O3 - (0.1)BiFeO3": 188
           },
           "similarity": 1.0,
           "match_type": "high_similarity_same_value"
@@ -1890,10 +1880,10 @@
          {
           "match": false,
           "reference": {
-           "(Ba0.95Ca0.05)(Ti0.89Sn0.11)O3 + 0.1%BiFeO3": 188
+           "(Ba0.95Ca0.05)(Ti0.89Sn0.11)O3 + 0.5%BiFeO3": 20
           },
           "test": {
-           "(Ba0.95Ca0.05)(Ti0.89Sn0.11)O3 - (0.1)BiFeO3": 188
+           "(Ba0.95Ca0.05)(Ti0.89Sn0.11)O3 - (0.5)BiFeO3": 20
           },
           "similarity": 1.0,
           "match_type": "high_similarity_same_value"
@@ -1922,6 +1912,16 @@
         "fractional_value": 0.25,
         "total_reference_items": 4
        }
+      },
+      "property_unit": {
+       "match": true,
+       "reference": "pC/N",
+       "test": "pC/N"
+      },
+      "family": {
+       "match": true,
+       "reference": "BaTiO3",
+       "test": "BaTiO3"
       }
      },
      "synthesis_data": {
@@ -1986,6 +1986,38 @@
        "missing_items": [],
        "extra_items": [],
        "fractional_value": 0.16666666666666666
+      },
+      "steps": {
+       "reference_steps": [
+        "Raw materials were accurately weighed according to composition (1-x)(Ba0.95Ca0.05)(Ti0.89Sn0.11)O3-xBiFeO3 and milled with ethanol for 16 h.",
+        "After drying at 100°C, powders were calcined at 1150°C for 3 h.",
+        "Calcined powders were re-milled with ethanol for 16 h.",
+        "Powders were pressed into disks of 9 mm diameter using 3% PVA solution as binder.",
+        "Green bodies were fired at 600°C for 2 h and then sintered at 1400°C for 3 h.",
+        "Sintered ceramics were polished and coated with silver paste on top and bottom surfaces.",
+        "Silver-coated ceramics were fired at 800°C for 30 min to obtain electrodes.",
+        "Coated ceramics were poled at 50 kV/cm DC field for 30 min at room temperature in silicone oil bath."
+       ],
+       "test_steps": [
+        "Weighed raw materials according to composition (1-x)(Ba0.95Ca0.05)(Ti0.89Sn0.11)O3-xBiFeO3 (x = 0, 0.1, 0.5, 0.9 mol%)",
+        "Milled with ethanol for 16 h",
+        "Dried at 100 °C",
+        "Calcined at 1150 °C for 3 h",
+        "Re-milled with ethanol for 16 h",
+        "Pressed into disks of 9 mm diameter using 3% PVA solution as binder",
+        "Fired at 600 °C for 2 h",
+        "Sintered at 1400 °C for 3 h",
+        "Polished and coated with silver paste on surfaces",
+        "Fired at 800 °C for 30 min to obtain electrode",
+        "Poled at 50 kV/cm DC field for 30 min at room temperature in silicone oil bath"
+       ],
+       "paragraph_similarity": 0.339662447257384,
+       "steps_match": false,
+       "paragraph_comparison": {
+        "similarity_score": 0.339662447257384,
+        "high_similarity": false,
+        "method": "sequence_matcher"
+       }
       },
       "characterization_techniques": {
        "match": true,
@@ -2078,38 +2110,6 @@
         "Charging and discharging platform"
        ],
        "fractional_value": 0.09090909090909091
-      },
-      "steps": {
-       "reference_steps": [
-        "Raw materials were accurately weighed according to composition (1-x)(Ba0.95Ca0.05)(Ti0.89Sn0.11)O3-xBiFeO3 and milled with ethanol for 16 h.",
-        "After drying at 100°C, powders were calcined at 1150°C for 3 h.",
-        "Calcined powders were re-milled with ethanol for 16 h.",
-        "Powders were pressed into disks of 9 mm diameter using 3% PVA solution as binder.",
-        "Green bodies were fired at 600°C for 2 h and then sintered at 1400°C for 3 h.",
-        "Sintered ceramics were polished and coated with silver paste on top and bottom surfaces.",
-        "Silver-coated ceramics were fired at 800°C for 30 min to obtain electrodes.",
-        "Coated ceramics were poled at 50 kV/cm DC field for 30 min at room temperature in silicone oil bath."
-       ],
-       "test_steps": [
-        "Weighed raw materials according to composition (1-x)(Ba0.95Ca0.05)(Ti0.89Sn0.11)O3-xBiFeO3 (x = 0, 0.1, 0.5, 0.9 mol%)",
-        "Milled with ethanol for 16 h",
-        "Dried at 100 °C",
-        "Calcined at 1150 °C for 3 h",
-        "Re-milled with ethanol for 16 h",
-        "Pressed into disks of 9 mm diameter using 3% PVA solution as binder",
-        "Fired at 600 °C for 2 h",
-        "Sintered at 1400 °C for 3 h",
-        "Polished and coated with silver paste on surfaces",
-        "Fired at 800 °C for 30 min to obtain electrode",
-        "Poled at 50 kV/cm DC field for 30 min at room temperature in silicone oil bath"
-       ],
-       "paragraph_similarity": 0.339662447257384,
-       "steps_match": false,
-       "paragraph_comparison": {
-        "similarity_score": 0.339662447257384,
-        "high_similarity": false,
-        "method": "sequence_matcher"
-       }
       }
      }
     },
@@ -2118,85 +2118,86 @@
    },
    "10.1016/j.ceramint.2024.09.287": {
     "field_scores": {
-     "composition_data": 0.72,
+     "composition_data": 0.7200000000000001,
      "synthesis_data": 0.9
     },
     "absolute_classification_metrics": {
-     "true_positives": 37,
-     "false_positives": 7,
-     "false_negatives": 6,
-     "precision": 0.8409090909090909,
-     "recall": 0.8604651162790697,
-     "f1_score": 0.8505747126436781
+     "true_positives": 39,
+     "false_positives": 5,
+     "false_negatives": 4,
+     "precision": 0.8863636363636364,
+     "recall": 0.9069767441860465,
+     "f1_score": 0.896551724137931
     },
     "normalized_classification_metrics": {
-     "true_positives": 0.74,
-     "false_positives": 0.14,
-     "false_negatives": 0.12,
-     "precision": 0.8409090909090909,
-     "recall": 0.8604651162790697,
-     "f1_score": 0.8505747126436781
+     "true_positives": 0.8125,
+     "false_positives": 0.10416666666666667,
+     "false_negatives": 0.08333333333333333,
+     "precision": 0.8863636363636364,
+     "recall": 0.9069767441860465,
+     "f1_score": 0.896551724137931
     },
     "details": {
      "composition_data": {
-      "property_unit": {
-       "match": true,
-       "reference": "pC/N",
-       "test": "pC/N"
-      },
-      "family": {
-       "match": false,
-       "reference": "PZT-PMS-PSN",
-       "test": "PZT"
-      },
       "compositions_property_values": {
        "match": false,
        "similarity_score": 0.4,
        "details": {
         "key_matches": {
-         "0.93Pb(Zr0.50Ti0.50)O3-0.05Pb(Mn1/3Sb2/3)O3-0.02Pb(Sc1/2Nb1/2)O3": {
-          "matched_with": "0.93Pb(Zr0.50Ti0.50)O3-0.05Pb(Mn(1/3)Sb(2/3))O3-0.02Pb(Sc(1/2)Nb(1/2))O3",
-          "similarity": 1.0,
+         "0.93Pb(Zr0.44Ti0.56)O3-0.05Pb(Mn1/3Sb2/3)O3-0.02Pb(Sc1/2Nb1/2)O3": {
+          "matched_with": "0.93Pb(Zr0.56Ti0.44)O3-0.05Pb(Mn(1/3)Sb(2/3))O3-0.02Pb(Sc(1/2)Nb(1/2))O3",
+          "similarity": 0.9148936170212766,
+          "match_type": "swap_corrected"
+         },
+         "0.93Pb(Zr0.46Ti0.54)O3-0.05Pb(Mn1/3Sb2/3)O3-0.02Pb(Sc1/2Nb1/2)O3": {
+          "matched_with": "0.93Pb(Zr0.54Ti0.46)O3-0.05Pb(Mn(1/3)Sb(2/3))O3-0.02Pb(Sc(1/2)Nb(1/2))O3",
+          "similarity": 0.9574468085106383,
           "match_type": "high_similarity"
          },
          "0.93Pb(Zr0.48Ti0.52)O3-0.05Pb(Mn1/3Sb2/3)O3-0.02Pb(Sc1/2Nb1/2)O3": {
           "matched_with": "0.93Pb(Zr0.48Ti0.52)O3-0.05Pb(Mn(1/3)Sb(2/3))O3-0.02Pb(Sc(1/2)Nb(1/2))O3",
           "similarity": 1.0,
-          "match_type": "high_similarity"
+          "match_type": "swap_corrected"
          },
-         "0.93Pb(Zr0.44Ti0.56)O3-0.05Pb(Mn1/3Sb2/3)O3-0.02Pb(Sc1/2Nb1/2)O3": {
-          "matched_with": "0.93Pb(Zr0.54Ti0.46)O3-0.05Pb(Mn(1/3)Sb(2/3))O3-0.02Pb(Sc(1/2)Nb(1/2))O3",
-          "similarity": 0.9574468085106383,
-          "match_type": "high_similarity"
+         "0.93Pb(Zr0.50Ti0.50)O3-0.05Pb(Mn1/3Sb2/3)O3-0.02Pb(Sc1/2Nb1/2)O3": {
+          "matched_with": "0.93Pb(Zr0.50Ti0.50)O3-0.05Pb(Mn(1/3)Sb(2/3))O3-0.02Pb(Sc(1/2)Nb(1/2))O3",
+          "similarity": 1.0,
+          "match_type": "swap_corrected"
          },
          "0.93Pb(Zr0.52Ti0.48)O3-0.05Pb(Mn1/3Sb2/3)O3-0.02Pb(Sc1/2Nb1/2)O3": {
           "matched_with": "0.93Pb(Zr0.52Ti0.48)O3-0.05Pb(Mn(1/3)Sb(2/3))O3-0.02Pb(Sc(1/2)Nb(1/2))O3",
           "similarity": 1.0,
-          "match_type": "high_similarity"
-         },
-         "0.93Pb(Zr0.46Ti0.54)O3-0.05Pb(Mn1/3Sb2/3)O3-0.02Pb(Sc1/2Nb1/2)O3": {
-          "matched_with": "0.93Pb(Zr0.56Ti0.44)O3-0.05Pb(Mn(1/3)Sb(2/3))O3-0.02Pb(Sc(1/2)Nb(1/2))O3",
-          "similarity": 0.9574468085106383,
-          "match_type": "high_similarity"
+          "match_type": "swap_corrected"
          }
         },
         "value_matches": {
-         "0.93Pb(Zr0.50Ti0.50)O3-0.05Pb(Mn1/3Sb2/3)O3-0.02Pb(Sc1/2Nb1/2)O3": true,
+         "0.93Pb(Zr0.44Ti0.56)O3-0.05Pb(Mn1/3Sb2/3)O3-0.02Pb(Sc1/2Nb1/2)O3": true,
+         "0.93Pb(Zr0.46Ti0.54)O3-0.05Pb(Mn1/3Sb2/3)O3-0.02Pb(Sc1/2Nb1/2)O3": true,
          "0.93Pb(Zr0.48Ti0.52)O3-0.05Pb(Mn1/3Sb2/3)O3-0.02Pb(Sc1/2Nb1/2)O3": true,
-         "0.93Pb(Zr0.44Ti0.56)O3-0.05Pb(Mn1/3Sb2/3)O3-0.02Pb(Sc1/2Nb1/2)O3": false,
-         "0.93Pb(Zr0.52Ti0.48)O3-0.05Pb(Mn1/3Sb2/3)O3-0.02Pb(Sc1/2Nb1/2)O3": true,
-         "0.93Pb(Zr0.46Ti0.54)O3-0.05Pb(Mn1/3Sb2/3)O3-0.02Pb(Sc1/2Nb1/2)O3": false
+         "0.93Pb(Zr0.50Ti0.50)O3-0.05Pb(Mn1/3Sb2/3)O3-0.02Pb(Sc1/2Nb1/2)O3": true,
+         "0.93Pb(Zr0.52Ti0.48)O3-0.05Pb(Mn1/3Sb2/3)O3-0.02Pb(Sc1/2Nb1/2)O3": true
         },
         "pair_matches": [
          {
           "match": false,
           "reference": {
-           "0.93Pb(Zr0.50Ti0.50)O3-0.05Pb(Mn1/3Sb2/3)O3-0.02Pb(Sc1/2Nb1/2)O3": 265
+           "0.93Pb(Zr0.44Ti0.56)O3-0.05Pb(Mn1/3Sb2/3)O3-0.02Pb(Sc1/2Nb1/2)O3": 156
           },
           "test": {
-           "0.93Pb(Zr0.50Ti0.50)O3-0.05Pb(Mn(1/3)Sb(2/3))O3-0.02Pb(Sc(1/2)Nb(1/2))O3": 265
+           "0.93Pb(Zr0.56Ti0.44)O3-0.05Pb(Mn(1/3)Sb(2/3))O3-0.02Pb(Sc(1/2)Nb(1/2))O3": 156
           },
-          "similarity": 1.0,
+          "similarity": 0.9148936170212766,
+          "match_type": "high_similarity_same_value"
+         },
+         {
+          "match": false,
+          "reference": {
+           "0.93Pb(Zr0.46Ti0.54)O3-0.05Pb(Mn1/3Sb2/3)O3-0.02Pb(Sc1/2Nb1/2)O3": 225
+          },
+          "test": {
+           "0.93Pb(Zr0.54Ti0.46)O3-0.05Pb(Mn(1/3)Sb(2/3))O3-0.02Pb(Sc(1/2)Nb(1/2))O3": 225
+          },
+          "similarity": 0.9574468085106383,
           "match_type": "high_similarity_same_value"
          },
          {
@@ -2213,13 +2214,13 @@
          {
           "match": false,
           "reference": {
-           "0.93Pb(Zr0.44Ti0.56)O3-0.05Pb(Mn1/3Sb2/3)O3-0.02Pb(Sc1/2Nb1/2)O3": 156
+           "0.93Pb(Zr0.50Ti0.50)O3-0.05Pb(Mn1/3Sb2/3)O3-0.02Pb(Sc1/2Nb1/2)O3": 265
           },
           "test": {
-           "0.93Pb(Zr0.54Ti0.46)O3-0.05Pb(Mn(1/3)Sb(2/3))O3-0.02Pb(Sc(1/2)Nb(1/2))O3": 225
+           "0.93Pb(Zr0.50Ti0.50)O3-0.05Pb(Mn(1/3)Sb(2/3))O3-0.02Pb(Sc(1/2)Nb(1/2))O3": 265
           },
-          "similarity": 0.9574468085106383,
-          "match_type": "high_similarity_different_value"
+          "similarity": 1.0,
+          "match_type": "high_similarity_same_value"
          },
          {
           "match": false,
@@ -2231,17 +2232,6 @@
           },
           "similarity": 1.0,
           "match_type": "high_similarity_same_value"
-         },
-         {
-          "match": false,
-          "reference": {
-           "0.93Pb(Zr0.46Ti0.54)O3-0.05Pb(Mn1/3Sb2/3)O3-0.02Pb(Sc1/2Nb1/2)O3": 225
-          },
-          "test": {
-           "0.93Pb(Zr0.56Ti0.44)O3-0.05Pb(Mn(1/3)Sb(2/3))O3-0.02Pb(Sc(1/2)Nb(1/2))O3": 156
-          },
-          "similarity": 0.9574468085106383,
-          "match_type": "high_similarity_different_value"
          }
         ],
         "key_match_ratio": 1.0,
@@ -2256,6 +2246,16 @@
         "fractional_value": 0.2,
         "total_reference_items": 5
        }
+      },
+      "property_unit": {
+       "match": true,
+       "reference": "pC/N",
+       "test": "pC/N"
+      },
+      "family": {
+       "match": false,
+       "reference": "PZT-PMS-PSN",
+       "test": "PZT"
       }
      },
      "synthesis_data": {
@@ -2328,6 +2328,39 @@
        "extra_items": [],
        "fractional_value": 0.14285714285714285
       },
+      "steps": {
+       "reference_steps": [
+        "Sc2O3 and Nb2O5 powders were wet-mixed via ball milling for 12 h, followed by calcination at 1050°C for 6 h to obtain precursor ScNbO4.",
+        "Precursors were mixed with PbO, ZrO2, TiO2, MnO2, and Sb2O3 before being calcined at 850°C for 2 h to achieve desired composition of PZT-PMS-PSN.",
+        "Resultant powder was crushed for 8 h and then dried.",
+        "Fine powder was mixed with PVA binder at mass concentration of 7% and pressed to form Φ10mm pellets at pressure of 150 MPa.",
+        "After binder was cremated at 800°C for 2 h, PZT-PMS-PSN samples were sintered at 1180°C for 2 h.",
+        "Sintered pellets were polished to reach about 0.5 mm thickness.",
+        "Both sides of sample were coated with silver paste and fired at 800°C for 10 min for electrical property measurements.",
+        "Samples were polarized for 30 min at 180°C in silicone oil bath at DC field strength of 5 kV/mm for piezoelectric measurements."
+       ],
+       "test_steps": [
+        "Sc2O3 and Nb2O5 powders were wet-mixed via ball milling for 12 h",
+        "Calcination at 1050 °C for 6 h to obtain the precursor ScNbO4",
+        "Mixed with PbO, ZrO2, TiO2, MnO2, and Sb2O3",
+        "Calcined at 850 °C for 2 h to achieve the desired composition of PZT-PMS-PSN",
+        "Resultant powder was crushed for 8 h and then dried",
+        "Fine powder was mixed with the PVA binder at a mass concentration of 7 %",
+        "Pressed to form Ø10mm pellets at a pressure of 150 MPa",
+        "Binder was cremated at 800 °C for 2 h",
+        "Sintered at 1180 °C for 2 h",
+        "Sintered pellets were polished to reach about 0.5 mm",
+        "Both sides of the sample were coated with silver paste and fired at 800 °C for 10 min",
+        "Polarization at 180 °C in a silicone oil bath at a DC field strength of 5 kV/mm for 30 min"
+       ],
+       "paragraph_similarity": 0.6607142857142857,
+       "steps_match": false,
+       "paragraph_comparison": {
+        "similarity_score": 0.6607142857142857,
+        "high_similarity": false,
+        "method": "sequence_matcher"
+       }
+      },
       "characterization_techniques": {
        "match": true,
        "similarity": 0.8375,
@@ -2397,39 +2430,6 @@
         "Displacement sensor"
        ],
        "fractional_value": 0.125
-      },
-      "steps": {
-       "reference_steps": [
-        "Sc2O3 and Nb2O5 powders were wet-mixed via ball milling for 12 h, followed by calcination at 1050°C for 6 h to obtain precursor ScNbO4.",
-        "Precursors were mixed with PbO, ZrO2, TiO2, MnO2, and Sb2O3 before being calcined at 850°C for 2 h to achieve desired composition of PZT-PMS-PSN.",
-        "Resultant powder was crushed for 8 h and then dried.",
-        "Fine powder was mixed with PVA binder at mass concentration of 7% and pressed to form Φ10mm pellets at pressure of 150 MPa.",
-        "After binder was cremated at 800°C for 2 h, PZT-PMS-PSN samples were sintered at 1180°C for 2 h.",
-        "Sintered pellets were polished to reach about 0.5 mm thickness.",
-        "Both sides of sample were coated with silver paste and fired at 800°C for 10 min for electrical property measurements.",
-        "Samples were polarized for 30 min at 180°C in silicone oil bath at DC field strength of 5 kV/mm for piezoelectric measurements."
-       ],
-       "test_steps": [
-        "Sc2O3 and Nb2O5 powders were wet-mixed via ball milling for 12 h",
-        "Calcination at 1050 °C for 6 h to obtain the precursor ScNbO4",
-        "Mixed with PbO, ZrO2, TiO2, MnO2, and Sb2O3",
-        "Calcined at 850 °C for 2 h to achieve the desired composition of PZT-PMS-PSN",
-        "Resultant powder was crushed for 8 h and then dried",
-        "Fine powder was mixed with the PVA binder at a mass concentration of 7 %",
-        "Pressed to form Ø10mm pellets at a pressure of 150 MPa",
-        "Binder was cremated at 800 °C for 2 h",
-        "Sintered at 1180 °C for 2 h",
-        "Sintered pellets were polished to reach about 0.5 mm",
-        "Both sides of the sample were coated with silver paste and fired at 800 °C for 10 min",
-        "Polarization at 180 °C in a silicone oil bath at a DC field strength of 5 kV/mm for 30 min"
-       ],
-       "paragraph_similarity": 0.6607142857142857,
-       "steps_match": false,
-       "paragraph_comparison": {
-        "similarity_score": 0.6607142857142857,
-        "high_similarity": false,
-        "method": "sequence_matcher"
-       }
       }
      }
     },
@@ -2459,24 +2459,24 @@
     },
     "details": {
      "composition_data": {
-      "property_unit": {
-       "match": true,
-       "reference": "pC/N",
-       "test": "pC/N"
-      },
-      "family": {
-       "match": true,
-       "reference": "BiFeO3-BaTiO3",
-       "test": "BiFeO3-BaTiO3"
-      },
       "compositions_property_values": {
        "match": false,
        "similarity_score": 0.4,
        "details": {
         "key_matches": {
-         "0.725BiFe1.0Sc0.0O3 - 0.275BaTiO3": {
-          "matched_with": "0.725BiFe1Sc0O3-0.275BaTiO3",
-          "similarity": 0.9411764705882353,
+         "0.725BiFe0.985Sc0.015O3 - 0.275BaTiO3": {
+          "matched_with": "0.725BiFe0.985Sc0.015O3-0.275BaTiO3",
+          "similarity": 0.9836065573770492,
+          "match_type": "high_similarity"
+         },
+         "0.725BiFe0.98Sc0.02O3 - 0.275BaTiO3": {
+          "matched_with": "0.725BiFe0.98Sc0.02O3-0.275BaTiO3",
+          "similarity": 0.9824561403508771,
+          "match_type": "high_similarity"
+         },
+         "0.725BiFe0.9925Sc0.0075O3 - 0.275BaTiO3": {
+          "matched_with": "0.725BiFe0.9925Sc0.0075O3-0.275BaTiO3",
+          "similarity": 0.9846153846153847,
           "match_type": "high_similarity"
          },
          "0.725BiFe0.995Sc0.005O3 - 0.275BaTiO3": {
@@ -2484,13 +2484,8 @@
           "similarity": 0.9836065573770492,
           "match_type": "high_similarity"
          },
-         "0.725BiFe0.985Sc0.015O3 - 0.275BaTiO3": {
-          "matched_with": "0.725BiFe0.985Sc0.015O3-0.275BaTiO3",
-          "similarity": 0.9836065573770492,
-          "match_type": "high_similarity"
-         },
-         "0.725BiFe0.9925Sc0.0075O3 - 0.275BaTiO3": {
-          "matched_with": "0.725BiFe0.9925Sc0.0075O3-0.275BaTiO3",
+         "0.725BiFe0.9975Sc0.0025O3 - 0.275BaTiO3": {
+          "matched_with": "0.725BiFe0.9975Sc0.0025O3-0.275BaTiO3",
           "similarity": 0.9846153846153847,
           "match_type": "high_similarity"
          },
@@ -2499,36 +2494,53 @@
           "similarity": 0.9824561403508771,
           "match_type": "high_similarity"
          },
-         "0.725BiFe0.98Sc0.02O3 - 0.275BaTiO3": {
-          "matched_with": "0.725BiFe0.98Sc0.02O3-0.275BaTiO3",
-          "similarity": 0.9824561403508771,
-          "match_type": "high_similarity"
-         },
-         "0.725BiFe0.9975Sc0.0025O3 - 0.275BaTiO3": {
-          "matched_with": "0.725BiFe0.9975Sc0.0025O3-0.275BaTiO3",
-          "similarity": 0.9846153846153847,
+         "0.725BiFe1.0Sc0.0O3 - 0.275BaTiO3": {
+          "matched_with": "0.725BiFe1Sc0O3-0.275BaTiO3",
+          "similarity": 0.9411764705882353,
           "match_type": "high_similarity"
          }
         },
         "value_matches": {
-         "0.725BiFe1.0Sc0.0O3 - 0.275BaTiO3": true,
-         "0.725BiFe0.995Sc0.005O3 - 0.275BaTiO3": true,
          "0.725BiFe0.985Sc0.015O3 - 0.275BaTiO3": true,
-         "0.725BiFe0.9925Sc0.0075O3 - 0.275BaTiO3": true,
-         "0.725BiFe0.99Sc0.01O3 - 0.275BaTiO3": true,
          "0.725BiFe0.98Sc0.02O3 - 0.275BaTiO3": true,
-         "0.725BiFe0.9975Sc0.0025O3 - 0.275BaTiO3": true
+         "0.725BiFe0.9925Sc0.0075O3 - 0.275BaTiO3": true,
+         "0.725BiFe0.995Sc0.005O3 - 0.275BaTiO3": true,
+         "0.725BiFe0.9975Sc0.0025O3 - 0.275BaTiO3": true,
+         "0.725BiFe0.99Sc0.01O3 - 0.275BaTiO3": true,
+         "0.725BiFe1.0Sc0.0O3 - 0.275BaTiO3": true
         },
         "pair_matches": [
          {
           "match": false,
           "reference": {
-           "0.725BiFe1.0Sc0.0O3 - 0.275BaTiO3": null
+           "0.725BiFe0.985Sc0.015O3 - 0.275BaTiO3": null
           },
           "test": {
-           "0.725BiFe1Sc0O3-0.275BaTiO3": null
+           "0.725BiFe0.985Sc0.015O3-0.275BaTiO3": null
           },
-          "similarity": 0.9411764705882353,
+          "similarity": 0.9836065573770492,
+          "match_type": "high_similarity_same_value"
+         },
+         {
+          "match": false,
+          "reference": {
+           "0.725BiFe0.98Sc0.02O3 - 0.275BaTiO3": null
+          },
+          "test": {
+           "0.725BiFe0.98Sc0.02O3-0.275BaTiO3": null
+          },
+          "similarity": 0.9824561403508771,
+          "match_type": "high_similarity_same_value"
+         },
+         {
+          "match": false,
+          "reference": {
+           "0.725BiFe0.9925Sc0.0075O3 - 0.275BaTiO3": null
+          },
+          "test": {
+           "0.725BiFe0.9925Sc0.0075O3-0.275BaTiO3": null
+          },
+          "similarity": 0.9846153846153847,
           "match_type": "high_similarity_same_value"
          },
          {
@@ -2545,21 +2557,10 @@
          {
           "match": false,
           "reference": {
-           "0.725BiFe0.985Sc0.015O3 - 0.275BaTiO3": null
+           "0.725BiFe0.9975Sc0.0025O3 - 0.275BaTiO3": null
           },
           "test": {
-           "0.725BiFe0.985Sc0.015O3-0.275BaTiO3": null
-          },
-          "similarity": 0.9836065573770492,
-          "match_type": "high_similarity_same_value"
-         },
-         {
-          "match": false,
-          "reference": {
-           "0.725BiFe0.9925Sc0.0075O3 - 0.275BaTiO3": null
-          },
-          "test": {
-           "0.725BiFe0.9925Sc0.0075O3-0.275BaTiO3": null
+           "0.725BiFe0.9975Sc0.0025O3-0.275BaTiO3": null
           },
           "similarity": 0.9846153846153847,
           "match_type": "high_similarity_same_value"
@@ -2578,23 +2579,12 @@
          {
           "match": false,
           "reference": {
-           "0.725BiFe0.98Sc0.02O3 - 0.275BaTiO3": null
+           "0.725BiFe1.0Sc0.0O3 - 0.275BaTiO3": null
           },
           "test": {
-           "0.725BiFe0.98Sc0.02O3-0.275BaTiO3": null
+           "0.725BiFe1Sc0O3-0.275BaTiO3": null
           },
-          "similarity": 0.9824561403508771,
-          "match_type": "high_similarity_same_value"
-         },
-         {
-          "match": false,
-          "reference": {
-           "0.725BiFe0.9975Sc0.0025O3 - 0.275BaTiO3": null
-          },
-          "test": {
-           "0.725BiFe0.9975Sc0.0025O3-0.275BaTiO3": null
-          },
-          "similarity": 0.9846153846153847,
+          "similarity": 0.9411764705882353,
           "match_type": "high_similarity_same_value"
          }
         ],
@@ -2610,6 +2600,16 @@
         "fractional_value": 0.14285714285714285,
         "total_reference_items": 7
        }
+      },
+      "property_unit": {
+       "match": true,
+       "reference": "pC/N",
+       "test": "pC/N"
+      },
+      "family": {
+       "match": true,
+       "reference": "BiFeO3-BaTiO3",
+       "test": "BiFeO3-BaTiO3"
       }
      },
      "synthesis_data": {
@@ -2667,6 +2667,37 @@
        "missing_items": [],
        "extra_items": [],
        "fractional_value": 0.2
+      },
+      "steps": {
+       "reference_steps": [
+        "Raw materials were prepared for 0.725BiFe(1-x)ScxO3-0.275BaTiO3 ceramics with x = 0, 0.0025, 0.0050, 0.0075, 0.010, 0.015, 0.02.",
+        "Carbonates were dried in oven at 120°C for more than 2 h before use.",
+        "Raw materials were mixed by ball-milling machine in ethanol.",
+        "After drying, powder mixture was calcined twice at 800°C for 2 h.",
+        "Calcined powders were milled for 12 h and then pressed into disks with 12.7 mm diameter using polyvinyl alcohol (PVA) as binder.",
+        "Green compacts were first fired at 600°C to remove PVA binder.",
+        "Samples were sintered in ambient atmosphere at temperature range of 1000°C-1020°C for 2 h.",
+        "Sintered disks were subjected to mechanical polishing to obtain thickness of ~0.35 mm.",
+        "Gold electrodes were sputtered onto ceramic surfaces for electrical measurements.",
+        "Ceramics were polarized at 120°C in silicone oil bath under DC electric field ranging from 5 to 6 kV/mm for 15-20 min."
+       ],
+       "test_steps": [
+        "Dried carbonates at 120 °C for more than 2 h",
+        "Mixed raw materials by ball-milling in ethanol",
+        "Calcined powder mixture twice at 800 °C for 2 h",
+        "Milled calcined powders for 12 h",
+        "Pressed into disks with 12.7 mm diameter using PVA as binder",
+        "Fired green compacts at 600 °C to remove PVA binder",
+        "Sintered in ambient atmosphere at 1000–1020 °C for 2 h",
+        "Mechanically polished sintered disks to ~0.35 mm thickness"
+       ],
+       "paragraph_similarity": 0.08595988538681948,
+       "steps_match": false,
+       "paragraph_comparison": {
+        "similarity_score": 0.08595988538681948,
+        "high_similarity": false,
+        "method": "sequence_matcher"
+       }
       },
       "characterization_techniques": {
        "match": false,
@@ -2761,37 +2792,6 @@
         "Sputter coater"
        ],
        "fractional_value": 0.09090909090909091
-      },
-      "steps": {
-       "reference_steps": [
-        "Raw materials were prepared for 0.725BiFe(1-x)ScxO3-0.275BaTiO3 ceramics with x = 0, 0.0025, 0.0050, 0.0075, 0.010, 0.015, 0.02.",
-        "Carbonates were dried in oven at 120°C for more than 2 h before use.",
-        "Raw materials were mixed by ball-milling machine in ethanol.",
-        "After drying, powder mixture was calcined twice at 800°C for 2 h.",
-        "Calcined powders were milled for 12 h and then pressed into disks with 12.7 mm diameter using polyvinyl alcohol (PVA) as binder.",
-        "Green compacts were first fired at 600°C to remove PVA binder.",
-        "Samples were sintered in ambient atmosphere at temperature range of 1000°C-1020°C for 2 h.",
-        "Sintered disks were subjected to mechanical polishing to obtain thickness of ~0.35 mm.",
-        "Gold electrodes were sputtered onto ceramic surfaces for electrical measurements.",
-        "Ceramics were polarized at 120°C in silicone oil bath under DC electric field ranging from 5 to 6 kV/mm for 15-20 min."
-       ],
-       "test_steps": [
-        "Dried carbonates at 120 °C for more than 2 h",
-        "Mixed raw materials by ball-milling in ethanol",
-        "Calcined powder mixture twice at 800 °C for 2 h",
-        "Milled calcined powders for 12 h",
-        "Pressed into disks with 12.7 mm diameter using PVA as binder",
-        "Fired green compacts at 600 °C to remove PVA binder",
-        "Sintered in ambient atmosphere at 1000–1020 °C for 2 h",
-        "Mechanically polished sintered disks to ~0.35 mm thickness"
-       ],
-       "paragraph_similarity": 0.08595988538681948,
-       "steps_match": false,
-       "paragraph_comparison": {
-        "similarity_score": 0.08595988538681948,
-        "high_similarity": false,
-        "method": "sequence_matcher"
-       }
       }
      }
     },
@@ -2800,7 +2800,7 @@
    },
    "10.1016/j.apmt.2024.102564": {
     "field_scores": {
-     "composition_data": 0.6000000000000001,
+     "composition_data": 0.6,
      "synthesis_data": 0.7200000000000001
     },
     "absolute_classification_metrics": {
@@ -2821,16 +2821,6 @@
     },
     "details": {
      "composition_data": {
-      "property_unit": {
-       "match": true,
-       "reference": "pm/V",
-       "test": "pm/V"
-      },
-      "family": {
-       "match": false,
-       "reference": "Dipeptides",
-       "test": "dipeptides"
-      },
       "compositions_property_values": {
        "match": false,
        "similarity_score": 0.0,
@@ -2838,6 +2828,15 @@
         "key_matches": {},
         "value_matches": {},
         "pair_matches": [
+         {
+          "match": false,
+          "reference": {
+           "Leu-Phe lateral displacement": -19
+          },
+          "test": null,
+          "similarity": 0.0,
+          "match_type": "missing"
+         },
          {
           "match": false,
           "reference": {
@@ -2850,7 +2849,7 @@
          {
           "match": false,
           "reference": {
-           "Leu-Phe lateral displacement": -19
+           "Phe-Leu lateral displacement": -73
           },
           "test": null,
           "similarity": 0.0,
@@ -2876,18 +2875,9 @@
          },
          {
           "match": false,
-          "reference": {
-           "Phe-Leu lateral displacement": -73
-          },
-          "test": null,
-          "similarity": 0.0,
-          "match_type": "missing"
-         },
-         {
-          "match": false,
           "reference": null,
           "test": {
-           "Phe-Leu": 71
+           "Leu-Phe": 87
           },
           "similarity": 0.0,
           "match_type": "extra"
@@ -2896,7 +2886,7 @@
           "match": false,
           "reference": null,
           "test": {
-           "Leu-Phe": 87
+           "Phe-Leu": 71
           },
           "similarity": 0.0,
           "match_type": "extra"
@@ -2909,20 +2899,30 @@
         "exact_matches": 0,
         "high_similarity_matches": 0,
         "missing_keys": [
-         "Leu-Phe vertical displacement",
          "Leu-Phe lateral displacement",
+         "Leu-Phe vertical displacement",
+         "Phe-Leu lateral displacement",
          "Phe-Leu vertical displacement",
-         "Phe-Phe",
-         "Phe-Leu lateral displacement"
+         "Phe-Phe"
         ],
         "extra_keys": [
-         "Phe-Leu",
-         "Leu-Phe"
+         "Leu-Phe",
+         "Phe-Leu"
         ],
         "similarity_threshold_used": 0.9,
         "fractional_value": 0.2,
         "total_reference_items": 5
        }
+      },
+      "property_unit": {
+       "match": true,
+       "reference": "pm/V",
+       "test": "pm/V"
+      },
+      "family": {
+       "match": false,
+       "reference": "Dipeptides",
+       "test": "dipeptides"
       }
      },
      "synthesis_data": {
@@ -2966,6 +2966,30 @@
        ],
        "fractional_value": 0.3333333333333333
       },
+      "steps": {
+       "reference_steps": [
+        "10 μL of freshly prepared dipeptide solution in methanol (1 mg mL⁻¹) was dropped on silicon substrate surface.",
+        "Dipeptide solution was applied using spin-coating method at rotation speed of 3000 rpm.",
+        "Amorphous films were obtained after solvent evaporation.",
+        "Silicon substrate with deposited dipeptide film was placed in sealed Petri dish containing methanol to create saturated vapor P/P₀=1.",
+        "Film was saturated with methanol vapors without direct contact with liquid for 10 minutes to 24 hours at room temperature.",
+        "Film was dried with warm air at 45°C after saturation."
+       ],
+       "test_steps": [
+        "Dropping 10 μL of a freshly prepared dipeptide solution in methanol (1 mg mL⁻¹) on the surface of a silicon substrate",
+        "Removing the solvent by spontaneous evaporation, forced drying with warm air, or spin-coating at 3000 rpm",
+        "Placing the silicon substrate with deposited dipeptide film in a Petri dish containing methanol to create saturated vapor (P/P₀=1)",
+        "Sealing the Petri dish and keeping it from 10 minutes to 24 hours at room temperature",
+        "Drying the film with warm air (45°C)"
+       ],
+       "paragraph_similarity": 0.4444444444444444,
+       "steps_match": false,
+       "paragraph_comparison": {
+        "similarity_score": 0.4444444444444444,
+        "high_similarity": false,
+        "method": "sequence_matcher"
+       }
+      },
       "characterization_techniques": {
        "match": true,
        "similarity": 1.0,
@@ -3007,39 +3031,15 @@
        "missing_items": [],
        "extra_items": [],
        "fractional_value": 0.25
-      },
-      "steps": {
-       "reference_steps": [
-        "10 μL of freshly prepared dipeptide solution in methanol (1 mg mL⁻¹) was dropped on silicon substrate surface.",
-        "Dipeptide solution was applied using spin-coating method at rotation speed of 3000 rpm.",
-        "Amorphous films were obtained after solvent evaporation.",
-        "Silicon substrate with deposited dipeptide film was placed in sealed Petri dish containing methanol to create saturated vapor P/P₀=1.",
-        "Film was saturated with methanol vapors without direct contact with liquid for 10 minutes to 24 hours at room temperature.",
-        "Film was dried with warm air at 45°C after saturation."
-       ],
-       "test_steps": [
-        "Dropping 10 μL of a freshly prepared dipeptide solution in methanol (1 mg mL⁻¹) on the surface of a silicon substrate",
-        "Removing the solvent by spontaneous evaporation, forced drying with warm air, or spin-coating at 3000 rpm",
-        "Placing the silicon substrate with deposited dipeptide film in a Petri dish containing methanol to create saturated vapor (P/P₀=1)",
-        "Sealing the Petri dish and keeping it from 10 minutes to 24 hours at room temperature",
-        "Drying the film with warm air (45°C)"
-       ],
-       "paragraph_similarity": 0.4444444444444444,
-       "steps_match": false,
-       "paragraph_comparison": {
-        "similarity_score": 0.4444444444444444,
-        "high_similarity": false,
-        "method": "sequence_matcher"
-       }
       }
      }
     },
-    "overall_score": 0.6600000000000001,
+    "overall_score": 0.66,
     "overall_match": false
    },
    "10.1016/j.cej.2024.157756": {
     "field_scores": {
-     "composition_data": 0.6000000000000001,
+     "composition_data": 0.6,
      "synthesis_data": 0.7142857142857143
     },
     "absolute_classification_metrics": {
@@ -3060,16 +3060,6 @@
     },
     "details": {
      "composition_data": {
-      "property_unit": {
-       "match": true,
-       "reference": "pC/N",
-       "test": "pC/N"
-      },
-      "family": {
-       "match": false,
-       "reference": "P(VDF-TrFE)",
-       "test": "PVDF-based copolymers"
-      },
       "compositions_property_values": {
        "match": false,
        "similarity_score": 0.0,
@@ -3080,7 +3070,7 @@
          {
           "match": false,
           "reference": {
-           "P(VDF-TrFE) 80/20-Air-ES2A-115 °C": 357
+           "P(VDF-TrFE) 80/20-Air-ES": 181
           },
           "test": null,
           "similarity": 0.0,
@@ -3098,15 +3088,6 @@
          {
           "match": false,
           "reference": {
-           "P(VDF-TrFE) 80/20-Pure water": 1045
-          },
-          "test": null,
-          "similarity": 0.0,
-          "match_type": "missing"
-         },
-         {
-          "match": false,
-          "reference": {
            "P(VDF-TrFE) 80/20-Air-ES1A2A-125 °C": 551
           },
           "test": null,
@@ -3116,7 +3097,16 @@
          {
           "match": false,
           "reference": {
-           "P(VDF-TrFE) 80/20-Air-ES": 181
+           "P(VDF-TrFE) 80/20-Air-ES2A-115 °C": 357
+          },
+          "test": null,
+          "similarity": 0.0,
+          "match_type": "missing"
+         },
+         {
+          "match": false,
+          "reference": {
+           "P(VDF-TrFE) 80/20-Pure water": 1045
           },
           "test": null,
           "similarity": 0.0,
@@ -3126,7 +3116,7 @@
           "match": false,
           "reference": null,
           "test": {
-           "poly(vinylidene fluoride-co-trifluoroethylene) 80/20 - electrospun, first and second annealed, and corona-poled in air": -551
+           "poly(vinylidene fluoride-co-trifluoroethylene) 80/20 - as-electrospun": -75
           },
           "similarity": 0.0,
           "match_type": "extra"
@@ -3144,7 +3134,7 @@
           "match": false,
           "reference": null,
           "test": {
-           "poly(vinylidene fluoride-co-trifluoroethylene) 80/20 - electrospun, first annealed, and corona-poled in air": -233
+           "poly(vinylidene fluoride-co-trifluoroethylene) 80/20 - electrospun, first and second annealed, and corona-poled in air": -551
           },
           "similarity": 0.0,
           "match_type": "extra"
@@ -3162,7 +3152,7 @@
           "match": false,
           "reference": null,
           "test": {
-           "poly(vinylidene fluoride-co-trifluoroethylene) 80/20 - as-electrospun": -75
+           "poly(vinylidene fluoride-co-trifluoroethylene) 80/20 - electrospun, first annealed, and corona-poled in air": -233
           },
           "similarity": 0.0,
           "match_type": "extra"
@@ -3184,24 +3174,34 @@
         "exact_matches": 0,
         "high_similarity_matches": 0,
         "missing_keys": [
-         "P(VDF-TrFE) 80/20-Air-ES2A-115 °C",
+         "P(VDF-TrFE) 80/20-Air-ES",
          "P(VDF-TrFE) 80/20-Air-ES1A-2800 min",
-         "P(VDF-TrFE) 80/20-Pure water",
          "P(VDF-TrFE) 80/20-Air-ES1A2A-125 °C",
-         "P(VDF-TrFE) 80/20-Air-ES"
+         "P(VDF-TrFE) 80/20-Air-ES2A-115 °C",
+         "P(VDF-TrFE) 80/20-Pure water"
         ],
         "extra_keys": [
-         "poly(vinylidene fluoride-co-trifluoroethylene) 80/20 - electrospun, first and second annealed, and corona-poled in air",
-         "poly(vinylidene fluoride-co-trifluoroethylene) 80/20 - electrospun and corona-poled in air",
-         "poly(vinylidene fluoride-co-trifluoroethylene) 80/20 - electrospun, first annealed, and corona-poled in air",
-         "poly(vinylidene fluoride-co-trifluoroethylene) 80/20 - electrospun, first and second annealed, and corona-poled in water",
          "poly(vinylidene fluoride-co-trifluoroethylene) 80/20 - as-electrospun",
+         "poly(vinylidene fluoride-co-trifluoroethylene) 80/20 - electrospun and corona-poled in air",
+         "poly(vinylidene fluoride-co-trifluoroethylene) 80/20 - electrospun, first and second annealed, and corona-poled in air",
+         "poly(vinylidene fluoride-co-trifluoroethylene) 80/20 - electrospun, first and second annealed, and corona-poled in water",
+         "poly(vinylidene fluoride-co-trifluoroethylene) 80/20 - electrospun, first annealed, and corona-poled in air",
          "poly(vinylidene fluoride-co-trifluoroethylene) 80/20 - electrospun, second annealed, and corona-poled in air"
         ],
         "similarity_threshold_used": 0.9,
         "fractional_value": 0.2,
         "total_reference_items": 5
        }
+      },
+      "property_unit": {
+       "match": true,
+       "reference": "pC/N",
+       "test": "pC/N"
+      },
+      "family": {
+       "match": false,
+       "reference": "P(VDF-TrFE)",
+       "test": "PVDF-based copolymers"
       }
      },
      "synthesis_data": {
@@ -3238,6 +3238,31 @@
        "missing_items": [],
        "extra_items": [],
        "fractional_value": 0.5
+      },
+      "steps": {
+       "reference_steps": [
+        "Nonwoven ES fiber mats of P(VDF-TrFE) 80/20 were prepared from 12 wt% methyl ether ketone solution using electrospinning equipped with grounded rolling collector.",
+        "First thermal annealing (1A) process was performed by holding ES fiber mat isothermally at 140°C for various times (10, 60, 180, 360, 720, 1440, and 2880 min) to produce ECCs via chain-sliding motions in paraelectric phase.",
+        "Second annealing (2A) was carried out for ES1A-2880 min below TC with fixed isothermal time of 1 day at temperatures of 110, 115, 125, and 130°C to further increase ferroelectric domain size.",
+        "Corona-charging was employed to achieve permanent remanent polarization for piezoelectricity.",
+        "For corona-poling in water, methanol was used to wet fiber mats first and then replaced with water.",
+        "AC corona poling at 500 kHz was performed in water to avoid formation of ionic EDLs and potential electrolytic degradation.",
+        "After corona-poling in water, samples were dried in vacuum before characterization."
+       ],
+       "test_steps": [
+        "Electrospinning of P(VDF-TrFE) 80/20 from 12 wt% MEK solution using a grounded rolling collector",
+        "First thermal annealing (1A) at 140 °C for various times (10, 60, 180, 360, 720, 1440, and 2880 min)",
+        "Second thermal annealing (2A) below TC (110, 115, 125, and 130 °C) for 1 day",
+        "Corona-charging in air at room temperature for 30 min",
+        "Corona-charging in water using AC corona poling at 500 kHz"
+       ],
+       "paragraph_similarity": 0.23118279569892472,
+       "steps_match": false,
+       "paragraph_comparison": {
+        "similarity_score": 0.23118279569892472,
+        "high_similarity": false,
+        "method": "sequence_matcher"
+       }
       },
       "characterization_techniques": {
        "match": false,
@@ -3285,40 +3310,15 @@
         "Piezoelectric measurement"
        ],
        "fractional_value": 0.14285714285714285
-      },
-      "steps": {
-       "reference_steps": [
-        "Nonwoven ES fiber mats of P(VDF-TrFE) 80/20 were prepared from 12 wt% methyl ether ketone solution using electrospinning equipped with grounded rolling collector.",
-        "First thermal annealing (1A) process was performed by holding ES fiber mat isothermally at 140°C for various times (10, 60, 180, 360, 720, 1440, and 2880 min) to produce ECCs via chain-sliding motions in paraelectric phase.",
-        "Second annealing (2A) was carried out for ES1A-2880 min below TC with fixed isothermal time of 1 day at temperatures of 110, 115, 125, and 130°C to further increase ferroelectric domain size.",
-        "Corona-charging was employed to achieve permanent remanent polarization for piezoelectricity.",
-        "For corona-poling in water, methanol was used to wet fiber mats first and then replaced with water.",
-        "AC corona poling at 500 kHz was performed in water to avoid formation of ionic EDLs and potential electrolytic degradation.",
-        "After corona-poling in water, samples were dried in vacuum before characterization."
-       ],
-       "test_steps": [
-        "Electrospinning of P(VDF-TrFE) 80/20 from 12 wt% MEK solution using a grounded rolling collector",
-        "First thermal annealing (1A) at 140 °C for various times (10, 60, 180, 360, 720, 1440, and 2880 min)",
-        "Second thermal annealing (2A) below TC (110, 115, 125, and 130 °C) for 1 day",
-        "Corona-charging in air at room temperature for 30 min",
-        "Corona-charging in water using AC corona poling at 500 kHz"
-       ],
-       "paragraph_similarity": 0.23118279569892472,
-       "steps_match": false,
-       "paragraph_comparison": {
-        "similarity_score": 0.23118279569892472,
-        "high_similarity": false,
-        "method": "sequence_matcher"
-       }
       }
      }
     },
-    "overall_score": 0.6571428571428573,
+    "overall_score": 0.6571428571428571,
     "overall_match": false
    },
    "10.1016/j.ceramint.2024.09.406": {
     "field_scores": {
-     "composition_data": 0.6240000000000001,
+     "composition_data": 0.624,
      "synthesis_data": 0.9
     },
     "absolute_classification_metrics": {
@@ -3339,16 +3339,6 @@
     },
     "details": {
      "composition_data": {
-      "property_unit": {
-       "match": true,
-       "reference": "pC/N",
-       "test": "pC/N"
-      },
-      "family": {
-       "match": false,
-       "reference": "CaBi4Ti4O15",
-       "test": "Bismuth layer-structured ferroelectrics"
-      },
       "compositions_property_values": {
        "match": false,
        "similarity_score": 0.08000000000000002,
@@ -3374,6 +3364,15 @@
           },
           "similarity": 1.0,
           "match_type": "exact_key_different_value"
+         },
+         {
+          "match": false,
+          "reference": {
+           "CaBi4Ti3.8(Nb2/3Mn1/3)0.2O15": 24.7
+          },
+          "test": null,
+          "similarity": 0.0,
+          "match_type": "missing"
          },
          {
           "match": false,
@@ -3404,15 +3403,6 @@
          },
          {
           "match": false,
-          "reference": {
-           "CaBi4Ti3.8(Nb2/3Mn1/3)0.2O15": 24.7
-          },
-          "test": null,
-          "similarity": 0.0,
-          "match_type": "missing"
-         },
-         {
-          "match": false,
           "reference": null,
           "test": {
            "Nb/Mn co-doped CaBi4Ti4O15 (CBTNM-0)": 7.2
@@ -3425,15 +3415,6 @@
           "reference": null,
           "test": {
            "Nb/Mn co-doped CaBi4Ti4O15 (CBTNM-12)": 26.8
-          },
-          "similarity": 0.0,
-          "match_type": "extra"
-         },
-         {
-          "match": false,
-          "reference": null,
-          "test": {
-           "Nb/Mn co-doped CaBi4Ti4O15 (CBTNM-8)": 24.8
           },
           "similarity": 0.0,
           "match_type": "extra"
@@ -3455,6 +3436,15 @@
           },
           "similarity": 0.0,
           "match_type": "extra"
+         },
+         {
+          "match": false,
+          "reference": null,
+          "test": {
+           "Nb/Mn co-doped CaBi4Ti4O15 (CBTNM-8)": 24.8
+          },
+          "similarity": 0.0,
+          "match_type": "extra"
          }
         ],
         "key_match_ratio": 0.2,
@@ -3464,22 +3454,32 @@
         "exact_matches": 1,
         "high_similarity_matches": 0,
         "missing_keys": [
+         "CaBi4Ti3.8(Nb2/3Mn1/3)0.2O15",
          "CaBi4Ti3.88(Nb2/3Mn1/3)0.12O15",
          "CaBi4Ti3.92(Nb2/3Mn1/3)0.08O15",
-         "CaBi4Ti3.96(Nb2/3Mn1/3)0.04O15",
-         "CaBi4Ti3.8(Nb2/3Mn1/3)0.2O15"
+         "CaBi4Ti3.96(Nb2/3Mn1/3)0.04O15"
         ],
         "extra_keys": [
          "Nb/Mn co-doped CaBi4Ti4O15 (CBTNM-0)",
          "Nb/Mn co-doped CaBi4Ti4O15 (CBTNM-12)",
-         "Nb/Mn co-doped CaBi4Ti4O15 (CBTNM-8)",
          "Nb/Mn co-doped CaBi4Ti4O15 (CBTNM-20)",
-         "Nb/Mn co-doped CaBi4Ti4O15 (CBTNM-4)"
+         "Nb/Mn co-doped CaBi4Ti4O15 (CBTNM-4)",
+         "Nb/Mn co-doped CaBi4Ti4O15 (CBTNM-8)"
         ],
         "similarity_threshold_used": 0.9,
         "fractional_value": 0.2,
         "total_reference_items": 5
        }
+      },
+      "property_unit": {
+       "match": true,
+       "reference": "pC/N",
+       "test": "pC/N"
+      },
+      "family": {
+       "match": false,
+       "reference": "CaBi4Ti4O15",
+       "test": "Bismuth layer-structured ferroelectrics"
       }
      },
      "synthesis_data": {
@@ -3507,6 +3507,15 @@
         "MnO2"
        ]
       },
+      "steps": {
+       "steps_match": false,
+       "message": "Reference steps are empty",
+       "reference_steps": [],
+       "test_steps": [
+        "Powder compaction into bulk dimensions of 15 mm × 2 mm × 2 mm",
+        "Poling along the thickness direction"
+       ]
+      },
       "characterization_techniques": {
        "match": false,
        "similarity": 0.0,
@@ -3531,15 +3540,6 @@
         "DMA",
         "Three-point bending test",
         "Compression test"
-       ]
-      },
-      "steps": {
-       "steps_match": false,
-       "message": "Reference steps are empty",
-       "reference_steps": [],
-       "test_steps": [
-        "Powder compaction into bulk dimensions of 15 mm × 2 mm × 2 mm",
-        "Poling along the thickness direction"
        ]
       }
      }
@@ -3570,16 +3570,6 @@
     },
     "details": {
      "composition_data": {
-      "property_unit": {
-       "match": true,
-       "reference": "pC/N",
-       "test": "pC/N"
-      },
-      "family": {
-       "match": true,
-       "reference": "RE2B2O7",
-       "test": "RE2B2O7"
-      },
       "compositions_property_values": {
        "match": true,
        "similarity_score": 1.0,
@@ -3590,21 +3580,21 @@
           "similarity": 1.0,
           "match_type": "exact"
          },
-         "Eu1.90La0.10Ge2O7": {
-          "matched_with": "Eu1.90La0.10Ge2O7",
+         "Eu1.90Ho0.10Ge2O7": {
+          "matched_with": "Eu1.90Ho0.10Ge2O7",
           "similarity": 1.0,
           "match_type": "exact"
          },
-         "Eu1.90Ho0.10Ge2O7": {
-          "matched_with": "Eu1.90Ho0.10Ge2O7",
+         "Eu1.90La0.10Ge2O7": {
+          "matched_with": "Eu1.90La0.10Ge2O7",
           "similarity": 1.0,
           "match_type": "exact"
          }
         },
         "value_matches": {
          "Eu1.90Dy0.10Ge2O7": true,
-         "Eu1.90La0.10Ge2O7": true,
-         "Eu1.90Ho0.10Ge2O7": true
+         "Eu1.90Ho0.10Ge2O7": true,
+         "Eu1.90La0.10Ge2O7": true
         },
         "pair_matches": [
          {
@@ -3621,10 +3611,10 @@
          {
           "match": true,
           "reference": {
-           "Eu1.90La0.10Ge2O7": 0.36
+           "Eu1.90Ho0.10Ge2O7": 0.62
           },
           "test": {
-           "Eu1.90La0.10Ge2O7": 0.36
+           "Eu1.90Ho0.10Ge2O7": 0.62
           },
           "similarity": 1.0,
           "match_type": "exact"
@@ -3632,10 +3622,10 @@
          {
           "match": true,
           "reference": {
-           "Eu1.90Ho0.10Ge2O7": 0.62
+           "Eu1.90La0.10Ge2O7": 0.36
           },
           "test": {
-           "Eu1.90Ho0.10Ge2O7": 0.62
+           "Eu1.90La0.10Ge2O7": 0.36
           },
           "similarity": 1.0,
           "match_type": "exact"
@@ -3653,6 +3643,16 @@
         "fractional_value": 0.3333333333333333,
         "total_reference_items": 3
        }
+      },
+      "property_unit": {
+       "match": true,
+       "reference": "pC/N",
+       "test": "pC/N"
+      },
+      "family": {
+       "match": true,
+       "reference": "RE2B2O7",
+       "test": "RE2B2O7"
       }
      },
      "synthesis_data": {
@@ -3710,6 +3710,42 @@
        "missing_items": [],
        "extra_items": [],
        "fractional_value": 0.2
+      },
+      "steps": {
+       "reference_steps": [
+        "Starting materials Eu2O3, GeO2, Dy2O3, La2O3 and Ho2O3 were combined in stoichiometric ratios with each dopant at 5 mol%.",
+        "Samples were first heated at 800°C for 2 hours in pure alumina crucibles under open atmosphere.",
+        "Materials were then heated to 1150°C for 10 hours followed by slow cooling.",
+        "Resulting materials were ground into powder for further characterization.",
+        "Ceramic discs were formed from obtained powder materials with 1 mm thickness and 10 mm diameter.",
+        "Ceramic discs were compacted using uniaxial pressing under 250 MPa pressure with 2 wt% of 5 wt% PVA aqueous solution as binder.",
+        "Samples were heated at 600°C for 30 minutes to eliminate organic additives.",
+        "Sintering was conducted at 1400°C for 4 hours.",
+        "Silver paste was applied to disc surfaces and fired at 650°C for 1 hour to form surface electrodes.",
+        "Electric field of 9-18 kV/mm was applied in silicon oil bath at 120°C for 30 minutes followed by 24-hour aging."
+       ],
+       "test_steps": [
+        "Combined precursors in stoichiometric ratios",
+        "Heated at 800 °C for 2 h",
+        "Heated to 1150 °C for 10 h in pure alumina crucibles under open atmosphere",
+        "Slowly cooled",
+        "Formed ceramic discs (1 mm thickness, 10 mm diameter)",
+        "Compacted using uniaxial pressing under 250 MPa with 2 wt% PVA binder",
+        "Heated at 600 °C for 30 min to eliminate organic additives",
+        "Sintered at 1400 °C for 4 h",
+        "Applied silver paste to surfaces and fired at 650 °C for 1 h",
+        "Polished on emery paper (1200 grit)",
+        "Fired at 650 °C for 1 h to form surface electrodes",
+        "Applied electric field (9-18 kV/mm) in silicon oil bath at 120 °C for 30 min",
+        "Aged for 24 h prior to piezoelectric characterization"
+       ],
+       "paragraph_similarity": 0.3849114703618168,
+       "steps_match": false,
+       "paragraph_comparison": {
+        "similarity_score": 0.3849114703618168,
+        "high_similarity": false,
+        "method": "sequence_matcher"
+       }
       },
       "characterization_techniques": {
        "match": true,
@@ -3774,42 +3810,6 @@
        "missing_items": [],
        "extra_items": [],
        "fractional_value": 0.14285714285714285
-      },
-      "steps": {
-       "reference_steps": [
-        "Starting materials Eu2O3, GeO2, Dy2O3, La2O3 and Ho2O3 were combined in stoichiometric ratios with each dopant at 5 mol%.",
-        "Samples were first heated at 800°C for 2 hours in pure alumina crucibles under open atmosphere.",
-        "Materials were then heated to 1150°C for 10 hours followed by slow cooling.",
-        "Resulting materials were ground into powder for further characterization.",
-        "Ceramic discs were formed from obtained powder materials with 1 mm thickness and 10 mm diameter.",
-        "Ceramic discs were compacted using uniaxial pressing under 250 MPa pressure with 2 wt% of 5 wt% PVA aqueous solution as binder.",
-        "Samples were heated at 600°C for 30 minutes to eliminate organic additives.",
-        "Sintering was conducted at 1400°C for 4 hours.",
-        "Silver paste was applied to disc surfaces and fired at 650°C for 1 hour to form surface electrodes.",
-        "Electric field of 9-18 kV/mm was applied in silicon oil bath at 120°C for 30 minutes followed by 24-hour aging."
-       ],
-       "test_steps": [
-        "Combined precursors in stoichiometric ratios",
-        "Heated at 800 °C for 2 h",
-        "Heated to 1150 °C for 10 h in pure alumina crucibles under open atmosphere",
-        "Slowly cooled",
-        "Formed ceramic discs (1 mm thickness, 10 mm diameter)",
-        "Compacted using uniaxial pressing under 250 MPa with 2 wt% PVA binder",
-        "Heated at 600 °C for 30 min to eliminate organic additives",
-        "Sintered at 1400 °C for 4 h",
-        "Applied silver paste to surfaces and fired at 650 °C for 1 h",
-        "Polished on emery paper (1200 grit)",
-        "Fired at 650 °C for 1 h to form surface electrodes",
-        "Applied electric field (9-18 kV/mm) in silicon oil bath at 120 °C for 30 min",
-        "Aged for 24 h prior to piezoelectric characterization"
-       ],
-       "paragraph_similarity": 0.3849114703618168,
-       "steps_match": false,
-       "paragraph_comparison": {
-        "similarity_score": 0.3849114703618168,
-        "high_similarity": false,
-        "method": "sequence_matcher"
-       }
       }
      }
     },
@@ -3839,16 +3839,6 @@
     },
     "details": {
      "composition_data": {
-      "property_unit": {
-       "match": true,
-       "reference": "p.m. V−1",
-       "test": "p.m. V−1"
-      },
-      "family": {
-       "match": true,
-       "reference": "BaTiO3",
-       "test": "BaTiO3"
-      },
       "compositions_property_values": {
        "match": true,
        "similarity_score": 1.0,
@@ -3905,6 +3895,16 @@
         "fractional_value": 0.5,
         "total_reference_items": 2
        }
+      },
+      "property_unit": {
+       "match": true,
+       "reference": "p.m. V−1",
+       "test": "p.m. V−1"
+      },
+      "family": {
+       "match": true,
+       "reference": "BaTiO3",
+       "test": "BaTiO3"
       }
      },
      "synthesis_data": {
@@ -3963,6 +3963,40 @@
        "extra_items": [],
        "fractional_value": 0.2
       },
+      "steps": {
+       "reference_steps": [
+        "Stoichiometric ratios of high-purity precursors BaCO3, CaCO3, ZrO2, SnO2, and TiO2 were mixed.",
+        "Combinations were ground for 2 hours in mortar and pestle.",
+        "Materials were ball milled for 4 hours in ethanol solution with zirconia balls in low-energy ball mill.",
+        "Resulting solutions were dried and obtained lumps were pulverized.",
+        "Powders were calcined for 4 hours at 1200°C in air ambient.",
+        "Resulting granulated powders were reground.",
+        "1 wt% polyvinyl alcohol (PVA) was added as organic binder.",
+        "Materials were molded into disk-shaped pellets (1 mm thick and 10 mm diameter).",
+        "Pellets were heated for 1 hour at 650°C at rate of 1°C per minute to burn off PVA binder.",
+        "Binder-free pellets underwent sintering for 4 hours at 1400°C in air.",
+        "Sintered pellets were electroded on opposite faces with conducting silver paste for electrical measurements."
+       ],
+       "test_steps": [
+        "Stoichiometric ratios of precursors were mixed",
+        "Grinding in a mortar and pestle for 2 h",
+        "Milling in ethanol solution with zirconia balls for 4 h",
+        "Drying the resulting solutions",
+        "Pulverizing the obtained lumps",
+        "Calcining at 1200 °C for 4 h in air",
+        "Regrinding the granulated powders",
+        "Molding into disk-shaped pellets with 1 wt% PVA binder",
+        "Heating pellets at 650 °C for 1 h to burn off PVA",
+        "Sintering binder-free pellets at 1400 °C for 4 h in air"
+       ],
+       "paragraph_similarity": 0.19263456090651557,
+       "steps_match": false,
+       "paragraph_comparison": {
+        "similarity_score": 0.19263456090651557,
+        "high_similarity": false,
+        "method": "sequence_matcher"
+       }
+      },
       "characterization_techniques": {
        "match": false,
        "similarity": 0.2125,
@@ -4015,40 +4049,6 @@
         "Piezoelectric measurements"
        ],
        "fractional_value": 0.125
-      },
-      "steps": {
-       "reference_steps": [
-        "Stoichiometric ratios of high-purity precursors BaCO3, CaCO3, ZrO2, SnO2, and TiO2 were mixed.",
-        "Combinations were ground for 2 hours in mortar and pestle.",
-        "Materials were ball milled for 4 hours in ethanol solution with zirconia balls in low-energy ball mill.",
-        "Resulting solutions were dried and obtained lumps were pulverized.",
-        "Powders were calcined for 4 hours at 1200°C in air ambient.",
-        "Resulting granulated powders were reground.",
-        "1 wt% polyvinyl alcohol (PVA) was added as organic binder.",
-        "Materials were molded into disk-shaped pellets (1 mm thick and 10 mm diameter).",
-        "Pellets were heated for 1 hour at 650°C at rate of 1°C per minute to burn off PVA binder.",
-        "Binder-free pellets underwent sintering for 4 hours at 1400°C in air.",
-        "Sintered pellets were electroded on opposite faces with conducting silver paste for electrical measurements."
-       ],
-       "test_steps": [
-        "Stoichiometric ratios of precursors were mixed",
-        "Grinding in a mortar and pestle for 2 h",
-        "Milling in ethanol solution with zirconia balls for 4 h",
-        "Drying the resulting solutions",
-        "Pulverizing the obtained lumps",
-        "Calcining at 1200 °C for 4 h in air",
-        "Regrinding the granulated powders",
-        "Molding into disk-shaped pellets with 1 wt% PVA binder",
-        "Heating pellets at 650 °C for 1 h to burn off PVA",
-        "Sintering binder-free pellets at 1400 °C for 4 h in air"
-       ],
-       "paragraph_similarity": 0.19263456090651557,
-       "steps_match": false,
-       "paragraph_comparison": {
-        "similarity_score": 0.19263456090651557,
-        "high_similarity": false,
-        "method": "sequence_matcher"
-       }
       }
      }
     },
@@ -4078,28 +4078,13 @@
     },
     "details": {
      "composition_data": {
-      "property_unit": {
-       "match": true,
-       "reference": "pC/N",
-       "test": "pC/N"
-      },
-      "family": {
-       "match": false,
-       "reference": "BLSF",
-       "test": "Aurivillius"
-      },
       "compositions_property_values": {
        "match": true,
        "similarity_score": 1.0,
        "details": {
         "key_matches": {
-         "Bi2.93Ce0.07TiNbO9": {
-          "matched_with": "Bi2.93Ce0.07TiNbO9",
-          "similarity": 1.0,
-          "match_type": "exact"
-         },
-         "Bi3TiNbO9": {
-          "matched_with": "Bi3TiNbO9",
+         "Bi2.89Ce0.11TiNbO9": {
+          "matched_with": "Bi2.89Ce0.11TiNbO9",
           "similarity": 1.0,
           "match_type": "exact"
          },
@@ -4108,8 +4093,8 @@
           "similarity": 1.0,
           "match_type": "exact"
          },
-         "Bi2.99Ce0.01TiNbO9": {
-          "matched_with": "Bi2.99Ce0.01TiNbO9",
+         "Bi2.93Ce0.07TiNbO9": {
+          "matched_with": "Bi2.93Ce0.07TiNbO9",
           "similarity": 1.0,
           "match_type": "exact"
          },
@@ -4123,40 +4108,34 @@
           "similarity": 1.0,
           "match_type": "exact"
          },
-         "Bi2.89Ce0.11TiNbO9": {
-          "matched_with": "Bi2.89Ce0.11TiNbO9",
+         "Bi2.99Ce0.01TiNbO9": {
+          "matched_with": "Bi2.99Ce0.01TiNbO9",
+          "similarity": 1.0,
+          "match_type": "exact"
+         },
+         "Bi3TiNbO9": {
+          "matched_with": "Bi3TiNbO9",
           "similarity": 1.0,
           "match_type": "exact"
          }
         },
         "value_matches": {
-         "Bi2.93Ce0.07TiNbO9": true,
-         "Bi3TiNbO9": true,
+         "Bi2.89Ce0.11TiNbO9": true,
          "Bi2.91Ce0.09TiNbO9": true,
-         "Bi2.99Ce0.01TiNbO9": true,
+         "Bi2.93Ce0.07TiNbO9": true,
          "Bi2.95Ce0.05TiNbO9": true,
          "Bi2.97Ce0.03TiNbO9": true,
-         "Bi2.89Ce0.11TiNbO9": true
+         "Bi2.99Ce0.01TiNbO9": true,
+         "Bi3TiNbO9": true
         },
         "pair_matches": [
          {
           "match": true,
           "reference": {
-           "Bi2.93Ce0.07TiNbO9": 17.1
+           "Bi2.89Ce0.11TiNbO9": 12.5
           },
           "test": {
-           "Bi2.93Ce0.07TiNbO9": 17.1
-          },
-          "similarity": 1.0,
-          "match_type": "exact"
-         },
-         {
-          "match": true,
-          "reference": {
-           "Bi3TiNbO9": 3.1
-          },
-          "test": {
-           "Bi3TiNbO9": 3.1
+           "Bi2.89Ce0.11TiNbO9": 12.5
           },
           "similarity": 1.0,
           "match_type": "exact"
@@ -4175,10 +4154,10 @@
          {
           "match": true,
           "reference": {
-           "Bi2.99Ce0.01TiNbO9": 5
+           "Bi2.93Ce0.07TiNbO9": 17.1
           },
           "test": {
-           "Bi2.99Ce0.01TiNbO9": 5
+           "Bi2.93Ce0.07TiNbO9": 17.1
           },
           "similarity": 1.0,
           "match_type": "exact"
@@ -4208,10 +4187,21 @@
          {
           "match": true,
           "reference": {
-           "Bi2.89Ce0.11TiNbO9": 12.5
+           "Bi2.99Ce0.01TiNbO9": 5
           },
           "test": {
-           "Bi2.89Ce0.11TiNbO9": 12.5
+           "Bi2.99Ce0.01TiNbO9": 5
+          },
+          "similarity": 1.0,
+          "match_type": "exact"
+         },
+         {
+          "match": true,
+          "reference": {
+           "Bi3TiNbO9": 3.1
+          },
+          "test": {
+           "Bi3TiNbO9": 3.1
           },
           "similarity": 1.0,
           "match_type": "exact"
@@ -4229,6 +4219,16 @@
         "fractional_value": 0.14285714285714285,
         "total_reference_items": 7
        }
+      },
+      "property_unit": {
+       "match": true,
+       "reference": "pC/N",
+       "test": "pC/N"
+      },
+      "family": {
+       "match": false,
+       "reference": "BLSF",
+       "test": "Aurivillius"
       }
      },
      "synthesis_data": {
@@ -4279,6 +4279,37 @@
        "missing_items": [],
        "extra_items": [],
        "fractional_value": 0.25
+      },
+      "steps": {
+       "reference_steps": [
+        "Raw materials CeO2, Bi2O3, TiO2, and Nb2O5 were weighed according to BTN-100xCe nominal composition.",
+        "Materials were ball mixed for 24 hours with anhydrous ethanol and zirconia balls medium.",
+        "Mixed slurries were separated from balls and dried.",
+        "Dried materials were calcined at 800°C for 3 hours.",
+        "Calcined materials were ball milled for 24 hours again and dried.",
+        "Dried powders were granulated with 5 wt% polyvinyl alcohol solution as adhesive.",
+        "Granulated powders were pressed into green pellets of 13 mm diameter and 1.0 mm thick under 120±10 MPa pressure.",
+        "Green pellets were fired at 650°C for 3 hours to burn off PVA.",
+        "Pellets were sintered at 1065-1105°C for 3 hours in air with 5°C/min heating rate.",
+        "Sintered samples were furnace-cooled to ambient temperature."
+       ],
+       "test_steps": [
+        "Weigh raw materials according to nominal composition",
+        "Ball mix for 24 h with anhydrous ethanol and zirconia balls medium",
+        "Dry and calcine at 800 °C for 3 h",
+        "Ball mill for 24 h again",
+        "Granulate dried powders with polyvinyl alcohol solution (PVA, 5 wt%)",
+        "Press into green pellets of 13 mm diameter and about 1.0 mm thick under 120 ± 10 MPa",
+        "Fire green pellets at 650 °C for 3 h to burn off PVA",
+        "Sinter at 1065–1105 °C for 3 h in air with 5 °C/min followed by furnace-cooling"
+       ],
+       "paragraph_similarity": 0.3564954682779456,
+       "steps_match": false,
+       "paragraph_comparison": {
+        "similarity_score": 0.3564954682779456,
+        "high_similarity": false,
+        "method": "sequence_matcher"
+       }
       },
       "characterization_techniques": {
        "match": false,
@@ -4339,37 +4370,6 @@
         "Quasi-static d33 meter"
        ],
        "fractional_value": 0.14285714285714285
-      },
-      "steps": {
-       "reference_steps": [
-        "Raw materials CeO2, Bi2O3, TiO2, and Nb2O5 were weighed according to BTN-100xCe nominal composition.",
-        "Materials were ball mixed for 24 hours with anhydrous ethanol and zirconia balls medium.",
-        "Mixed slurries were separated from balls and dried.",
-        "Dried materials were calcined at 800°C for 3 hours.",
-        "Calcined materials were ball milled for 24 hours again and dried.",
-        "Dried powders were granulated with 5 wt% polyvinyl alcohol solution as adhesive.",
-        "Granulated powders were pressed into green pellets of 13 mm diameter and 1.0 mm thick under 120±10 MPa pressure.",
-        "Green pellets were fired at 650°C for 3 hours to burn off PVA.",
-        "Pellets were sintered at 1065-1105°C for 3 hours in air with 5°C/min heating rate.",
-        "Sintered samples were furnace-cooled to ambient temperature."
-       ],
-       "test_steps": [
-        "Weigh raw materials according to nominal composition",
-        "Ball mix for 24 h with anhydrous ethanol and zirconia balls medium",
-        "Dry and calcine at 800 °C for 3 h",
-        "Ball mill for 24 h again",
-        "Granulate dried powders with polyvinyl alcohol solution (PVA, 5 wt%)",
-        "Press into green pellets of 13 mm diameter and about 1.0 mm thick under 120 ± 10 MPa",
-        "Fire green pellets at 650 °C for 3 h to burn off PVA",
-        "Sinter at 1065–1105 °C for 3 h in air with 5 °C/min followed by furnace-cooling"
-       ],
-       "paragraph_similarity": 0.3564954682779456,
-       "steps_match": false,
-       "paragraph_comparison": {
-        "similarity_score": 0.3564954682779456,
-        "high_similarity": false,
-        "method": "sequence_matcher"
-       }
       }
      }
     },
@@ -4399,16 +4399,6 @@
     },
     "details": {
      "composition_data": {
-      "property_unit": {
-       "match": true,
-       "reference": "pm/V",
-       "test": "pm/V"
-      },
-      "family": {
-       "match": true,
-       "reference": "TeO2",
-       "test": "TeO2"
-      },
       "compositions_property_values": {
        "match": true,
        "similarity_score": 1.0,
@@ -4465,6 +4455,16 @@
         "fractional_value": 0.5,
         "total_reference_items": 2
        }
+      },
+      "property_unit": {
+       "match": true,
+       "reference": "pm/V",
+       "test": "pm/V"
+      },
+      "family": {
+       "match": true,
+       "reference": "TeO2",
+       "test": "TeO2"
       }
      },
      "synthesis_data": {
@@ -4484,6 +4484,11 @@
        "missing_items": [],
        "extra_items": []
       },
+      "steps": {
+       "steps_match": true,
+       "reference_steps": [],
+       "test_steps": []
+      },
       "characterization_techniques": {
        "match": false,
        "similarity": 0.0,
@@ -4497,11 +4502,6 @@
        "extra_items": [
         "UV-Vis absorption"
        ]
-      },
-      "steps": {
-       "steps_match": true,
-       "reference_steps": [],
-       "test_steps": []
       }
      }
     },
@@ -6255,16 +6255,6 @@
     },
     "details": {
      "composition_data": {
-      "property_unit": {
-       "match": true,
-       "reference": "pC/N",
-       "test": "pC/N"
-      },
-      "family": {
-       "match": true,
-       "reference": "BaTiO3",
-       "test": "BaTiO3"
-      },
       "compositions_property_values": {
        "match": false,
        "similarity_score": 0.52,
@@ -6275,14 +6265,14 @@
           "similarity": 1.0,
           "match_type": "exact"
          },
+         "Ba0.85Ca0.15Zr0.0985Ti0.8865Cu0.005Nb0.01O3": {
+          "matched_with": "Ba0.85Ca0.15Zr0.0985Ti0.8865Cu0.00495Nb0.01005O3",
+          "similarity": 0.9367088607594937,
+          "match_type": "high_similarity"
+         },
          "Ba0.85Ca0.15Zr0.098Ti0.882Cu0.00667Nb0.01333O3": {
           "matched_with": "Ba0.85Ca0.15Zr0.098Ti0.882Cu0.0066Nb0.0134O3",
           "similarity": 0.9487179487179487,
-          "match_type": "high_similarity"
-         },
-         "Ba0.85Ca0.15Zr0.099Ti0.891Cu0.00333Nb0.00667O3": {
-          "matched_with": "Ba0.85Ca0.15Zr0.099Ti0.891Cu0.0033Nb0.0067O3",
-          "similarity": 0.9743589743589743,
           "match_type": "high_similarity"
          },
          "Ba0.85Ca0.15Zr0.0995Ti0.8955Cu0.001667Nb0.003333O3": {
@@ -6290,18 +6280,18 @@
           "similarity": 0.9302325581395349,
           "match_type": "high_similarity"
          },
-         "Ba0.85Ca0.15Zr0.0985Ti0.8865Cu0.005Nb0.01O3": {
-          "matched_with": "Ba0.85Ca0.15Zr0.0985Ti0.8865Cu0.00495Nb0.01005O3",
-          "similarity": 0.9367088607594937,
+         "Ba0.85Ca0.15Zr0.099Ti0.891Cu0.00333Nb0.00667O3": {
+          "matched_with": "Ba0.85Ca0.15Zr0.099Ti0.891Cu0.0033Nb0.0067O3",
+          "similarity": 0.9743589743589743,
           "match_type": "high_similarity"
          }
         },
         "value_matches": {
          "Ba0.85Ca0.15Zr0.1Ti0.9O3": true,
+         "Ba0.85Ca0.15Zr0.0985Ti0.8865Cu0.005Nb0.01O3": true,
          "Ba0.85Ca0.15Zr0.098Ti0.882Cu0.00667Nb0.01333O3": true,
-         "Ba0.85Ca0.15Zr0.099Ti0.891Cu0.00333Nb0.00667O3": true,
          "Ba0.85Ca0.15Zr0.0995Ti0.8955Cu0.001667Nb0.003333O3": true,
-         "Ba0.85Ca0.15Zr0.0985Ti0.8865Cu0.005Nb0.01O3": true
+         "Ba0.85Ca0.15Zr0.099Ti0.891Cu0.00333Nb0.00667O3": true
         },
         "pair_matches": [
          {
@@ -6318,23 +6308,23 @@
          {
           "match": false,
           "reference": {
+           "Ba0.85Ca0.15Zr0.0985Ti0.8865Cu0.005Nb0.01O3": 450
+          },
+          "test": {
+           "Ba0.85Ca0.15Zr0.0985Ti0.8865Cu0.00495Nb0.01005O3": 450
+          },
+          "similarity": 0.9367088607594937,
+          "match_type": "high_similarity_same_value"
+         },
+         {
+          "match": false,
+          "reference": {
            "Ba0.85Ca0.15Zr0.098Ti0.882Cu0.00667Nb0.01333O3": 251
           },
           "test": {
            "Ba0.85Ca0.15Zr0.098Ti0.882Cu0.0066Nb0.0134O3": 250
           },
           "similarity": 0.9487179487179487,
-          "match_type": "high_similarity_same_value"
-         },
-         {
-          "match": false,
-          "reference": {
-           "Ba0.85Ca0.15Zr0.099Ti0.891Cu0.00333Nb0.00667O3": 550
-          },
-          "test": {
-           "Ba0.85Ca0.15Zr0.099Ti0.891Cu0.0033Nb0.0067O3": 550
-          },
-          "similarity": 0.9743589743589743,
           "match_type": "high_similarity_same_value"
          },
          {
@@ -6351,12 +6341,12 @@
          {
           "match": false,
           "reference": {
-           "Ba0.85Ca0.15Zr0.0985Ti0.8865Cu0.005Nb0.01O3": 450
+           "Ba0.85Ca0.15Zr0.099Ti0.891Cu0.00333Nb0.00667O3": 550
           },
           "test": {
-           "Ba0.85Ca0.15Zr0.0985Ti0.8865Cu0.00495Nb0.01005O3": 450
+           "Ba0.85Ca0.15Zr0.099Ti0.891Cu0.0033Nb0.0067O3": 550
           },
-          "similarity": 0.9367088607594937,
+          "similarity": 0.9743589743589743,
           "match_type": "high_similarity_same_value"
          }
         ],
@@ -6372,6 +6362,16 @@
         "fractional_value": 0.2,
         "total_reference_items": 5
        }
+      },
+      "property_unit": {
+       "match": true,
+       "reference": "pC/N",
+       "test": "pC/N"
+      },
+      "family": {
+       "match": true,
+       "reference": "BaTiO3",
+       "test": "BaTiO3"
       }
      }
     },
@@ -6400,38 +6400,13 @@
     },
     "details": {
      "composition_data": {
-      "property_unit": {
-       "match": true,
-       "reference": "pC/N",
-       "test": "pC/N"
-      },
-      "family": {
-       "match": true,
-       "reference": "BaTiO3",
-       "test": "BaTiO3"
-      },
       "compositions_property_values": {
        "match": false,
        "similarity_score": 0.8,
        "details": {
         "key_matches": {
-         "Ba0.94Ca0.06Ti0.94Zr0.01Sn0.05O3": {
-          "matched_with": "Ba0.94Ca0.06Ti0.94Zr0.01Sn0.05O3",
-          "similarity": 1.0,
-          "match_type": "exact"
-         },
          "Ba0.92Ca0.08Ti0.94Zr0.01Sn0.05O3": {
           "matched_with": "Ba0.92Ca0.08Ti0.94Zr0.01Sn0.05O3",
-          "similarity": 1.0,
-          "match_type": "exact"
-         },
-         "Ba0.95Ca0.05Ti0.94Zr0.01Sn0.05O3": {
-          "matched_with": "Ba0.95Ca0.05Ti0.94Zr0.01Sn0.05O3",
-          "similarity": 1.0,
-          "match_type": "exact"
-         },
-         "Ba0.99Ca0.01Ti0.94Zr0.01Sn0.05O3": {
-          "matched_with": "Ba0.99Ca0.01Ti0.94Zr0.01Sn0.05O3",
           "similarity": 1.0,
           "match_type": "exact"
          },
@@ -6440,13 +6415,28 @@
           "similarity": 1.0,
           "match_type": "exact"
          },
+         "Ba0.94Ca0.06Ti0.94Zr0.01Sn0.05O3": {
+          "matched_with": "Ba0.94Ca0.06Ti0.94Zr0.01Sn0.05O3",
+          "similarity": 1.0,
+          "match_type": "exact"
+         },
+         "Ba0.95Ca0.05Ti0.94Zr0.01Sn0.05O3": {
+          "matched_with": "Ba0.95Ca0.05Ti0.94Zr0.01Sn0.05O3",
+          "similarity": 1.0,
+          "match_type": "exact"
+         },
          "Ba0.98Ca0.02Ti0.94Zr0.01Sn0.05O3": {
           "matched_with": "Ba0.98Ca0.02Ti0.94Zr0.01Sn0.05O3",
           "similarity": 1.0,
           "match_type": "exact"
          },
-         "Ba0.93Ca0.07Ti0.94Zr0.01Sn0.05O3-Ts1550°C": {
-          "matched_with": "Ba0.93Ca0.07Ti0.94Zr0.01Sn0.05O3-Ts1550",
+         "Ba0.99Ca0.01Ti0.94Zr0.01Sn0.05O3": {
+          "matched_with": "Ba0.99Ca0.01Ti0.94Zr0.01Sn0.05O3",
+          "similarity": 1.0,
+          "match_type": "exact"
+         },
+         "Ba0.93Ca0.07Ti0.94Zr0.01Sn0.05O3-Ts1480°C": {
+          "matched_with": "Ba0.93Ca0.07Ti0.94Zr0.01Sn0.05O3-Ts1480",
           "similarity": 0.9705882352941176,
           "match_type": "high_similarity"
          },
@@ -6455,35 +6445,24 @@
           "similarity": 0.9705882352941176,
           "match_type": "high_similarity"
          },
-         "Ba0.93Ca0.07Ti0.94Zr0.01Sn0.05O3-Ts1480°C": {
-          "matched_with": "Ba0.93Ca0.07Ti0.94Zr0.01Sn0.05O3-Ts1480",
+         "Ba0.93Ca0.07Ti0.94Zr0.01Sn0.05O3-Ts1550°C": {
+          "matched_with": "Ba0.93Ca0.07Ti0.94Zr0.01Sn0.05O3-Ts1550",
           "similarity": 0.9705882352941176,
           "match_type": "high_similarity"
          }
         },
         "value_matches": {
-         "Ba0.94Ca0.06Ti0.94Zr0.01Sn0.05O3": true,
          "Ba0.92Ca0.08Ti0.94Zr0.01Sn0.05O3": true,
-         "Ba0.95Ca0.05Ti0.94Zr0.01Sn0.05O3": true,
-         "Ba0.99Ca0.01Ti0.94Zr0.01Sn0.05O3": true,
          "Ba0.93Ca0.07Ti0.94Zr0.01Sn0.05O3": true,
+         "Ba0.94Ca0.06Ti0.94Zr0.01Sn0.05O3": true,
+         "Ba0.95Ca0.05Ti0.94Zr0.01Sn0.05O3": true,
          "Ba0.98Ca0.02Ti0.94Zr0.01Sn0.05O3": true,
-         "Ba0.93Ca0.07Ti0.94Zr0.01Sn0.05O3-Ts1550°C": true,
+         "Ba0.99Ca0.01Ti0.94Zr0.01Sn0.05O3": true,
+         "Ba0.93Ca0.07Ti0.94Zr0.01Sn0.05O3-Ts1480°C": true,
          "Ba0.93Ca0.07Ti0.94Zr0.01Sn0.05O3-Ts1530°C": true,
-         "Ba0.93Ca0.07Ti0.94Zr0.01Sn0.05O3-Ts1480°C": true
+         "Ba0.93Ca0.07Ti0.94Zr0.01Sn0.05O3-Ts1550°C": true
         },
         "pair_matches": [
-         {
-          "match": true,
-          "reference": {
-           "Ba0.94Ca0.06Ti0.94Zr0.01Sn0.05O3": 439
-          },
-          "test": {
-           "Ba0.94Ca0.06Ti0.94Zr0.01Sn0.05O3": 438
-          },
-          "similarity": 1.0,
-          "match_type": "exact"
-         },
          {
           "match": true,
           "reference": {
@@ -6498,10 +6477,10 @@
          {
           "match": true,
           "reference": {
-           "Ba0.95Ca0.05Ti0.94Zr0.01Sn0.05O3": 368
+           "Ba0.93Ca0.07Ti0.94Zr0.01Sn0.05O3": 442
           },
           "test": {
-           "Ba0.95Ca0.05Ti0.94Zr0.01Sn0.05O3": 368
+           "Ba0.93Ca0.07Ti0.94Zr0.01Sn0.05O3": 442
           },
           "similarity": 1.0,
           "match_type": "exact"
@@ -6509,10 +6488,10 @@
          {
           "match": true,
           "reference": {
-           "Ba0.99Ca0.01Ti0.94Zr0.01Sn0.05O3": 235
+           "Ba0.94Ca0.06Ti0.94Zr0.01Sn0.05O3": 439
           },
           "test": {
-           "Ba0.99Ca0.01Ti0.94Zr0.01Sn0.05O3": 235
+           "Ba0.94Ca0.06Ti0.94Zr0.01Sn0.05O3": 438
           },
           "similarity": 1.0,
           "match_type": "exact"
@@ -6520,10 +6499,10 @@
          {
           "match": true,
           "reference": {
-           "Ba0.93Ca0.07Ti0.94Zr0.01Sn0.05O3": 442
+           "Ba0.95Ca0.05Ti0.94Zr0.01Sn0.05O3": 368
           },
           "test": {
-           "Ba0.93Ca0.07Ti0.94Zr0.01Sn0.05O3": 442
+           "Ba0.95Ca0.05Ti0.94Zr0.01Sn0.05O3": 368
           },
           "similarity": 1.0,
           "match_type": "exact"
@@ -6540,12 +6519,23 @@
           "match_type": "exact"
          },
          {
-          "match": false,
+          "match": true,
           "reference": {
-           "Ba0.93Ca0.07Ti0.94Zr0.01Sn0.05O3-Ts1550°C": 511
+           "Ba0.99Ca0.01Ti0.94Zr0.01Sn0.05O3": 235
           },
           "test": {
-           "Ba0.93Ca0.07Ti0.94Zr0.01Sn0.05O3-Ts1550": 511
+           "Ba0.99Ca0.01Ti0.94Zr0.01Sn0.05O3": 235
+          },
+          "similarity": 1.0,
+          "match_type": "exact"
+         },
+         {
+          "match": false,
+          "reference": {
+           "Ba0.93Ca0.07Ti0.94Zr0.01Sn0.05O3-Ts1480°C": 192
+          },
+          "test": {
+           "Ba0.93Ca0.07Ti0.94Zr0.01Sn0.05O3-Ts1480": 190
           },
           "similarity": 0.9705882352941176,
           "match_type": "high_similarity_same_value"
@@ -6564,10 +6554,10 @@
          {
           "match": false,
           "reference": {
-           "Ba0.93Ca0.07Ti0.94Zr0.01Sn0.05O3-Ts1480°C": 192
+           "Ba0.93Ca0.07Ti0.94Zr0.01Sn0.05O3-Ts1550°C": 511
           },
           "test": {
-           "Ba0.93Ca0.07Ti0.94Zr0.01Sn0.05O3-Ts1480": 190
+           "Ba0.93Ca0.07Ti0.94Zr0.01Sn0.05O3-Ts1550": 511
           },
           "similarity": 0.9705882352941176,
           "match_type": "high_similarity_same_value"
@@ -6585,6 +6575,16 @@
         "fractional_value": 0.1111111111111111,
         "total_reference_items": 9
        }
+      },
+      "property_unit": {
+       "match": true,
+       "reference": "pC/N",
+       "test": "pC/N"
+      },
+      "family": {
+       "match": true,
+       "reference": "BaTiO3",
+       "test": "BaTiO3"
       }
      }
     },
@@ -6613,16 +6613,6 @@
     },
     "details": {
      "composition_data": {
-      "property_unit": {
-       "match": true,
-       "reference": "pC/N",
-       "test": "pC/N"
-      },
-      "family": {
-       "match": true,
-       "reference": "PLZT",
-       "test": "PLZT"
-      },
       "compositions_property_values": {
        "match": false,
        "similarity_score": 0.23333333333333334,
@@ -6687,15 +6677,6 @@
          {
           "match": false,
           "reference": {
-           "Pb0.98La0.012Gd0.008Zr0.5141Ti0.4559Nb0.02O3": 549
-          },
-          "test": null,
-          "similarity": 0.0,
-          "match_type": "missing"
-         },
-         {
-          "match": false,
-          "reference": {
            "Pb0.986La0.012Gd0.002Zr0.514895Ti0.456605Nb0.02O3": 532
           },
           "test": null,
@@ -6704,12 +6685,12 @@
          },
          {
           "match": false,
-          "reference": null,
-          "test": {
-           "Pb0.986La0.012Gd0.002Zr0.51516Ti0.45684Nb0.02O3": 532
+          "reference": {
+           "Pb0.98La0.012Gd0.008Zr0.5141Ti0.4559Nb0.02O3": 549
           },
+          "test": null,
           "similarity": 0.0,
-          "match_type": "extra"
+          "match_type": "missing"
          },
          {
           "match": false,
@@ -6724,7 +6705,7 @@
           "match": false,
           "reference": null,
           "test": {
-           "Pb0.98La0.012Gd0.008Zr0.51516Ti0.45684Nb0.02O3": 549
+           "Pb0.982La0.012Gd0.006Zr0.51516Ti0.45684Nb0.02O3": 574
           },
           "similarity": 0.0,
           "match_type": "extra"
@@ -6733,7 +6714,16 @@
           "match": false,
           "reference": null,
           "test": {
-           "Pb0.982La0.012Gd0.006Zr0.51516Ti0.45684Nb0.02O3": 574
+           "Pb0.986La0.012Gd0.002Zr0.51516Ti0.45684Nb0.02O3": 532
+          },
+          "similarity": 0.0,
+          "match_type": "extra"
+         },
+         {
+          "match": false,
+          "reference": null,
+          "test": {
+           "Pb0.98La0.012Gd0.008Zr0.51516Ti0.45684Nb0.02O3": 549
           },
           "similarity": 0.0,
           "match_type": "extra"
@@ -6748,19 +6738,29 @@
         "missing_keys": [
          "Pb0.978La0.012Gd0.01Zr0.513835Ti0.455665Nb0.02O3",
          "Pb0.982La0.012Gd0.006Zr0.514365Ti0.456135Nb0.02O3",
-         "Pb0.98La0.012Gd0.008Zr0.5141Ti0.4559Nb0.02O3",
-         "Pb0.986La0.012Gd0.002Zr0.514895Ti0.456605Nb0.02O3"
+         "Pb0.986La0.012Gd0.002Zr0.514895Ti0.456605Nb0.02O3",
+         "Pb0.98La0.012Gd0.008Zr0.5141Ti0.4559Nb0.02O3"
         ],
         "extra_keys": [
-         "Pb0.986La0.012Gd0.002Zr0.51516Ti0.45684Nb0.02O3",
          "Pb0.978La0.012Gd0.01Zr0.51516Ti0.45684Nb0.02O3",
-         "Pb0.98La0.012Gd0.008Zr0.51516Ti0.45684Nb0.02O3",
-         "Pb0.982La0.012Gd0.006Zr0.51516Ti0.45684Nb0.02O3"
+         "Pb0.982La0.012Gd0.006Zr0.51516Ti0.45684Nb0.02O3",
+         "Pb0.986La0.012Gd0.002Zr0.51516Ti0.45684Nb0.02O3",
+         "Pb0.98La0.012Gd0.008Zr0.51516Ti0.45684Nb0.02O3"
         ],
         "similarity_threshold_used": 0.9,
         "fractional_value": 0.16666666666666666,
         "total_reference_items": 6
        }
+      },
+      "property_unit": {
+       "match": true,
+       "reference": "pC/N",
+       "test": "pC/N"
+      },
+      "family": {
+       "match": true,
+       "reference": "PLZT",
+       "test": "PLZT"
       }
      }
     },
@@ -6789,16 +6789,6 @@
     },
     "details": {
      "composition_data": {
-      "property_unit": {
-       "match": true,
-       "reference": "pC/N",
-       "test": "pC/N"
-      },
-      "family": {
-       "match": true,
-       "reference": "PZT",
-       "test": "PZT"
-      },
       "compositions_property_values": {
        "match": false,
        "similarity_score": 0.25,
@@ -6828,15 +6818,6 @@
          {
           "match": false,
           "reference": {
-           "PbZr0.519896Ti0.479904Nd0.0002O3:Nd3": 149
-          },
-          "test": null,
-          "similarity": 0.0,
-          "match_type": "missing"
-         },
-         {
-          "match": false,
-          "reference": {
            "PbZr0.519896Ti0.479904Dy0.0002O3:Dy3": 125
           },
           "test": null,
@@ -6854,9 +6835,18 @@
          },
          {
           "match": false,
+          "reference": {
+           "PbZr0.519896Ti0.479904Nd0.0002O3:Nd3": 149
+          },
+          "test": null,
+          "similarity": 0.0,
+          "match_type": "missing"
+         },
+         {
+          "match": false,
           "reference": null,
           "test": {
-           "PbZr0.52Ti0.48O3:La3": 112
+           "PbZr0.52Ti0.48O3:Dy3": 125
           },
           "similarity": 0.0,
           "match_type": "extra"
@@ -6865,7 +6855,7 @@
           "match": false,
           "reference": null,
           "test": {
-           "PbZr0.52Ti0.48O3:Dy3": 125
+           "PbZr0.52Ti0.48O3:La3": 112
           },
           "similarity": 0.0,
           "match_type": "extra"
@@ -6887,19 +6877,29 @@
         "exact_matches": 1,
         "high_similarity_matches": 0,
         "missing_keys": [
-         "PbZr0.519896Ti0.479904Nd0.0002O3:Nd3",
          "PbZr0.519896Ti0.479904Dy0.0002O3:Dy3",
-         "PbZr0.519896Ti0.479904La0.0002O3:La3"
+         "PbZr0.519896Ti0.479904La0.0002O3:La3",
+         "PbZr0.519896Ti0.479904Nd0.0002O3:Nd3"
         ],
         "extra_keys": [
-         "PbZr0.52Ti0.48O3:La3",
          "PbZr0.52Ti0.48O3:Dy3",
+         "PbZr0.52Ti0.48O3:La3",
          "PbZr0.52Ti0.48O3:Nd3"
         ],
         "similarity_threshold_used": 0.9,
         "fractional_value": 0.25,
         "total_reference_items": 4
        }
+      },
+      "property_unit": {
+       "match": true,
+       "reference": "pC/N",
+       "test": "pC/N"
+      },
+      "family": {
+       "match": true,
+       "reference": "PZT",
+       "test": "PZT"
       }
      }
     },
@@ -6928,78 +6928,13 @@
     },
     "details": {
      "composition_data": {
-      "property_unit": {
-       "match": true,
-       "reference": "pC/N",
-       "test": "pC/N"
-      },
-      "family": {
-       "match": true,
-       "reference": "BiFeO3",
-       "test": "BiFeO3"
-      },
       "compositions_property_values": {
        "match": true,
        "similarity_score": 0.8736842105263158,
        "details": {
         "key_matches": {
-         "Bi0.865Sm0.135FeO3": {
-          "matched_with": "Bi0.865Sm0.135FeO3",
-          "similarity": 1.0,
-          "match_type": "exact"
-         },
-         "Bi0.95Sm0.05FeO3": {
-          "matched_with": "Bi0.95Sm0.05FeO3",
-          "similarity": 1.0,
-          "match_type": "exact"
-         },
-         "Bi0.83Sm0.17FeO3": {
-          "matched_with": "Bi0.83Sm0.17FeO3",
-          "similarity": 1.0,
-          "match_type": "exact"
-         },
-         "Bi0.835Sm0.165FeO3": {
-          "matched_with": "Bi0.835Sm0.165FeO3",
-          "similarity": 1.0,
-          "match_type": "exact"
-         },
-         "Bi0.8Sm0.2FeO3": {
-          "matched_with": "Bi0.8Sm0.2FeO3",
-          "similarity": 1.0,
-          "match_type": "exact"
-         },
-         "Bi0.79Sm0.21FeO3": {
-          "matched_with": "Bi0.79Sm0.21FeO3",
-          "similarity": 1.0,
-          "match_type": "exact"
-         },
-         "Bi0.85Sm0.15FeO3": {
-          "matched_with": "Bi0.85Sm0.15FeO3",
-          "similarity": 1.0,
-          "match_type": "exact"
-         },
-         "Bi0.86Sm0.14FeO3": {
-          "matched_with": "Bi0.86Sm0.14FeO3",
-          "similarity": 1.0,
-          "match_type": "exact"
-         },
-         "Bi0.89Sm0.11FeO3": {
-          "matched_with": "Bi0.89Sm0.11FeO3",
-          "similarity": 1.0,
-          "match_type": "exact"
-         },
-         "Bi0.875Sm0.125FeO3": {
-          "matched_with": "Bi0.875Sm0.125FeO3",
-          "similarity": 1.0,
-          "match_type": "exact"
-         },
-         "BiFeO3": {
-          "matched_with": "BiFeO3",
-          "similarity": 1.0,
-          "match_type": "exact"
-         },
-         "Bi0.78Sm0.22FeO3": {
-          "matched_with": "Bi0.78Sm0.22FeO3",
+         "Bi0.75Sm0.25FeO3": {
+          "matched_with": "Bi0.75Sm0.25FeO3",
           "similarity": 1.0,
           "match_type": "exact"
          },
@@ -7008,23 +6943,13 @@
           "similarity": 1.0,
           "match_type": "exact"
          },
-         "Bi0.9Sm0.1FeO3": {
-          "matched_with": "Bi0.9Sm0.1FeO3",
+         "Bi0.78Sm0.22FeO3": {
+          "matched_with": "Bi0.78Sm0.22FeO3",
           "similarity": 1.0,
           "match_type": "exact"
          },
-         "Bi0.88Sm0.12FeO3": {
-          "matched_with": "Bi0.88Sm0.12FeO3",
-          "similarity": 1.0,
-          "match_type": "exact"
-         },
-         "Bi0.75Sm0.25FeO3": {
-          "matched_with": "Bi0.75Sm0.25FeO3",
-          "similarity": 1.0,
-          "match_type": "exact"
-         },
-         "Bi0.855Sm0.145FeO3": {
-          "matched_with": "Bi0.855Sm0.145FeO3",
+         "Bi0.79Sm0.21FeO3": {
+          "matched_with": "Bi0.79Sm0.21FeO3",
           "similarity": 1.0,
           "match_type": "exact"
          },
@@ -7033,41 +6958,117 @@
           "similarity": 1.0,
           "match_type": "exact"
          },
+         "Bi0.835Sm0.165FeO3": {
+          "matched_with": "Bi0.835Sm0.165FeO3",
+          "similarity": 1.0,
+          "match_type": "exact"
+         },
+         "Bi0.83Sm0.17FeO3": {
+          "matched_with": "Bi0.83Sm0.17FeO3",
+          "similarity": 1.0,
+          "match_type": "exact"
+         },
          "Bi0.84Sm0.16FeO3": {
           "matched_with": "Bi0.84Sm0.16FeO3",
+          "similarity": 1.0,
+          "match_type": "exact"
+         },
+         "Bi0.855Sm0.145FeO3": {
+          "matched_with": "Bi0.855Sm0.145FeO3",
+          "similarity": 1.0,
+          "match_type": "exact"
+         },
+         "Bi0.85Sm0.15FeO3": {
+          "matched_with": "Bi0.85Sm0.15FeO3",
+          "similarity": 1.0,
+          "match_type": "exact"
+         },
+         "Bi0.865Sm0.135FeO3": {
+          "matched_with": "Bi0.865Sm0.135FeO3",
+          "similarity": 1.0,
+          "match_type": "exact"
+         },
+         "Bi0.86Sm0.14FeO3": {
+          "matched_with": "Bi0.86Sm0.14FeO3",
+          "similarity": 1.0,
+          "match_type": "exact"
+         },
+         "Bi0.875Sm0.125FeO3": {
+          "matched_with": "Bi0.875Sm0.125FeO3",
+          "similarity": 1.0,
+          "match_type": "exact"
+         },
+         "Bi0.88Sm0.12FeO3": {
+          "matched_with": "Bi0.88Sm0.12FeO3",
+          "similarity": 1.0,
+          "match_type": "exact"
+         },
+         "Bi0.89Sm0.11FeO3": {
+          "matched_with": "Bi0.89Sm0.11FeO3",
+          "similarity": 1.0,
+          "match_type": "exact"
+         },
+         "Bi0.8Sm0.2FeO3": {
+          "matched_with": "Bi0.8Sm0.2FeO3",
+          "similarity": 1.0,
+          "match_type": "exact"
+         },
+         "Bi0.95Sm0.05FeO3": {
+          "matched_with": "Bi0.95Sm0.05FeO3",
+          "similarity": 1.0,
+          "match_type": "exact"
+         },
+         "Bi0.9Sm0.1FeO3": {
+          "matched_with": "Bi0.9Sm0.1FeO3",
+          "similarity": 1.0,
+          "match_type": "exact"
+         },
+         "BiFeO3": {
+          "matched_with": "BiFeO3",
           "similarity": 1.0,
           "match_type": "exact"
          }
         },
         "value_matches": {
-         "Bi0.865Sm0.135FeO3": true,
-         "Bi0.95Sm0.05FeO3": true,
-         "Bi0.83Sm0.17FeO3": true,
-         "Bi0.835Sm0.165FeO3": true,
-         "Bi0.8Sm0.2FeO3": false,
-         "Bi0.79Sm0.21FeO3": true,
-         "Bi0.85Sm0.15FeO3": true,
-         "Bi0.86Sm0.14FeO3": true,
-         "Bi0.89Sm0.11FeO3": true,
-         "Bi0.875Sm0.125FeO3": true,
-         "BiFeO3": true,
-         "Bi0.78Sm0.22FeO3": true,
-         "Bi0.77Sm0.23FeO3": true,
-         "Bi0.9Sm0.1FeO3": true,
-         "Bi0.88Sm0.12FeO3": false,
          "Bi0.75Sm0.25FeO3": false,
-         "Bi0.855Sm0.145FeO3": false,
+         "Bi0.77Sm0.23FeO3": true,
+         "Bi0.78Sm0.22FeO3": true,
+         "Bi0.79Sm0.21FeO3": true,
          "Bi0.82Sm0.18FeO3": true,
-         "Bi0.84Sm0.16FeO3": true
+         "Bi0.835Sm0.165FeO3": true,
+         "Bi0.83Sm0.17FeO3": true,
+         "Bi0.84Sm0.16FeO3": true,
+         "Bi0.855Sm0.145FeO3": false,
+         "Bi0.85Sm0.15FeO3": true,
+         "Bi0.865Sm0.135FeO3": true,
+         "Bi0.86Sm0.14FeO3": true,
+         "Bi0.875Sm0.125FeO3": true,
+         "Bi0.88Sm0.12FeO3": false,
+         "Bi0.89Sm0.11FeO3": true,
+         "Bi0.8Sm0.2FeO3": false,
+         "Bi0.95Sm0.05FeO3": true,
+         "Bi0.9Sm0.1FeO3": true,
+         "BiFeO3": true
         },
         "pair_matches": [
          {
-          "match": true,
+          "match": false,
           "reference": {
-           "Bi0.865Sm0.135FeO3": 39
+           "Bi0.75Sm0.25FeO3": 1.3
           },
           "test": {
-           "Bi0.865Sm0.135FeO3": 39
+           "Bi0.75Sm0.25FeO3": 0
+          },
+          "similarity": 1.0,
+          "match_type": "exact_key_different_value"
+         },
+         {
+          "match": true,
+          "reference": {
+           "Bi0.77Sm0.23FeO3": 3.2
+          },
+          "test": {
+           "Bi0.77Sm0.23FeO3": 3
           },
           "similarity": 1.0,
           "match_type": "exact"
@@ -7075,10 +7076,43 @@
          {
           "match": true,
           "reference": {
-           "Bi0.95Sm0.05FeO3": 35
+           "Bi0.78Sm0.22FeO3": 5
           },
           "test": {
-           "Bi0.95Sm0.05FeO3": 35
+           "Bi0.78Sm0.22FeO3": 5
+          },
+          "similarity": 1.0,
+          "match_type": "exact"
+         },
+         {
+          "match": true,
+          "reference": {
+           "Bi0.79Sm0.21FeO3": 8.2
+          },
+          "test": {
+           "Bi0.79Sm0.21FeO3": 8
+          },
+          "similarity": 1.0,
+          "match_type": "exact"
+         },
+         {
+          "match": true,
+          "reference": {
+           "Bi0.82Sm0.18FeO3": 14
+          },
+          "test": {
+           "Bi0.82Sm0.18FeO3": 14
+          },
+          "similarity": 1.0,
+          "match_type": "exact"
+         },
+         {
+          "match": true,
+          "reference": {
+           "Bi0.835Sm0.165FeO3": 30
+          },
+          "test": {
+           "Bi0.835Sm0.165FeO3": 30
           },
           "similarity": 1.0,
           "match_type": "exact"
@@ -7097,10 +7131,87 @@
          {
           "match": true,
           "reference": {
-           "Bi0.835Sm0.165FeO3": 30
+           "Bi0.84Sm0.16FeO3": 32
           },
           "test": {
-           "Bi0.835Sm0.165FeO3": 30
+           "Bi0.84Sm0.16FeO3": 32
+          },
+          "similarity": 1.0,
+          "match_type": "exact"
+         },
+         {
+          "match": false,
+          "reference": {
+           "Bi0.855Sm0.145FeO3": 36
+          },
+          "test": {
+           "Bi0.855Sm0.145FeO3": 35
+          },
+          "similarity": 1.0,
+          "match_type": "exact_key_different_value"
+         },
+         {
+          "match": true,
+          "reference": {
+           "Bi0.85Sm0.15FeO3": 34
+          },
+          "test": {
+           "Bi0.85Sm0.15FeO3": 34
+          },
+          "similarity": 1.0,
+          "match_type": "exact"
+         },
+         {
+          "match": true,
+          "reference": {
+           "Bi0.865Sm0.135FeO3": 39
+          },
+          "test": {
+           "Bi0.865Sm0.135FeO3": 39
+          },
+          "similarity": 1.0,
+          "match_type": "exact"
+         },
+         {
+          "match": true,
+          "reference": {
+           "Bi0.86Sm0.14FeO3": 38
+          },
+          "test": {
+           "Bi0.86Sm0.14FeO3": 38
+          },
+          "similarity": 1.0,
+          "match_type": "exact"
+         },
+         {
+          "match": true,
+          "reference": {
+           "Bi0.875Sm0.125FeO3": 42
+          },
+          "test": {
+           "Bi0.875Sm0.125FeO3": 42
+          },
+          "similarity": 1.0,
+          "match_type": "exact"
+         },
+         {
+          "match": false,
+          "reference": {
+           "Bi0.88Sm0.12FeO3": 38
+          },
+          "test": {
+           "Bi0.88Sm0.12FeO3": 37
+          },
+          "similarity": 1.0,
+          "match_type": "exact_key_different_value"
+         },
+         {
+          "match": true,
+          "reference": {
+           "Bi0.89Sm0.11FeO3": 34
+          },
+          "test": {
+           "Bi0.89Sm0.11FeO3": 34
           },
           "similarity": 1.0,
           "match_type": "exact"
@@ -7119,87 +7230,10 @@
          {
           "match": true,
           "reference": {
-           "Bi0.79Sm0.21FeO3": 8.2
+           "Bi0.95Sm0.05FeO3": 35
           },
           "test": {
-           "Bi0.79Sm0.21FeO3": 8
-          },
-          "similarity": 1.0,
-          "match_type": "exact"
-         },
-         {
-          "match": true,
-          "reference": {
-           "Bi0.85Sm0.15FeO3": 34
-          },
-          "test": {
-           "Bi0.85Sm0.15FeO3": 34
-          },
-          "similarity": 1.0,
-          "match_type": "exact"
-         },
-         {
-          "match": true,
-          "reference": {
-           "Bi0.86Sm0.14FeO3": 38
-          },
-          "test": {
-           "Bi0.86Sm0.14FeO3": 38
-          },
-          "similarity": 1.0,
-          "match_type": "exact"
-         },
-         {
-          "match": true,
-          "reference": {
-           "Bi0.89Sm0.11FeO3": 34
-          },
-          "test": {
-           "Bi0.89Sm0.11FeO3": 34
-          },
-          "similarity": 1.0,
-          "match_type": "exact"
-         },
-         {
-          "match": true,
-          "reference": {
-           "Bi0.875Sm0.125FeO3": 42
-          },
-          "test": {
-           "Bi0.875Sm0.125FeO3": 42
-          },
-          "similarity": 1.0,
-          "match_type": "exact"
-         },
-         {
-          "match": true,
-          "reference": {
-           "BiFeO3": 37
-          },
-          "test": {
-           "BiFeO3": 37
-          },
-          "similarity": 1.0,
-          "match_type": "exact"
-         },
-         {
-          "match": true,
-          "reference": {
-           "Bi0.78Sm0.22FeO3": 5
-          },
-          "test": {
-           "Bi0.78Sm0.22FeO3": 5
-          },
-          "similarity": 1.0,
-          "match_type": "exact"
-         },
-         {
-          "match": true,
-          "reference": {
-           "Bi0.77Sm0.23FeO3": 3.2
-          },
-          "test": {
-           "Bi0.77Sm0.23FeO3": 3
+           "Bi0.95Sm0.05FeO3": 35
           },
           "similarity": 1.0,
           "match_type": "exact"
@@ -7216,56 +7250,12 @@
           "match_type": "exact"
          },
          {
-          "match": false,
-          "reference": {
-           "Bi0.88Sm0.12FeO3": 38
-          },
-          "test": {
-           "Bi0.88Sm0.12FeO3": 37
-          },
-          "similarity": 1.0,
-          "match_type": "exact_key_different_value"
-         },
-         {
-          "match": false,
-          "reference": {
-           "Bi0.75Sm0.25FeO3": 1.3
-          },
-          "test": {
-           "Bi0.75Sm0.25FeO3": 0
-          },
-          "similarity": 1.0,
-          "match_type": "exact_key_different_value"
-         },
-         {
-          "match": false,
-          "reference": {
-           "Bi0.855Sm0.145FeO3": 36
-          },
-          "test": {
-           "Bi0.855Sm0.145FeO3": 35
-          },
-          "similarity": 1.0,
-          "match_type": "exact_key_different_value"
-         },
-         {
           "match": true,
           "reference": {
-           "Bi0.82Sm0.18FeO3": 14
+           "BiFeO3": 37
           },
           "test": {
-           "Bi0.82Sm0.18FeO3": 14
-          },
-          "similarity": 1.0,
-          "match_type": "exact"
-         },
-         {
-          "match": true,
-          "reference": {
-           "Bi0.84Sm0.16FeO3": 32
-          },
-          "test": {
-           "Bi0.84Sm0.16FeO3": 32
+           "BiFeO3": 37
           },
           "similarity": 1.0,
           "match_type": "exact"
@@ -7314,6 +7304,16 @@
         "fractional_value": 0.05263157894736842,
         "total_reference_items": 19
        }
+      },
+      "property_unit": {
+       "match": true,
+       "reference": "pC/N",
+       "test": "pC/N"
+      },
+      "family": {
+       "match": true,
+       "reference": "BiFeO3",
+       "test": "BiFeO3"
       }
      }
     },
@@ -7342,28 +7342,18 @@
     },
     "details": {
      "composition_data": {
-      "property_unit": {
-       "match": true,
-       "reference": "pC/N",
-       "test": "pC/N"
-      },
-      "family": {
-       "match": true,
-       "reference": "BNKT",
-       "test": "BNKT"
-      },
       "compositions_property_values": {
        "match": false,
        "similarity_score": 0.64,
        "details": {
         "key_matches": {
-         "Bi0.5Na0.4K0.1Ti0.97Sn0.03O3": {
-          "matched_with": "Bi0.5Na0.4K0.1Ti0.97Sn0.03O3",
+         "Bi0.5Na0.4K0.1Ti0.96Sn0.04O3": {
+          "matched_with": "Bi0.5Na0.4K0.1Ti0.96Sn0.04O3",
           "similarity": 1.0,
           "match_type": "exact"
          },
-         "Bi0.5Na0.4K0.1TiO3": {
-          "matched_with": "Bi0.5Na0.4K0.1TiO3",
+         "Bi0.5Na0.4K0.1Ti0.97Sn0.03O3": {
+          "matched_with": "Bi0.5Na0.4K0.1Ti0.97Sn0.03O3",
           "similarity": 1.0,
           "match_type": "exact"
          },
@@ -7377,20 +7367,31 @@
           "similarity": 1.0,
           "match_type": "exact"
          },
-         "Bi0.5Na0.4K0.1Ti0.96Sn0.04O3": {
-          "matched_with": "Bi0.5Na0.4K0.1Ti0.96Sn0.04O3",
+         "Bi0.5Na0.4K0.1TiO3": {
+          "matched_with": "Bi0.5Na0.4K0.1TiO3",
           "similarity": 1.0,
           "match_type": "exact"
          }
         },
         "value_matches": {
+         "Bi0.5Na0.4K0.1Ti0.96Sn0.04O3": false,
          "Bi0.5Na0.4K0.1Ti0.97Sn0.03O3": true,
-         "Bi0.5Na0.4K0.1TiO3": false,
          "Bi0.5Na0.4K0.1Ti0.98Sn0.02O3": true,
          "Bi0.5Na0.4K0.1Ti0.99Sn0.01O3": false,
-         "Bi0.5Na0.4K0.1Ti0.96Sn0.04O3": false
+         "Bi0.5Na0.4K0.1TiO3": false
         },
         "pair_matches": [
+         {
+          "match": false,
+          "reference": {
+           "Bi0.5Na0.4K0.1Ti0.96Sn0.04O3": 145
+          },
+          "test": {
+           "Bi0.5Na0.4K0.1Ti0.96Sn0.04O3": 147
+          },
+          "similarity": 1.0,
+          "match_type": "exact_key_different_value"
+         },
          {
           "match": true,
           "reference": {
@@ -7401,17 +7402,6 @@
           },
           "similarity": 1.0,
           "match_type": "exact"
-         },
-         {
-          "match": false,
-          "reference": {
-           "Bi0.5Na0.4K0.1TiO3": 110
-          },
-          "test": {
-           "Bi0.5Na0.4K0.1TiO3": 129
-          },
-          "similarity": 1.0,
-          "match_type": "exact_key_different_value"
          },
          {
           "match": true,
@@ -7438,10 +7428,10 @@
          {
           "match": false,
           "reference": {
-           "Bi0.5Na0.4K0.1Ti0.96Sn0.04O3": 145
+           "Bi0.5Na0.4K0.1TiO3": 110
           },
           "test": {
-           "Bi0.5Na0.4K0.1Ti0.96Sn0.04O3": 147
+           "Bi0.5Na0.4K0.1TiO3": 129
           },
           "similarity": 1.0,
           "match_type": "exact_key_different_value"
@@ -7459,6 +7449,16 @@
         "fractional_value": 0.2,
         "total_reference_items": 5
        }
+      },
+      "property_unit": {
+       "match": true,
+       "reference": "pC/N",
+       "test": "pC/N"
+      },
+      "family": {
+       "match": true,
+       "reference": "BNKT",
+       "test": "BNKT"
       }
      }
     },
@@ -7487,6 +7487,12 @@
     },
     "details": {
      "composition_data": {
+      "compositions_property_values": {
+       "match": false,
+       "details": {
+        "message": "Test compositions_property_values is empty"
+       }
+      },
       "property_unit": {
        "match": true,
        "reference": "pC/N",
@@ -7496,12 +7502,6 @@
        "match": true,
        "reference": "KNN",
        "test": "KNN"
-      },
-      "compositions_property_values": {
-       "match": false,
-       "details": {
-        "message": "Test compositions_property_values is empty"
-       }
       }
      }
     },
@@ -7530,21 +7530,16 @@
     },
     "details": {
      "composition_data": {
-      "property_unit": {
-       "match": true,
-       "reference": "pC/N",
-       "test": "pC/N"
-      },
-      "family": {
-       "match": true,
-       "reference": "Bi0.5Na0.5TiO3",
-       "test": "Bi0.5Na0.5TiO3"
-      },
       "compositions_property_values": {
        "match": false,
        "similarity_score": 0.64,
        "details": {
         "key_matches": {
+         "Bi0.4675Na0.4675Ba0.065TiO3": {
+          "matched_with": "Bi0.4675Na0.4675Ba0.065TiO3",
+          "similarity": 1.0,
+          "match_type": "exact"
+         },
          "Bi0.46875Na0.46875Ba0.065Ti0.9975Pr0.00125Nb0.00125O3": {
           "matched_with": "Bi0.46875Na0.46875Ba0.065Ti0.9975Pr0.00125Nb0.00125O3",
           "similarity": 1.0,
@@ -7555,30 +7550,36 @@
           "similarity": 1.0,
           "match_type": "exact"
          },
-         "Bi0.47Na0.47Ba0.065Ti0.995Pr0.0025Nb0.0025O3": {
-          "matched_with": "Bi0.47Na0.47Ba0.065Ti0.995Pr0.0025Nb0.0025O3",
-          "similarity": 1.0,
-          "match_type": "exact"
-         },
          "Bi0.4725Na0.4725Ba0.065Ti0.99Pr0.005Nb0.005O3": {
           "matched_with": "Bi0.4725Na0.4725Ba0.065Ti0.99Pr0.005Nb0.005O3",
           "similarity": 1.0,
           "match_type": "exact"
          },
-         "Bi0.4675Na0.4675Ba0.065TiO3": {
-          "matched_with": "Bi0.4675Na0.4675Ba0.065TiO3",
+         "Bi0.47Na0.47Ba0.065Ti0.995Pr0.0025Nb0.0025O3": {
+          "matched_with": "Bi0.47Na0.47Ba0.065Ti0.995Pr0.0025Nb0.0025O3",
           "similarity": 1.0,
           "match_type": "exact"
          }
         },
         "value_matches": {
+         "Bi0.4675Na0.4675Ba0.065TiO3": true,
          "Bi0.46875Na0.46875Ba0.065Ti0.9975Pr0.00125Nb0.00125O3": false,
          "Bi0.47125Na0.47125Ba0.065Ti0.9925Pr0.00375Nb0.00375O3": false,
-         "Bi0.47Na0.47Ba0.065Ti0.995Pr0.0025Nb0.0025O3": true,
          "Bi0.4725Na0.4725Ba0.065Ti0.99Pr0.005Nb0.005O3": false,
-         "Bi0.4675Na0.4675Ba0.065TiO3": true
+         "Bi0.47Na0.47Ba0.065Ti0.995Pr0.0025Nb0.0025O3": true
         },
         "pair_matches": [
+         {
+          "match": true,
+          "reference": {
+           "Bi0.4675Na0.4675Ba0.065TiO3": 121
+          },
+          "test": {
+           "Bi0.4675Na0.4675Ba0.065TiO3": 121
+          },
+          "similarity": 1.0,
+          "match_type": "exact"
+         },
          {
           "match": false,
           "reference": {
@@ -7602,17 +7603,6 @@
           "match_type": "exact_key_different_value"
          },
          {
-          "match": true,
-          "reference": {
-           "Bi0.47Na0.47Ba0.065Ti0.995Pr0.0025Nb0.0025O3": 221
-          },
-          "test": {
-           "Bi0.47Na0.47Ba0.065Ti0.995Pr0.0025Nb0.0025O3": 221
-          },
-          "similarity": 1.0,
-          "match_type": "exact"
-         },
-         {
           "match": false,
           "reference": {
            "Bi0.4725Na0.4725Ba0.065Ti0.99Pr0.005Nb0.005O3": 41
@@ -7626,10 +7616,10 @@
          {
           "match": true,
           "reference": {
-           "Bi0.4675Na0.4675Ba0.065TiO3": 121
+           "Bi0.47Na0.47Ba0.065Ti0.995Pr0.0025Nb0.0025O3": 221
           },
           "test": {
-           "Bi0.4675Na0.4675Ba0.065TiO3": 121
+           "Bi0.47Na0.47Ba0.065Ti0.995Pr0.0025Nb0.0025O3": 221
           },
           "similarity": 1.0,
           "match_type": "exact"
@@ -7647,6 +7637,16 @@
         "fractional_value": 0.2,
         "total_reference_items": 5
        }
+      },
+      "property_unit": {
+       "match": true,
+       "reference": "pC/N",
+       "test": "pC/N"
+      },
+      "family": {
+       "match": true,
+       "reference": "Bi0.5Na0.5TiO3",
+       "test": "Bi0.5Na0.5TiO3"
       }
      }
     },
@@ -7675,21 +7675,16 @@
     },
     "details": {
      "composition_data": {
-      "property_unit": {
-       "match": true,
-       "reference": "pC/N",
-       "test": "pC/N"
-      },
-      "family": {
-       "match": true,
-       "reference": "BaTiO3",
-       "test": "BaTiO3"
-      },
       "compositions_property_values": {
        "match": true,
        "similarity_score": 1.0,
        "details": {
         "key_matches": {
+         "BaSn0.1089Ti0.8811Mn0.01O3": {
+          "matched_with": "BaSn0.1089Ti0.8811Mn0.01O3",
+          "similarity": 1.0,
+          "match_type": "exact"
+         },
          "BaSn0.10945Ti0.88555Mn0.005O3": {
           "matched_with": "BaSn0.10945Ti0.88555Mn0.005O3",
           "similarity": 1.0,
@@ -7699,22 +7694,28 @@
           "matched_with": "BaSn0.11Ti0.89O3",
           "similarity": 1.0,
           "match_type": "exact"
-         },
-         "BaSn0.1089Ti0.8811Mn0.01O3": {
-          "matched_with": "BaSn0.1089Ti0.8811Mn0.01O3",
-          "similarity": 1.0,
-          "match_type": "exact"
          }
         },
         "value_matches": {
+         "BaSn0.1089Ti0.8811Mn0.01O3": true,
          "BaSn0.10945Ti0.88555Mn0.005O3": true,
-         "BaSn0.11Ti0.89O3": true,
-         "BaSn0.1089Ti0.8811Mn0.01O3": true
+         "BaSn0.11Ti0.89O3": true
         },
         "pair_matches": [
          {
           "match": true,
           "reference": {
+           "BaSn0.1089Ti0.8811Mn0.01O3": 614
+          },
+          "test": {
+           "BaSn0.1089Ti0.8811Mn0.01O3": 614
+          },
+          "similarity": 1.0,
+          "match_type": "exact"
+         },
+         {
+          "match": true,
+          "reference": {
            "BaSn0.10945Ti0.88555Mn0.005O3": 710
           },
           "test": {
@@ -7730,17 +7731,6 @@
           },
           "test": {
            "BaSn0.11Ti0.89O3": 433
-          },
-          "similarity": 1.0,
-          "match_type": "exact"
-         },
-         {
-          "match": true,
-          "reference": {
-           "BaSn0.1089Ti0.8811Mn0.01O3": 614
-          },
-          "test": {
-           "BaSn0.1089Ti0.8811Mn0.01O3": 614
           },
           "similarity": 1.0,
           "match_type": "exact"
@@ -7758,6 +7748,16 @@
         "fractional_value": 0.3333333333333333,
         "total_reference_items": 3
        }
+      },
+      "property_unit": {
+       "match": true,
+       "reference": "pC/N",
+       "test": "pC/N"
+      },
+      "family": {
+       "match": true,
+       "reference": "BaTiO3",
+       "test": "BaTiO3"
       }
      }
     },
@@ -7786,38 +7786,13 @@
     },
     "details": {
      "composition_data": {
-      "property_unit": {
-       "match": true,
-       "reference": "pC/N",
-       "test": "pC/N"
-      },
-      "family": {
-       "match": true,
-       "reference": "KBT-KBZ",
-       "test": "KBT-KBZ"
-      },
       "compositions_property_values": {
        "match": true,
        "similarity_score": 1.0,
        "details": {
         "key_matches": {
-         "K0.5Bi0.5Ti0.8Zr0.2O3": {
-          "matched_with": "K0.5Bi0.5Ti0.8Zr0.2O3",
-          "similarity": 1.0,
-          "match_type": "exact"
-         },
          "K0.5Bi0.5Ti0.6Zr0.4O3": {
           "matched_with": "K0.5Bi0.5Ti0.6Zr0.4O3",
-          "similarity": 1.0,
-          "match_type": "exact"
-         },
-         "K0.5Bi0.5TiO3": {
-          "matched_with": "K0.5Bi0.5TiO3",
-          "similarity": 1.0,
-          "match_type": "exact"
-         },
-         "K0.5Bi0.5Ti0.9Zr0.1O3": {
-          "matched_with": "K0.5Bi0.5Ti0.9Zr0.1O3",
           "similarity": 1.0,
           "match_type": "exact"
          },
@@ -7826,61 +7801,43 @@
           "similarity": 1.0,
           "match_type": "exact"
          },
+         "K0.5Bi0.5Ti0.8Zr0.2O3": {
+          "matched_with": "K0.5Bi0.5Ti0.8Zr0.2O3",
+          "similarity": 1.0,
+          "match_type": "exact"
+         },
          "K0.5Bi0.5Ti0.95Zr0.05O3": {
           "matched_with": "K0.5Bi0.5Ti0.95Zr0.05O3",
+          "similarity": 1.0,
+          "match_type": "exact"
+         },
+         "K0.5Bi0.5Ti0.9Zr0.1O3": {
+          "matched_with": "K0.5Bi0.5Ti0.9Zr0.1O3",
+          "similarity": 1.0,
+          "match_type": "exact"
+         },
+         "K0.5Bi0.5TiO3": {
+          "matched_with": "K0.5Bi0.5TiO3",
           "similarity": 1.0,
           "match_type": "exact"
          }
         },
         "value_matches": {
-         "K0.5Bi0.5Ti0.8Zr0.2O3": true,
          "K0.5Bi0.5Ti0.6Zr0.4O3": true,
-         "K0.5Bi0.5TiO3": true,
-         "K0.5Bi0.5Ti0.9Zr0.1O3": true,
          "K0.5Bi0.5Ti0.7Zr0.3O3": true,
-         "K0.5Bi0.5Ti0.95Zr0.05O3": true
+         "K0.5Bi0.5Ti0.8Zr0.2O3": true,
+         "K0.5Bi0.5Ti0.95Zr0.05O3": true,
+         "K0.5Bi0.5Ti0.9Zr0.1O3": true,
+         "K0.5Bi0.5TiO3": true
         },
         "pair_matches": [
          {
           "match": true,
           "reference": {
-           "K0.5Bi0.5Ti0.8Zr0.2O3": 2
-          },
-          "test": {
-           "K0.5Bi0.5Ti0.8Zr0.2O3": 2
-          },
-          "similarity": 1.0,
-          "match_type": "exact"
-         },
-         {
-          "match": true,
-          "reference": {
            "K0.5Bi0.5Ti0.6Zr0.4O3": 0.3
           },
           "test": {
            "K0.5Bi0.5Ti0.6Zr0.4O3": 0.3
-          },
-          "similarity": 1.0,
-          "match_type": "exact"
-         },
-         {
-          "match": true,
-          "reference": {
-           "K0.5Bi0.5TiO3": 31
-          },
-          "test": {
-           "K0.5Bi0.5TiO3": 31
-          },
-          "similarity": 1.0,
-          "match_type": "exact"
-         },
-         {
-          "match": true,
-          "reference": {
-           "K0.5Bi0.5Ti0.9Zr0.1O3": 2.4
-          },
-          "test": {
-           "K0.5Bi0.5Ti0.9Zr0.1O3": 2.4
           },
           "similarity": 1.0,
           "match_type": "exact"
@@ -7899,10 +7856,43 @@
          {
           "match": true,
           "reference": {
+           "K0.5Bi0.5Ti0.8Zr0.2O3": 2
+          },
+          "test": {
+           "K0.5Bi0.5Ti0.8Zr0.2O3": 2
+          },
+          "similarity": 1.0,
+          "match_type": "exact"
+         },
+         {
+          "match": true,
+          "reference": {
            "K0.5Bi0.5Ti0.95Zr0.05O3": 10
           },
           "test": {
            "K0.5Bi0.5Ti0.95Zr0.05O3": 10
+          },
+          "similarity": 1.0,
+          "match_type": "exact"
+         },
+         {
+          "match": true,
+          "reference": {
+           "K0.5Bi0.5Ti0.9Zr0.1O3": 2.4
+          },
+          "test": {
+           "K0.5Bi0.5Ti0.9Zr0.1O3": 2.4
+          },
+          "similarity": 1.0,
+          "match_type": "exact"
+         },
+         {
+          "match": true,
+          "reference": {
+           "K0.5Bi0.5TiO3": 31
+          },
+          "test": {
+           "K0.5Bi0.5TiO3": 31
           },
           "similarity": 1.0,
           "match_type": "exact"
@@ -7920,6 +7910,16 @@
         "fractional_value": 0.16666666666666666,
         "total_reference_items": 6
        }
+      },
+      "property_unit": {
+       "match": true,
+       "reference": "pC/N",
+       "test": "pC/N"
+      },
+      "family": {
+       "match": true,
+       "reference": "KBT-KBZ",
+       "test": "KBT-KBZ"
       }
      }
     },
@@ -7948,28 +7948,13 @@
     },
     "details": {
      "composition_data": {
-      "property_unit": {
-       "match": true,
-       "reference": "pC/N",
-       "test": "pC/N"
-      },
-      "family": {
-       "match": true,
-       "reference": "BNT-BT",
-       "test": "BNT-BT"
-      },
       "compositions_property_values": {
        "match": true,
        "similarity_score": 1.0,
        "details": {
         "key_matches": {
-         "Bi0.47Na0.47Ba0.06Ti0.99Nb0.005Lu0.005O3": {
-          "matched_with": "Bi0.47Na0.47Ba0.06Ti0.99Nb0.005Lu0.005O3",
-          "similarity": 1.0,
-          "match_type": "exact"
-         },
-         "Bi0.47Na0.47Ba0.06Ti0.98Nb0.01Lu0.01O3": {
-          "matched_with": "Bi0.47Na0.47Ba0.06Ti0.98Nb0.01Lu0.01O3",
+         "Bi0.47Na0.47Ba0.06Ti0.96Nb0.02Lu0.02O3": {
+          "matched_with": "Bi0.47Na0.47Ba0.06Ti0.96Nb0.02Lu0.02O3",
           "similarity": 1.0,
           "match_type": "exact"
          },
@@ -7978,49 +7963,43 @@
           "similarity": 1.0,
           "match_type": "exact"
          },
-         "Bi0.47Na0.47Ba0.06Ti0.995Nb0.0025Lu0.0025O3": {
-          "matched_with": "Bi0.47Na0.47Ba0.06Ti0.995Nb0.0025Lu0.0025O3",
-          "similarity": 1.0,
-          "match_type": "exact"
-         },
          "Bi0.47Na0.47Ba0.06Ti0.985Nb0.0075Lu0.0075O3": {
           "matched_with": "Bi0.47Na0.47Ba0.06Ti0.985Nb0.0075Lu0.0075O3",
           "similarity": 1.0,
           "match_type": "exact"
          },
-         "Bi0.47Na0.47Ba0.06Ti0.96Nb0.02Lu0.02O3": {
-          "matched_with": "Bi0.47Na0.47Ba0.06Ti0.96Nb0.02Lu0.02O3",
+         "Bi0.47Na0.47Ba0.06Ti0.98Nb0.01Lu0.01O3": {
+          "matched_with": "Bi0.47Na0.47Ba0.06Ti0.98Nb0.01Lu0.01O3",
+          "similarity": 1.0,
+          "match_type": "exact"
+         },
+         "Bi0.47Na0.47Ba0.06Ti0.995Nb0.0025Lu0.0025O3": {
+          "matched_with": "Bi0.47Na0.47Ba0.06Ti0.995Nb0.0025Lu0.0025O3",
+          "similarity": 1.0,
+          "match_type": "exact"
+         },
+         "Bi0.47Na0.47Ba0.06Ti0.99Nb0.005Lu0.005O3": {
+          "matched_with": "Bi0.47Na0.47Ba0.06Ti0.99Nb0.005Lu0.005O3",
           "similarity": 1.0,
           "match_type": "exact"
          }
         },
         "value_matches": {
-         "Bi0.47Na0.47Ba0.06Ti0.99Nb0.005Lu0.005O3": true,
-         "Bi0.47Na0.47Ba0.06Ti0.98Nb0.01Lu0.01O3": true,
+         "Bi0.47Na0.47Ba0.06Ti0.96Nb0.02Lu0.02O3": true,
          "Bi0.47Na0.47Ba0.06Ti0.97Nb0.015Lu0.015O3": true,
-         "Bi0.47Na0.47Ba0.06Ti0.995Nb0.0025Lu0.0025O3": true,
          "Bi0.47Na0.47Ba0.06Ti0.985Nb0.0075Lu0.0075O3": true,
-         "Bi0.47Na0.47Ba0.06Ti0.96Nb0.02Lu0.02O3": true
+         "Bi0.47Na0.47Ba0.06Ti0.98Nb0.01Lu0.01O3": true,
+         "Bi0.47Na0.47Ba0.06Ti0.995Nb0.0025Lu0.0025O3": true,
+         "Bi0.47Na0.47Ba0.06Ti0.99Nb0.005Lu0.005O3": true
         },
         "pair_matches": [
          {
           "match": true,
           "reference": {
-           "Bi0.47Na0.47Ba0.06Ti0.99Nb0.005Lu0.005O3": 172
+           "Bi0.47Na0.47Ba0.06Ti0.96Nb0.02Lu0.02O3": 10
           },
           "test": {
-           "Bi0.47Na0.47Ba0.06Ti0.99Nb0.005Lu0.005O3": 172
-          },
-          "similarity": 1.0,
-          "match_type": "exact"
-         },
-         {
-          "match": true,
-          "reference": {
-           "Bi0.47Na0.47Ba0.06Ti0.98Nb0.01Lu0.01O3": 20
-          },
-          "test": {
-           "Bi0.47Na0.47Ba0.06Ti0.98Nb0.01Lu0.01O3": 20
+           "Bi0.47Na0.47Ba0.06Ti0.96Nb0.02Lu0.02O3": 10
           },
           "similarity": 1.0,
           "match_type": "exact"
@@ -8032,6 +8011,28 @@
           },
           "test": {
            "Bi0.47Na0.47Ba0.06Ti0.97Nb0.015Lu0.015O3": 12
+          },
+          "similarity": 1.0,
+          "match_type": "exact"
+         },
+         {
+          "match": true,
+          "reference": {
+           "Bi0.47Na0.47Ba0.06Ti0.985Nb0.0075Lu0.0075O3": 28
+          },
+          "test": {
+           "Bi0.47Na0.47Ba0.06Ti0.985Nb0.0075Lu0.0075O3": 28
+          },
+          "similarity": 1.0,
+          "match_type": "exact"
+         },
+         {
+          "match": true,
+          "reference": {
+           "Bi0.47Na0.47Ba0.06Ti0.98Nb0.01Lu0.01O3": 20
+          },
+          "test": {
+           "Bi0.47Na0.47Ba0.06Ti0.98Nb0.01Lu0.01O3": 20
           },
           "similarity": 1.0,
           "match_type": "exact"
@@ -8050,21 +8051,10 @@
          {
           "match": true,
           "reference": {
-           "Bi0.47Na0.47Ba0.06Ti0.985Nb0.0075Lu0.0075O3": 28
+           "Bi0.47Na0.47Ba0.06Ti0.99Nb0.005Lu0.005O3": 172
           },
           "test": {
-           "Bi0.47Na0.47Ba0.06Ti0.985Nb0.0075Lu0.0075O3": 28
-          },
-          "similarity": 1.0,
-          "match_type": "exact"
-         },
-         {
-          "match": true,
-          "reference": {
-           "Bi0.47Na0.47Ba0.06Ti0.96Nb0.02Lu0.02O3": 10
-          },
-          "test": {
-           "Bi0.47Na0.47Ba0.06Ti0.96Nb0.02Lu0.02O3": 10
+           "Bi0.47Na0.47Ba0.06Ti0.99Nb0.005Lu0.005O3": 172
           },
           "similarity": 1.0,
           "match_type": "exact"
@@ -8082,6 +8072,16 @@
         "fractional_value": 0.16666666666666666,
         "total_reference_items": 6
        }
+      },
+      "property_unit": {
+       "match": true,
+       "reference": "pC/N",
+       "test": "pC/N"
+      },
+      "family": {
+       "match": true,
+       "reference": "BNT-BT",
+       "test": "BNT-BT"
       }
      }
     },
@@ -9053,16 +9053,6 @@
     },
     "details": {
      "composition_data": {
-      "property_unit": {
-       "match": false,
-       "reference": "pm/V",
-       "test": "pC/N"
-      },
-      "family": {
-       "match": false,
-       "reference": "Dipeptides",
-       "test": "dipeptide"
-      },
       "compositions_property_values": {
        "match": false,
        "similarity_score": 0.0,
@@ -9070,6 +9060,15 @@
         "key_matches": {},
         "value_matches": {},
         "pair_matches": [
+         {
+          "match": false,
+          "reference": {
+           "Leu-Phe lateral displacement": -19
+          },
+          "test": null,
+          "similarity": 0.0,
+          "match_type": "missing"
+         },
          {
           "match": false,
           "reference": {
@@ -9082,7 +9081,7 @@
          {
           "match": false,
           "reference": {
-           "Leu-Phe lateral displacement": -19
+           "Phe-Leu lateral displacement": -73
           },
           "test": null,
           "similarity": 0.0,
@@ -9108,18 +9107,9 @@
          },
          {
           "match": false,
-          "reference": {
-           "Phe-Leu lateral displacement": -73
-          },
-          "test": null,
-          "similarity": 0.0,
-          "match_type": "missing"
-         },
-         {
-          "match": false,
           "reference": null,
           "test": {
-           "Phe-Leu": 2.5
+           "Leu-Phe": 2.5
           },
           "similarity": 0.0,
           "match_type": "extra"
@@ -9128,7 +9118,7 @@
           "match": false,
           "reference": null,
           "test": {
-           "Leu-Phe": 2.5
+           "Phe-Leu": 2.5
           },
           "similarity": 0.0,
           "match_type": "extra"
@@ -9141,20 +9131,30 @@
         "exact_matches": 0,
         "high_similarity_matches": 0,
         "missing_keys": [
-         "Leu-Phe vertical displacement",
          "Leu-Phe lateral displacement",
+         "Leu-Phe vertical displacement",
+         "Phe-Leu lateral displacement",
          "Phe-Leu vertical displacement",
-         "Phe-Phe",
-         "Phe-Leu lateral displacement"
+         "Phe-Phe"
         ],
         "extra_keys": [
-         "Phe-Leu",
-         "Leu-Phe"
+         "Leu-Phe",
+         "Phe-Leu"
         ],
         "similarity_threshold_used": 0.9,
         "fractional_value": 0.2,
         "total_reference_items": 5
        }
+      },
+      "property_unit": {
+       "match": false,
+       "reference": "pm/V",
+       "test": "pC/N"
+      },
+      "family": {
+       "match": false,
+       "reference": "Dipeptides",
+       "test": "dipeptide"
       }
      },
      "synthesis_data": {
@@ -9198,6 +9198,30 @@
        ],
        "fractional_value": 0.3333333333333333
       },
+      "steps": {
+       "reference_steps": [
+        "10 μL of freshly prepared dipeptide solution in methanol (1 mg mL⁻¹) was dropped on silicon substrate surface.",
+        "Dipeptide solution was applied using spin-coating method at rotation speed of 3000 rpm.",
+        "Amorphous films were obtained after solvent evaporation.",
+        "Silicon substrate with deposited dipeptide film was placed in sealed Petri dish containing methanol to create saturated vapor P/P₀=1.",
+        "Film was saturated with methanol vapors without direct contact with liquid for 10 minutes to 24 hours at room temperature.",
+        "Film was dried with warm air at 45°C after saturation."
+       ],
+       "test_steps": [
+        "Prepare a dipeptide solution in methanol (1 mg/mL).",
+        "Drop 10 Î¼L of the solution onto a silicon substrate.",
+        "Remove the solvent by: spontaneous evaporation, forced drying with warm air, or spin-coating (3000 rpm).",
+        "Saturate the film with organic solvent vapor in a Petri dish for 10 minutes to 24 hours.",
+        "Dry the film with warm air (45Â°C)."
+       ],
+       "paragraph_similarity": 0.12,
+       "steps_match": false,
+       "paragraph_comparison": {
+        "similarity_score": 0.12,
+        "high_similarity": false,
+        "method": "sequence_matcher"
+       }
+      },
       "characterization_techniques": {
        "match": true,
        "similarity": 1.0,
@@ -9239,30 +9263,6 @@
        "missing_items": [],
        "extra_items": [],
        "fractional_value": 0.25
-      },
-      "steps": {
-       "reference_steps": [
-        "10 μL of freshly prepared dipeptide solution in methanol (1 mg mL⁻¹) was dropped on silicon substrate surface.",
-        "Dipeptide solution was applied using spin-coating method at rotation speed of 3000 rpm.",
-        "Amorphous films were obtained after solvent evaporation.",
-        "Silicon substrate with deposited dipeptide film was placed in sealed Petri dish containing methanol to create saturated vapor P/P₀=1.",
-        "Film was saturated with methanol vapors without direct contact with liquid for 10 minutes to 24 hours at room temperature.",
-        "Film was dried with warm air at 45°C after saturation."
-       ],
-       "test_steps": [
-        "Prepare a dipeptide solution in methanol (1 mg/mL).",
-        "Drop 10 Î¼L of the solution onto a silicon substrate.",
-        "Remove the solvent by: spontaneous evaporation, forced drying with warm air, or spin-coating (3000 rpm).",
-        "Saturate the film with organic solvent vapor in a Petri dish for 10 minutes to 24 hours.",
-        "Dry the film with warm air (45Â°C)."
-       ],
-       "paragraph_similarity": 0.12,
-       "steps_match": false,
-       "paragraph_comparison": {
-        "similarity_score": 0.12,
-        "high_similarity": false,
-        "method": "sequence_matcher"
-       }
       }
      }
     },
@@ -9292,16 +9292,6 @@
     },
     "details": {
      "composition_data": {
-      "property_unit": {
-       "match": true,
-       "reference": "pC/N",
-       "test": "pC/N"
-      },
-      "family": {
-       "match": true,
-       "reference": "RE2B2O7",
-       "test": "RE2B2O7"
-      },
       "compositions_property_values": {
        "match": true,
        "similarity_score": 1.0,
@@ -9312,21 +9302,21 @@
           "similarity": 1.0,
           "match_type": "exact"
          },
-         "Eu1.90La0.10Ge2O7": {
-          "matched_with": "Eu1.90La0.10Ge2O7",
+         "Eu1.90Ho0.10Ge2O7": {
+          "matched_with": "Eu1.90Ho0.10Ge2O7",
           "similarity": 1.0,
           "match_type": "exact"
          },
-         "Eu1.90Ho0.10Ge2O7": {
-          "matched_with": "Eu1.90Ho0.10Ge2O7",
+         "Eu1.90La0.10Ge2O7": {
+          "matched_with": "Eu1.90La0.10Ge2O7",
           "similarity": 1.0,
           "match_type": "exact"
          }
         },
         "value_matches": {
          "Eu1.90Dy0.10Ge2O7": true,
-         "Eu1.90La0.10Ge2O7": true,
-         "Eu1.90Ho0.10Ge2O7": true
+         "Eu1.90Ho0.10Ge2O7": true,
+         "Eu1.90La0.10Ge2O7": true
         },
         "pair_matches": [
          {
@@ -9343,10 +9333,10 @@
          {
           "match": true,
           "reference": {
-           "Eu1.90La0.10Ge2O7": 0.36
+           "Eu1.90Ho0.10Ge2O7": 0.62
           },
           "test": {
-           "Eu1.90La0.10Ge2O7": 0.36
+           "Eu1.90Ho0.10Ge2O7": 0.62
           },
           "similarity": 1.0,
           "match_type": "exact"
@@ -9354,10 +9344,10 @@
          {
           "match": true,
           "reference": {
-           "Eu1.90Ho0.10Ge2O7": 0.62
+           "Eu1.90La0.10Ge2O7": 0.36
           },
           "test": {
-           "Eu1.90Ho0.10Ge2O7": 0.62
+           "Eu1.90La0.10Ge2O7": 0.36
           },
           "similarity": 1.0,
           "match_type": "exact"
@@ -9375,6 +9365,16 @@
         "fractional_value": 0.3333333333333333,
         "total_reference_items": 3
        }
+      },
+      "property_unit": {
+       "match": true,
+       "reference": "pC/N",
+       "test": "pC/N"
+      },
+      "family": {
+       "match": true,
+       "reference": "RE2B2O7",
+       "test": "RE2B2O7"
       }
      },
      "synthesis_data": {
@@ -9432,6 +9432,38 @@
        "missing_items": [],
        "extra_items": [],
        "fractional_value": 0.2
+      },
+      "steps": {
+       "reference_steps": [
+        "Starting materials Eu2O3, GeO2, Dy2O3, La2O3 and Ho2O3 were combined in stoichiometric ratios with each dopant at 5 mol%.",
+        "Samples were first heated at 800°C for 2 hours in pure alumina crucibles under open atmosphere.",
+        "Materials were then heated to 1150°C for 10 hours followed by slow cooling.",
+        "Resulting materials were ground into powder for further characterization.",
+        "Ceramic discs were formed from obtained powder materials with 1 mm thickness and 10 mm diameter.",
+        "Ceramic discs were compacted using uniaxial pressing under 250 MPa pressure with 2 wt% of 5 wt% PVA aqueous solution as binder.",
+        "Samples were heated at 600°C for 30 minutes to eliminate organic additives.",
+        "Sintering was conducted at 1400°C for 4 hours.",
+        "Silver paste was applied to disc surfaces and fired at 650°C for 1 hour to form surface electrodes.",
+        "Electric field of 9-18 kV/mm was applied in silicon oil bath at 120°C for 30 minutes followed by 24-hour aging."
+       ],
+       "test_steps": [
+        "Combined precursors in stoichiometric ratios",
+        "Heated at 800 Â°C for 2 h",
+        "Heated to 1150 Â°C for 10 h in pure alumina crucibles under an open atmosphere, followed by slowly cooling",
+        "Ceramic discs were compacted using uniaxial pressing under a pressure of 250 MPa and 2 wt% of a 5 wt% PVA aqueous solution as a binder",
+        "Heated at 600 Â°C for 30 min to eliminate of the organic additives",
+        "Sintering at 1400 Â°C for 4 h",
+        "Silver paste was applied to the discsâ€™ surfaces, heated, and fired at 650 Â°C for 1 h",
+        "The discs were polished on emery paper (1200 grit) to create smooth surfaces",
+        "Fired at 650 Â°C for 1 h to form surface electrodes"
+       ],
+       "paragraph_similarity": 0.2811755361397935,
+       "steps_match": false,
+       "paragraph_comparison": {
+        "similarity_score": 0.2811755361397935,
+        "high_similarity": false,
+        "method": "sequence_matcher"
+       }
       },
       "characterization_techniques": {
        "match": true,
@@ -9496,38 +9528,6 @@
        "missing_items": [],
        "extra_items": [],
        "fractional_value": 0.14285714285714285
-      },
-      "steps": {
-       "reference_steps": [
-        "Starting materials Eu2O3, GeO2, Dy2O3, La2O3 and Ho2O3 were combined in stoichiometric ratios with each dopant at 5 mol%.",
-        "Samples were first heated at 800°C for 2 hours in pure alumina crucibles under open atmosphere.",
-        "Materials were then heated to 1150°C for 10 hours followed by slow cooling.",
-        "Resulting materials were ground into powder for further characterization.",
-        "Ceramic discs were formed from obtained powder materials with 1 mm thickness and 10 mm diameter.",
-        "Ceramic discs were compacted using uniaxial pressing under 250 MPa pressure with 2 wt% of 5 wt% PVA aqueous solution as binder.",
-        "Samples were heated at 600°C for 30 minutes to eliminate organic additives.",
-        "Sintering was conducted at 1400°C for 4 hours.",
-        "Silver paste was applied to disc surfaces and fired at 650°C for 1 hour to form surface electrodes.",
-        "Electric field of 9-18 kV/mm was applied in silicon oil bath at 120°C for 30 minutes followed by 24-hour aging."
-       ],
-       "test_steps": [
-        "Combined precursors in stoichiometric ratios",
-        "Heated at 800 Â°C for 2 h",
-        "Heated to 1150 Â°C for 10 h in pure alumina crucibles under an open atmosphere, followed by slowly cooling",
-        "Ceramic discs were compacted using uniaxial pressing under a pressure of 250 MPa and 2 wt% of a 5 wt% PVA aqueous solution as a binder",
-        "Heated at 600 Â°C for 30 min to eliminate of the organic additives",
-        "Sintering at 1400 Â°C for 4 h",
-        "Silver paste was applied to the discsâ€™ surfaces, heated, and fired at 650 Â°C for 1 h",
-        "The discs were polished on emery paper (1200 grit) to create smooth surfaces",
-        "Fired at 650 Â°C for 1 h to form surface electrodes"
-       ],
-       "paragraph_similarity": 0.2811755361397935,
-       "steps_match": false,
-       "paragraph_comparison": {
-        "similarity_score": 0.2811755361397935,
-        "high_similarity": false,
-        "method": "sequence_matcher"
-       }
       }
      }
     },
@@ -9536,7 +9536,7 @@
    },
    "10.1016/j.cej.2024.157756": {
     "field_scores": {
-     "composition_data": 0.6000000000000001,
+     "composition_data": 0.6,
      "synthesis_data": 0.617857142857143
     },
     "absolute_classification_metrics": {
@@ -9557,16 +9557,6 @@
     },
     "details": {
      "composition_data": {
-      "property_unit": {
-       "match": true,
-       "reference": "pC/N",
-       "test": "pC/N"
-      },
-      "family": {
-       "match": false,
-       "reference": "P(VDF-TrFE)",
-       "test": "PVDF"
-      },
       "compositions_property_values": {
        "match": false,
        "similarity_score": 0.0,
@@ -9577,7 +9567,7 @@
          {
           "match": false,
           "reference": {
-           "P(VDF-TrFE) 80/20-Air-ES2A-115 °C": 357
+           "P(VDF-TrFE) 80/20-Air-ES": 181
           },
           "test": null,
           "similarity": 0.0,
@@ -9595,15 +9585,6 @@
          {
           "match": false,
           "reference": {
-           "P(VDF-TrFE) 80/20-Pure water": 1045
-          },
-          "test": null,
-          "similarity": 0.0,
-          "match_type": "missing"
-         },
-         {
-          "match": false,
-          "reference": {
            "P(VDF-TrFE) 80/20-Air-ES1A2A-125 °C": 551
           },
           "test": null,
@@ -9613,7 +9594,16 @@
          {
           "match": false,
           "reference": {
-           "P(VDF-TrFE) 80/20-Air-ES": 181
+           "P(VDF-TrFE) 80/20-Air-ES2A-115 °C": 357
+          },
+          "test": null,
+          "similarity": 0.0,
+          "match_type": "missing"
+         },
+         {
+          "match": false,
+          "reference": {
+           "P(VDF-TrFE) 80/20-Pure water": 1045
           },
           "test": null,
           "similarity": 0.0,
@@ -9623,7 +9613,25 @@
           "match": false,
           "reference": null,
           "test": {
+           "Poly(vinylidene fluoride-co-trifluoroethylene) 80/20": -75
+          },
+          "similarity": 0.0,
+          "match_type": "extra"
+         },
+         {
+          "match": false,
+          "reference": null,
+          "test": {
            "Poly(vinylidene fluoride-co-trifluoroethylene) 80/20-corona-poled electrospun sample (corona-poled ES sample) in air": 181
+          },
+          "similarity": 0.0,
+          "match_type": "extra"
+         },
+         {
+          "match": false,
+          "reference": null,
+          "test": {
+           "Poly(vinylidene fluoride-co-trifluoroethylene) 80/20-corona-poled electrospun1A-2800 min sample (corona-poled ES1A-2800 min sample) in air": 233
           },
           "similarity": 0.0,
           "match_type": "extra"
@@ -9650,15 +9658,6 @@
           "match": false,
           "reference": null,
           "test": {
-           "Poly(vinylidene fluoride-co-trifluoroethylene) 80/20": -75
-          },
-          "similarity": 0.0,
-          "match_type": "extra"
-         },
-         {
-          "match": false,
-          "reference": null,
-          "test": {
            "Poly(vinylidene fluoride-co-trifluoroethylene) 80/20-corona-poled electrospun2A-115 Â°C sample (corona-poled ES2A-115 Â°C sample) in air": 357
           },
           "similarity": 0.0,
@@ -9672,15 +9671,6 @@
           },
           "similarity": 0.0,
           "match_type": "extra"
-         },
-         {
-          "match": false,
-          "reference": null,
-          "test": {
-           "Poly(vinylidene fluoride-co-trifluoroethylene) 80/20-corona-poled electrospun1A-2800 min sample (corona-poled ES1A-2800 min sample) in air": 233
-          },
-          "similarity": 0.0,
-          "match_type": "extra"
          }
         ],
         "key_match_ratio": 0.0,
@@ -9690,25 +9680,35 @@
         "exact_matches": 0,
         "high_similarity_matches": 0,
         "missing_keys": [
-         "P(VDF-TrFE) 80/20-Air-ES2A-115 °C",
+         "P(VDF-TrFE) 80/20-Air-ES",
          "P(VDF-TrFE) 80/20-Air-ES1A-2800 min",
-         "P(VDF-TrFE) 80/20-Pure water",
          "P(VDF-TrFE) 80/20-Air-ES1A2A-125 °C",
-         "P(VDF-TrFE) 80/20-Air-ES"
+         "P(VDF-TrFE) 80/20-Air-ES2A-115 °C",
+         "P(VDF-TrFE) 80/20-Pure water"
         ],
         "extra_keys": [
+         "Poly(vinylidene fluoride-co-trifluoroethylene) 80/20",
          "Poly(vinylidene fluoride-co-trifluoroethylene) 80/20-corona-poled electrospun sample (corona-poled ES sample) in air",
+         "Poly(vinylidene fluoride-co-trifluoroethylene) 80/20-corona-poled electrospun1A-2800 min sample (corona-poled ES1A-2800 min sample) in air",
          "Poly(vinylidene fluoride-co-trifluoroethylene) 80/20-corona-poled electrospun1A2A fiber mat in water",
          "Poly(vinylidene fluoride-co-trifluoroethylene) 80/20-corona-poled electrospun1A2A-125 Â°C sample (corona-poled ES1A2A-125 Â°C sample) in air",
-         "Poly(vinylidene fluoride-co-trifluoroethylene) 80/20",
          "Poly(vinylidene fluoride-co-trifluoroethylene) 80/20-corona-poled electrospun2A-115 Â°C sample (corona-poled ES2A-115 Â°C sample) in air",
-         "Poly(vinylidene fluoride-co-trifluoroethylene) 80/20-ultimate d33,u",
-         "Poly(vinylidene fluoride-co-trifluoroethylene) 80/20-corona-poled electrospun1A-2800 min sample (corona-poled ES1A-2800 min sample) in air"
+         "Poly(vinylidene fluoride-co-trifluoroethylene) 80/20-ultimate d33,u"
         ],
         "similarity_threshold_used": 0.9,
         "fractional_value": 0.2,
         "total_reference_items": 5
        }
+      },
+      "property_unit": {
+       "match": true,
+       "reference": "pC/N",
+       "test": "pC/N"
+      },
+      "family": {
+       "match": false,
+       "reference": "P(VDF-TrFE)",
+       "test": "PVDF"
       }
      },
      "synthesis_data": {
@@ -9741,6 +9741,32 @@
        ],
        "extra_items": [],
        "fractional_value": 0.5
+      },
+      "steps": {
+       "reference_steps": [
+        "Nonwoven ES fiber mats of P(VDF-TrFE) 80/20 were prepared from 12 wt% methyl ether ketone solution using electrospinning equipped with grounded rolling collector.",
+        "First thermal annealing (1A) process was performed by holding ES fiber mat isothermally at 140°C for various times (10, 60, 180, 360, 720, 1440, and 2880 min) to produce ECCs via chain-sliding motions in paraelectric phase.",
+        "Second annealing (2A) was carried out for ES1A-2880 min below TC with fixed isothermal time of 1 day at temperatures of 110, 115, 125, and 130°C to further increase ferroelectric domain size.",
+        "Corona-charging was employed to achieve permanent remanent polarization for piezoelectricity.",
+        "For corona-poling in water, methanol was used to wet fiber mats first and then replaced with water.",
+        "AC corona poling at 500 kHz was performed in water to avoid formation of ionic EDLs and potential electrolytic degradation.",
+        "After corona-poling in water, samples were dried in vacuum before characterization."
+       ],
+       "test_steps": [
+        "Electrospinning of P(VDF-TrFE) 80/20 from 12 wt% methyl ether ketone (MEK) solution",
+        "Thermal annealing (1A) at 140 Â°C for varying times (10, 60, 180, 360, 720, 1440, and 2880 min)",
+        "Thermal annealing (2A) at different temperatures (110, 115, 125, and 130 Â°C) for 1 day",
+        "Corona-charging in air at room temperature for 30 min",
+        "Corona-poling in water using AC corona poling at 500 kHz",
+        "Drying in vacuum"
+       ],
+       "paragraph_similarity": 0.14412811387900357,
+       "steps_match": false,
+       "paragraph_comparison": {
+        "similarity_score": 0.14412811387900357,
+        "high_similarity": false,
+        "method": "sequence_matcher"
+       }
       },
       "characterization_techniques": {
        "match": false,
@@ -9787,32 +9813,6 @@
         "Wide-angle X-ray diffraction (WAXD)"
        ],
        "fractional_value": 0.14285714285714285
-      },
-      "steps": {
-       "reference_steps": [
-        "Nonwoven ES fiber mats of P(VDF-TrFE) 80/20 were prepared from 12 wt% methyl ether ketone solution using electrospinning equipped with grounded rolling collector.",
-        "First thermal annealing (1A) process was performed by holding ES fiber mat isothermally at 140°C for various times (10, 60, 180, 360, 720, 1440, and 2880 min) to produce ECCs via chain-sliding motions in paraelectric phase.",
-        "Second annealing (2A) was carried out for ES1A-2880 min below TC with fixed isothermal time of 1 day at temperatures of 110, 115, 125, and 130°C to further increase ferroelectric domain size.",
-        "Corona-charging was employed to achieve permanent remanent polarization for piezoelectricity.",
-        "For corona-poling in water, methanol was used to wet fiber mats first and then replaced with water.",
-        "AC corona poling at 500 kHz was performed in water to avoid formation of ionic EDLs and potential electrolytic degradation.",
-        "After corona-poling in water, samples were dried in vacuum before characterization."
-       ],
-       "test_steps": [
-        "Electrospinning of P(VDF-TrFE) 80/20 from 12 wt% methyl ether ketone (MEK) solution",
-        "Thermal annealing (1A) at 140 Â°C for varying times (10, 60, 180, 360, 720, 1440, and 2880 min)",
-        "Thermal annealing (2A) at different temperatures (110, 115, 125, and 130 Â°C) for 1 day",
-        "Corona-charging in air at room temperature for 30 min",
-        "Corona-poling in water using AC corona poling at 500 kHz",
-        "Drying in vacuum"
-       ],
-       "paragraph_similarity": 0.14412811387900357,
-       "steps_match": false,
-       "paragraph_comparison": {
-        "similarity_score": 0.14412811387900357,
-        "high_similarity": false,
-        "method": "sequence_matcher"
-       }
       }
      }
     },

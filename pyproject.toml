@@ -29,6 +29,7 @@ dependencies = [
     "langchain-chroma",
     "docling",
     "sentence-transformers",
+    "scipy",
     "neo4j",
     "pymatgen",
     "seaborn",
