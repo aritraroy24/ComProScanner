@@ -1,4 +1,25 @@
-# Dynamic extraction schema — Phase 1
+# Dynamic extraction schema
+
+The planned and executed details (decisions, deviations, verification) are also kept in `DYNAMIC_SCHEMA_PLAN.md` under "Implementation log".
+
+# Phase 2 — evaluation and visualization
+
+Decisions agreed with the user: only weights come from the schema, the scoring formula stays as is; each field has a `match_mode` naming one of the existing comparison rules (derived from type when omitted); nested values are evaluated leaf by leaf; legacy `weights=` and `<field>_match` threshold overrides keep working; the plan's Tier 1/2/3 redesign is dropped.
+
+## Phase 2 checklist
+
+- [x] 0. Baselines from the current code: semantic evaluator on 10 piezo outputs + 4 VLM outputs + override paths (text matcher and PhysBERT); agentic evaluator replaying 9 stored agent-decision files + override paths. Both deterministic with `PYTHONHASHSEED=0`.
+- [x] 1. `SchemaField`: `weight` (+ cascaded `effective_weight`), `match_mode`, `similarity_threshold`, `plot_kind`; set them in the default schema to reproduce today's behaviour
+- [ ] 2. `semantic_evaluator.py`: weights/thresholds from the schema; one comparator per `match_mode` (existing code, moved not rewritten); loop over schema fields; leaf-level evaluation for nested values
+- [ ] 3. Regression: semantic baseline reproduced exactly; permanent pytest regression on a compact subset
+- [ ] 4. `eval_flow.py` (agentic): weights from the schema; per-`match_mode` scoring/metrics; agent task prompts templated from the schema (incl. response shape per field); leaf-level evaluation for nested values
+- [ ] 5. Regression: agentic replay baseline reproduced exactly; permanent pytest regression
+- [ ] 6. `data_distribution_visualizers.py`: one generic categorical path driven by `plot_kind`, plus a new numeric-distribution plot; keep the existing public `plot_family_*` / `plot_precursors_*` / `plot_characterization_techniques_*` functions as thin wrappers
+- [ ] 7. Regression: identical extracted distributions for the default schema
+- [ ] 8. `eval_plot_visualizers.py`: audit its hardcoded per-field metrics (`method`, `precursors_match`, `steps`, `compositions_property_values`) and make them schema-driven where it doesn't change existing charts
+- [ ] 9. Update `DYNAMIC_SCHEMA_PLAN.md` implementation log; review
+
+# Phase 1 — schema file, loader, crews, flow, prompts
 
 Branch: `feat/dynamic-extraction-schema`. Source plan: `DYNAMIC_SCHEMA_PLAN.md`. Check in with the user after Phase 1 before starting Phase 2.
 

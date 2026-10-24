@@ -272,3 +272,118 @@ class TestSchemaValidation:
     def test_missing_file(self, tmp_path):
         with pytest.raises(SchemaValidationError, match="not found"):
             ExtractionSchemaConfig.from_yaml(tmp_path / "missing.yaml")
+
+
+class TestEvaluationSettings:
+    def test_default_weights_match_legacy_evaluator_weights(self):
+        legacy = {
+            "compositions_property_values": 0.3,
+            "property_unit": 0.1,
+            "family": 0.1,
+            "method": 0.1,
+            "precursors": 0.15,
+            "characterization_techniques": 0.15,
+            "steps": 0.1,
+        }
+        derived = {
+            f.name: f.effective_weight * 0.5
+            for domain in ("composition", "synthesis")
+            for f in DEFAULT_SCHEMA_CONFIG.fields(domain, final_only=True)
+        }
+        assert derived == legacy
+
+    def test_default_match_modes(self):
+        modes = {
+            f.name: f.match_mode
+            for f in DEFAULT_SCHEMA_CONFIG.composition_fields
+            + DEFAULT_SCHEMA_CONFIG.synthesis_fields
+        }
+        assert modes["compositions_property_values"] == "keyed_values"
+        assert modes["property_unit"] == modes["family"] == "exact"
+        assert modes["method"] == "semantic"
+        assert modes["precursors"] == modes["characterization_techniques"] == "item_list"
+        assert modes["steps"] == "joined_text"
+
+    @pytest.mark.parametrize(
+        "type_str, mode",
+        [
+            ("str", "semantic"),
+            ("str|None", "semantic"),
+            ("float|int|None", "numeric"),
+            ("bool", "exact"),
+            ("list[str]", "item_list"),
+            ("list[float]", "numeric"),
+            ("dict[str, float]", "keyed_values"),
+        ],
+    )
+    def test_match_mode_derived_from_type(self, type_str, mode):
+        raw = minimal_schema_dict()
+        raw["synthesis_fields"].append({"name": "extra", "type": type_str})
+        schema = ExtractionSchemaConfig.from_dict(raw)
+        assert schema.synthesis_fields[-1].match_mode == mode
+
+    def test_unspecified_weights_share_remainder(self):
+        raw = minimal_schema_dict()
+        raw["synthesis_fields"] = [
+            {"name": "method", "type": "str", "weight": 0.4},
+            {"name": "steps", "type": "list[str]"},
+            {"name": "atmosphere", "type": "str"},
+        ]
+        schema = ExtractionSchemaConfig.from_dict(raw)
+        assert [f.weight for f in schema.synthesis_fields] == pytest.approx([0.4, 0.3, 0.3])
+
+    def test_effective_weight_cascades_through_nested_fields(self):
+        raw = minimal_schema_dict()
+        raw["composition_fields"] = [
+            {
+                "name": "compositions_property_values",
+                "type": "dict[str, object]",
+                "weight": 0.8,
+                "value_fields": [
+                    {
+                        "name": "d33_data",
+                        "type": "object",
+                        "weight": 0.5,
+                        "value_fields": [
+                            {"name": "value", "type": "float|None", "weight": 0.5},
+                            {"name": "unit", "type": "str"},
+                        ],
+                    },
+                    {"name": "family", "type": "str", "weight": 0.5},
+                ],
+            },
+            {"name": "property_unit", "type": "str", "weight": 0.2},
+        ]
+        schema = ExtractionSchemaConfig.from_dict(raw)
+        primary = schema.composition_fields[0]
+        d33 = primary.value_fields[0]
+        assert primary.effective_weight == pytest.approx(0.8)
+        assert d33.effective_weight == pytest.approx(0.4)
+        assert [f.effective_weight for f in d33.value_fields] == pytest.approx([0.2, 0.2])
+        # Abbreviations are attached but not evaluated
+        assert schema.composition_fields[1].name == "abbreviations"
+        assert schema.composition_fields[1].effective_weight == 0.0
+
+    def test_weights_over_one_rejected(self):
+        raw = minimal_schema_dict()
+        raw["synthesis_fields"] = [
+            {"name": "method", "type": "str", "weight": 0.7},
+            {"name": "steps", "type": "list[str]", "weight": 0.5},
+        ]
+        with pytest.raises(SchemaValidationError, match="Invalid weights"):
+            ExtractionSchemaConfig.from_dict(raw)
+
+    @pytest.mark.parametrize(
+        "key, value, message",
+        [
+            ("match_mode", "fuzzy", "Unknown match_mode"),
+            ("plot_kind", "scatter", "Unknown plot_kind"),
+            ("similarity_threshold_mode", "percent", "similarity_threshold_mode"),
+            ("weight", 1.5, "weight must be between"),
+        ],
+    )
+    def test_invalid_evaluation_settings(self, key, value, message):
+        raw = minimal_schema_dict()
+        raw["synthesis_fields"][0][key] = value
+        with pytest.raises(SchemaValidationError, match=message):
+            ExtractionSchemaConfig.from_dict(raw)

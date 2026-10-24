@@ -14,6 +14,11 @@
 #   format_note          field-specific rule for the format crew
 #   example              example value for the prompt's example JSON
 #   variable_example     example value for the variable-composition example (falls back to example)
+#   weight               evaluation weight relative to sibling fields (unspecified weights share the remainder)
+#   match_mode           evaluation rule: exact | semantic | item_list | joined_text | keyed_values | numeric (derived from type if omitted)
+#   similarity_threshold matching threshold (defaults per match_mode: semantic/item_list/keyed_values 0.9, joined_text 0.8)
+#   similarity_threshold_mode  relative | absolute tolerance for numeric fields
+#   plot_kind            categorical_distribution | numeric_distribution | none
 
 version: "1.0"
 
@@ -25,6 +30,8 @@ composition_fields:
     description: >-
       Mapping of every material composition reported in the article's own work to its {main_extraction_keyword} value. Keys are full chemical formulas with proper fractions; values are the numeric {main_extraction_keyword} values.
     required: true
+    weight: 0.6
+    plot_kind: numeric_distribution
     format_note: >-
       Remove compositions whose {main_extraction_keyword} value is null, but never remove a composition that has a value.
     example:
@@ -52,12 +59,17 @@ composition_fields:
     type: str
     description: The unit in which the {main_extraction_keyword} values are reported.
     required: true
+    weight: 0.2
+    match_mode: exact
     example: pC/N
 
   - name: family
     type: str
     description: The material family (base or host material system) that the compositions belong to.
     required: true
+    weight: 0.2
+    match_mode: exact
+    plot_kind: categorical_distribution
     example: BaTiO3
     variable_example: NaNbO3
 
@@ -66,6 +78,7 @@ synthesis_fields:
     type: str
     description: The experimental synthesis method used to prepare the materials, e.g. solid-state reaction or sol-gel.
     required: true
+    weight: 0.2
     allowed_values_ref: allowed_synthesis_methods
     format_note: If allowed values are listed, change the method to the matching allowed value; otherwise keep it as it is.
     example: solid-state reaction
@@ -75,6 +88,8 @@ synthesis_fields:
     description: >-
       Starting chemicals used in the synthesis, given by chemical name only (no company names or purity). Return an empty list if the precursors are not clearly mentioned.
     required: true
+    weight: 0.3
+    plot_kind: categorical_distribution
     format_note: >-
       If a precursor is given by an industry name or chemical name instead of a chemical composition, rewrite it as the chemical composition. Keep it a list of strings.
     example: ["BaCO3", "CaCO3", "TiO2", "ZrO2"]
@@ -83,6 +98,8 @@ synthesis_fields:
     type: "list[str]"
     description: The experimental synthesis procedure, as an ordered list of steps.
     required: true
+    weight: 0.2
+    match_mode: joined_text
     format_note: Keep the steps unmodified.
     example: ["Raw powders were weighed in stoichiometric ratio and ball-milled for 24 h", "The mixture was calcined at 1200 °C for 2 h", "Pellets were sintered at 1450 °C for 4 h"]
 
@@ -91,6 +108,8 @@ synthesis_fields:
     description: >-
       Characterization techniques used on the materials, given only as the instrument name or its short name, e.g. XRD, Raman Spectroscopy, SEM, TEM.
     required: true
+    weight: 0.3
+    plot_kind: categorical_distribution
     allowed_values_ref: allowed_characterization_techniques
     format_note: If allowed values are listed, change each technique to the matching allowed value; otherwise keep them as they are.
     example: ["XRD", "SEM", "Raman Spectroscopy"]

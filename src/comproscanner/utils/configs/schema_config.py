@@ -24,6 +24,17 @@ _SAFE_NAME = re.compile(r"^[a-z][a-z0-9_]*$")
 _SCALAR_TYPES = {"str", "int", "float", "bool", "None", "object"}
 _MISSING = object()
 
+# Comparison rules used by the evaluators
+MATCH_MODES = {"exact", "semantic", "item_list", "joined_text", "keyed_values", "numeric"}
+# Default thresholds per match mode
+DEFAULT_SIMILARITY_THRESHOLDS = {
+    "semantic": 0.9,
+    "item_list": 0.9,
+    "joined_text": 0.8,
+    "keyed_values": 0.9,
+}
+PLOT_KINDS = {"categorical_distribution", "numeric_distribution", "none"}
+
 
 class SchemaValidationError(ValueError):
     """Raised when an extraction schema file is malformed."""
@@ -101,6 +112,11 @@ class SchemaField:
         format_note (str, optional): Field-specific rule for the format crew.
         example (Any, optional): Example value for the prompt's example JSON.
         variable_example (Any, optional): Example value for the variable-composition example.
+        weight (float, optional): Evaluation weight relative to sibling fields (default: equal share).
+        match_mode (str, optional): Comparison rule for evaluation (default: derived from type).
+        similarity_threshold (float, optional): Matching threshold (default: per match mode).
+        similarity_threshold_mode (str, optional): "relative" or "absolute" tolerance for numeric fields (default: "relative").
+        plot_kind (str, optional): "categorical_distribution", "numeric_distribution" or "none" (default: "none").
     """
 
     name: str
@@ -115,12 +131,36 @@ class SchemaField:
     format_note: Optional[str] = None
     example: Any = None
     variable_example: Any = None
+    weight: Optional[float] = None
+    match_mode: Optional[str] = None
+    similarity_threshold: Optional[float] = None
+    similarity_threshold_mode: str = "relative"
+    plot_kind: str = "none"
     parsed_type: ParsedType = field(init=False, repr=False)
+    effective_weight: float = field(init=False, default=0.0)
 
     def __post_init__(self):
         self.parsed_type = parse_type(self.type)
         if self.default is _MISSING:
             self.default = self._derive_default()
+        if self.match_mode is None:
+            self.match_mode = self._derive_match_mode()
+        elif self.match_mode not in MATCH_MODES:
+            raise SchemaValidationError(
+                f"Unknown match_mode '{self.match_mode}'; supported: {sorted(MATCH_MODES)}"
+            )
+        if self.similarity_threshold is None:
+            self.similarity_threshold = DEFAULT_SIMILARITY_THRESHOLDS.get(self.match_mode)
+        if self.similarity_threshold_mode not in ("relative", "absolute"):
+            raise SchemaValidationError(
+                f"similarity_threshold_mode must be 'relative' or 'absolute', got '{self.similarity_threshold_mode}'"
+            )
+        if self.plot_kind not in PLOT_KINDS:
+            raise SchemaValidationError(
+                f"Unknown plot_kind '{self.plot_kind}'; supported: {sorted(PLOT_KINDS)}"
+            )
+        if self.weight is not None and not 0 <= self.weight <= 1:
+            raise SchemaValidationError(f"weight must be between 0 and 1, got {self.weight}")
 
     @property
     def is_object(self) -> bool:
@@ -147,6 +187,30 @@ class SchemaField:
         # Numbers and objects default to null
         return None
 
+    def _derive_match_mode(self) -> Optional[str]:
+        parsed = self.parsed_type
+        if parsed.kind == "union":
+            members = [a for a in parsed.args if a.kind != "None"]
+            if members and all(a.kind in ("int", "float") for a in members):
+                return "numeric"
+            parsed = members[0] if members else parsed
+        kind = parsed.kind
+        if kind == "object":
+            return None
+        if kind in ("int", "float"):
+            return "numeric"
+        if kind == "bool":
+            return "exact"
+        if kind == "list":
+            element = parsed.args[0]
+            numeric = [a for a in (element.args if element.kind == "union" else [element]) if a.kind != "None"]
+            if numeric and all(a.kind in ("int", "float") for a in numeric):
+                return "numeric"
+            return "item_list"
+        if kind == "dict":
+            return "keyed_values"
+        return "semantic"
+
     def get_default(self) -> Any:
         """Return a copy of the default value."""
         return copy.deepcopy(self.default)
@@ -165,6 +229,11 @@ _FIELD_KEYS = {
     "format_note",
     "example",
     "variable_example",
+    "weight",
+    "match_mode",
+    "similarity_threshold",
+    "similarity_threshold_mode",
+    "plot_kind",
 }
 
 
@@ -252,6 +321,25 @@ def _validate_prompt_text(fields: List[SchemaField], domain: str) -> None:
                 f"{domain} field '{schema_field.name}' has allowed_values_ref '{ref}'; "
                 f"only synthesis fields may use {sorted(ALLOWED_VALUES_REFS)} (use allowed_values for an inline list)"
             )
+
+
+def normalize_weights(fields: List[SchemaField], parent_effective_weight: float = 1.0) -> None:
+    """Fill unspecified weights within each sibling group and cascade effective weights."""
+    evaluated = [f for f in fields if not f.extraction_only]
+    specified_sum = sum(f.weight for f in evaluated if f.weight is not None)
+    if specified_sum > 1.0 + 1e-9:
+        raise SchemaValidationError(
+            f"Weights of {[f.name for f in evaluated]} sum to {specified_sum} > 1.0"
+        )
+    unspecified = [f for f in evaluated if f.weight is None]
+    for schema_field in unspecified:
+        schema_field.weight = (1.0 - specified_sum) / len(unspecified)
+    for schema_field in fields:
+        if schema_field.extraction_only:
+            schema_field.weight = 0.0
+        schema_field.effective_weight = schema_field.weight * parent_effective_weight
+        if schema_field.value_fields:
+            normalize_weights(schema_field.value_fields, schema_field.effective_weight)
 
 
 BUILTIN_ABBREVIATIONS_FIELD = "abbreviations"
@@ -345,6 +433,11 @@ class ExtractionSchemaConfig:
         synthesis_fields = _parse_fields(raw.get("synthesis_fields"), "synthesis_fields")
         _validate_prompt_text(composition_fields, "composition")
         _validate_prompt_text(synthesis_fields, "synthesis")
+        for domain_fields in (composition_fields, synthesis_fields):
+            try:
+                normalize_weights(domain_fields)
+            except SchemaValidationError as e:
+                raise SchemaValidationError(f"Invalid weights: {e}") from None
         extra_domains = {}
         for domain, domain_fields in (raw.get("extra_domains") or {}).items():
             if not _SAFE_NAME.match(str(domain)) or domain in SCHEMA_DOMAINS:
