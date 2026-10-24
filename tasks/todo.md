@@ -10,8 +10,8 @@ Decisions agreed with the user: only weights come from the schema, the scoring f
 
 - [x] 0. Baselines from the current code: semantic evaluator on 10 piezo outputs + 4 VLM outputs + override paths (text matcher and PhysBERT); agentic evaluator replaying 9 stored agent-decision files + override paths. Both deterministic with `PYTHONHASHSEED=0`.
 - [x] 1. `SchemaField`: `weight` (+ cascaded `effective_weight`), `match_mode`, `similarity_threshold`, `plot_kind`; set them in the default schema to reproduce today's behaviour
-- [ ] 2. `semantic_evaluator.py`: weights/thresholds from the schema; one comparator per `match_mode` (existing code, moved not rewritten); loop over schema fields; leaf-level evaluation for nested values
-- [ ] 3. Regression: semantic baseline reproduced exactly; permanent pytest regression on a compact subset
+- [x] 2. `semantic_evaluator.py`: weights/thresholds from the schema; one comparator per `match_mode` (existing code, moved not rewritten); loop over schema fields; leaf-level evaluation for nested values
+- [x] 3. Regression: semantic baseline reproduced exactly; permanent pytest regression on a compact subset
 - [ ] 4. `eval_flow.py` (agentic): weights from the schema; per-`match_mode` scoring/metrics; agent task prompts templated from the schema (incl. response shape per field); leaf-level evaluation for nested values
 - [ ] 5. Regression: agentic replay baseline reproduced exactly; permanent pytest regression
 - [ ] 6. `data_distribution_visualizers.py`: one generic categorical path driven by `plot_kind`, plus a new numeric-distribution plot; keep the existing public `plot_family_*` / `plot_precursors_*` / `plot_characterization_techniques_*` functions as thin wrappers

@@ -622,3 +622,186 @@ class TestMaterialsDataSemanticEvaluator:
             assert results["total_items"] == 0
             assert results["overall_accuracy"] == 0.0
             assert len(results["item_results"]) == 0
+
+
+BRANCHED_SCHEMA_YAML = """
+version: "1.0"
+composition_fields:
+  - name: compositions_property_values
+    type: "dict[str, object]"
+    weight: 0.8
+    value_fields:
+      - name: d33_data
+        type: object
+        weight: 0.6
+        value_fields:
+          - {name: value, type: "float|int|None", weight: 0.5}
+          - {name: unit, type: str, match_mode: exact}
+      - name: grain
+        type: object
+        weight: 0.4
+        value_fields:
+          - {name: grain_size, type: "list[float]", similarity_threshold: 0.1, similarity_threshold_mode: absolute}
+  - {name: property_unit, type: str, weight: 0.2, match_mode: exact}
+synthesis_fields:
+  - {name: method, type: str, weight: 0.5}
+  - {name: sintering_atmosphere, type: "str|None", weight: 0.5, match_mode: exact}
+"""
+
+
+class TestCustomSchemaEvaluation:
+    """Test semantic evaluation with a branched custom schema"""
+
+    @pytest.fixture
+    def evaluator(self, tmp_path):
+        schema_path = tmp_path / "schema.yaml"
+        schema_path.write_text(BRANCHED_SCHEMA_YAML, encoding="utf-8")
+        return MaterialsDataSemanticEvaluator(
+            use_semantic_model=False, schema_config_path=schema_path
+        )
+
+    @staticmethod
+    def composition(d33=190, unit="pC/N", grain=(2.8, 3.1)):
+        value = {"d33_data": {"value": d33, "unit": unit}}
+        if grain is not None:
+            value["grain"] = {"grain_size": list(grain)}
+        return value
+
+    def test_default_weights_from_schema(self, evaluator):
+        assert evaluator.default_weights == pytest.approx(
+            {
+                "compositions_property_values": 0.4,
+                "property_unit": 0.1,
+                "method": 0.25,
+                "sintering_atmosphere": 0.25,
+            }
+        )
+
+    def test_each_leaf_is_one_item(self, evaluator):
+        reference = {
+            "compositions_property_values": {
+                "BaTiO3": self.composition(),
+                "KNbO3": self.composition(d33=120),
+            },
+            "property_unit": "pC/N",
+        }
+        test = {
+            "compositions_property_values": {
+                "BaTiO3": self.composition(),
+                # Grain sizes outside the absolute 0.1 tolerance
+                "KNbO3": self.composition(d33=120, grain=(4.0, 5.0)),
+            },
+            "property_unit": "pC/N",
+        }
+        score, details, metrics, _ = evaluator._evaluate_composition_data(
+            reference, test
+        )
+        cpv = details["compositions_property_values"]["details"]
+        # 2 keys + 6 matching leaves + property_unit
+        assert metrics["true_positives"] == 2 + 5 + 1
+        assert metrics["false_positives"] == metrics["false_negatives"] == 1
+        assert cpv["leaf_matches"]["KNbO3"]["grain.grain_size"]["match"] is False
+        assert cpv["leaf_matches"]["KNbO3"]["d33_data.value"]["match"] is True
+        # KNbO3 earns the d33_data share (0.6) of its value: (1 + 0.6) / 2
+        assert cpv["pair_match_ratio"] == pytest.approx(0.8)
+        assert cpv["value_matches"] == {"BaTiO3": True, "KNbO3": False}
+
+    def test_grain_within_tolerance_matches(self, evaluator):
+        reference = {"compositions_property_values": {"BaTiO3": self.composition()}}
+        test = {
+            "compositions_property_values": {
+                "BaTiO3": self.composition(grain=(3.15, 2.85))
+            }
+        }
+        _, details, metrics, _ = evaluator._evaluate_composition_data(reference, test)
+        assert details["compositions_property_values"]["match"] is True
+        assert metrics["false_positives"] == metrics["false_negatives"] == 0
+
+    def test_missing_composition_counts_key_and_present_leaves(self, evaluator):
+        reference = {
+            "compositions_property_values": {
+                "BaTiO3": self.composition(),
+                "KNbO3": self.composition(grain=None),
+            }
+        }
+        test = {"compositions_property_values": {"BaTiO3": self.composition()}}
+        _, details, metrics, _ = evaluator._evaluate_composition_data(reference, test)
+        # Missing KNbO3: its key plus its 2 present leaves (no grain block)
+        assert metrics["false_negatives"] == 3
+        assert details["compositions_property_values"]["details"]["missing_keys"] == [
+            "KNbO3"
+        ]
+
+    def test_custom_synthesis_field(self, evaluator):
+        reference = {"method": "sol-gel", "sintering_atmosphere": "air"}
+        test = {"method": "sol-gel", "sintering_atmosphere": "oxygen"}
+        score, details, metrics, weights = evaluator._evaluate_synthesis_data(
+            reference, test
+        )
+        assert details["sintering_atmosphere"]["match"] is False
+        assert weights == pytest.approx({"method": 0.25, "sintering_atmosphere": 0.25})
+        assert score == pytest.approx(0.75)
+
+    def test_count_all_items_uses_leaves(self, evaluator):
+        item = {
+            "composition_data": {
+                "compositions_property_values": {"BaTiO3": self.composition()},
+                "property_unit": "pC/N",
+            },
+            "synthesis_data": {"method": "sol-gel"},
+        }
+        # Key + 3 leaves, property_unit, method
+        assert evaluator._count_all_items(item) == 6
+
+    def test_legacy_weights_dict_still_overrides(self, evaluator):
+        reference = {"method": "sol-gel", "sintering_atmosphere": "air"}
+        test = {"method": "sol-gel", "sintering_atmosphere": "oxygen"}
+        weights = {
+            "compositions_property_values": 0.5,
+            "property_unit": 0.0,
+            "method": 0.4,
+            "sintering_atmosphere": 0.1,
+        }
+        score, _, _, _ = evaluator._evaluate_synthesis_data(reference, test, weights)
+        assert score == pytest.approx(0.9)
+
+    def test_field_match_threshold_override(self, tmp_path):
+        schema_path = tmp_path / "schema.yaml"
+        schema_path.write_text(BRANCHED_SCHEMA_YAML, encoding="utf-8")
+        evaluator = MaterialsDataSemanticEvaluator(
+            use_semantic_model=False,
+            schema_config_path=schema_path,
+            similarity_thresholds={"method_match": 0.1},
+        )
+        method = evaluator.schema_config.synthesis_fields[0]
+        assert evaluator._field_threshold(method) == 0.1
+
+
+class TestNumericTolerance:
+    """Test numeric leaf comparison with schema tolerances"""
+
+    @pytest.fixture
+    def evaluator(self):
+        return MaterialsDataSemanticEvaluator(use_semantic_model=False)
+
+    @pytest.mark.parametrize(
+        "mode, threshold, ref, test, expected",
+        [
+            ("relative", 0.05, 100, 104, True),
+            ("relative", 0.05, 100, 106, False),
+            ("absolute", 0.1, 2.0, 2.09, True),
+            ("absolute", 0.1, 2.0, 2.2, False),
+            ("absolute", 0.1, [3.1, 2.8], [2.85, 3.05], True),
+            ("absolute", 0.1, [3.1, 2.8], [3.1], False),
+        ],
+    )
+    def test_within_tolerance(self, evaluator, mode, threshold, ref, test, expected):
+        from comproscanner.utils.configs.schema_config import SchemaField
+
+        field = SchemaField(
+            name="x",
+            type="float",
+            similarity_threshold=threshold,
+            similarity_threshold_mode=mode,
+        )
+        assert evaluator._is_within_tolerance(field, ref, test) is expected

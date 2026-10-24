@@ -15,6 +15,7 @@ from pathlib import Path
 
 # Custom imports
 from ...utils.configs import CustomDictionary, DefaultPaths
+from ...utils.configs.schema_config import load_schema_config
 from ...utils.error_handler import ValueErrorHandler
 
 class MaterialsDataSemanticEvaluator:
@@ -26,6 +27,7 @@ class MaterialsDataSemanticEvaluator:
         primary_model_name (str, optional): Name of the primary model to use (default: "thellert/physbert_cased")
         fallback_model_name (str, optional): Name of the fallback sentence transformer model (default: "all-mpnet-base-v2")
         similarity_thresholds (dict, optional): Custom thresholds for similarity scoring
+        schema_config_path (str | Path, optional): Path to the extraction schema YAML file (default: bundled default schema)
     """
 
     def __init__(
@@ -35,6 +37,7 @@ class MaterialsDataSemanticEvaluator:
         fallback_model_name="all-mpnet-base-v2",
         similarity_thresholds=None,
         value_error_thresholds=None,
+        schema_config_path=None,
     ):
         """
         Initialize the evaluator with optional semantic models.
@@ -61,7 +64,9 @@ class MaterialsDataSemanticEvaluator:
                 When a ground-truth value falls inside one of the ranges the extracted
                 value is accepted if ``|extracted - ground_truth| <= threshold``.
                 If no range matches, exact comparison (epsilon 1e-6) is used.
+            schema_config_path (str | Path, optional): Path to the extraction schema YAML file. Defaults to None (bundled default schema).
         """
+        self.schema_config = load_schema_config(schema_config_path)
         self.use_semantic_model = use_semantic_model
         self.primary_model_name = primary_model_name
         self.fallback_model_name = fallback_model_name
@@ -88,16 +93,14 @@ class MaterialsDataSemanticEvaluator:
         self.similarity_thresholds = self.default_similarity_thresholds.copy()
         if similarity_thresholds:
             self.similarity_thresholds.update(similarity_thresholds)
+        # Only user-supplied '<field>_match' keys override schema thresholds
+        self.user_similarity_thresholds = dict(similarity_thresholds or {})
 
-        # Default weights for different components
+        # Default weights from the schema, each section summing to 0.5
         self.default_weights = {
-            "compositions_property_values": 0.3,
-            "property_unit": 0.1,
-            "family": 0.1,
-            "method": 0.1,
-            "precursors": 0.15,
-            "characterization_techniques": 0.15,
-            "steps": 0.1,
+            field.name: field.effective_weight * 0.5
+            for domain in ("composition", "synthesis")
+            for field in self.schema_config.fields(domain, final_only=True)
         }
 
     def _load_models(self):
@@ -279,38 +282,45 @@ class MaterialsDataSemanticEvaluator:
             # If conversion fails, fall back to exact comparison
             return ref_val == test_val
 
-    def _evaluate_composition_data(self, reference_comp, test_comp, weights=None):
+    def _resolve_weights(self, weights):
+        """Return weights to use, falling back to defaults if missing or not summing to 1.0."""
+        if weights is None:
+            return self.default_weights
+        # Check if the sum of weights is approximately 1.0
+        weight_sum = sum(weights.values())
+        if abs(weight_sum - 1.0) > 1e-6:  # Allow tiny floating point differences
+            print(
+                f"Warning: Provided weights sum to {weight_sum}, not 1.0. Using default weights."
+            )
+            return self.default_weights
+        return {**self.default_weights, **weights}
+
+    def _field_threshold(self, field):
+        """Return a field's similarity threshold, honouring '<field>_match' overrides."""
+        return self.user_similarity_thresholds.get(
+            f"{field.name}_match", field.similarity_threshold
+        )
+
+    def _evaluate_domain(self, domain, reference, test, weights=None):
         """
-        Evaluate composition data section with semantic matching for keys and exact matching for values.
+        Evaluate one data section field by field according to the extraction schema.
 
         Args:
-            reference_comp (dict): Reference composition data
-            test_comp (dict): Test composition data
+            domain (str): "composition" or "synthesis"
+            reference (dict): Reference section data
+            test (dict): Test section data
             weights (dict, optional): Weights for different components
 
         Returns:
             tuple: (score, details, absolute_metrics, component_weights)
         """
-        # Check if weights is None or if sum of weights is not 1.0 (with small tolerance for floating point)
-        if weights is None:
-            weights = self.default_weights
-        else:
-            # Check if the sum of weights is approximately 1.0
-            weight_sum = sum(weights.values())
-            if abs(weight_sum - 1.0) > 1e-6:  # Allow tiny floating point differences
-                print(
-                    f"Warning: Provided weights sum to {weight_sum}, not 1.0. Using default weights."
-                )
-                weights = self.default_weights
+        weights = self._resolve_weights(weights)
+        fields = self.schema_config.fields(domain, final_only=True)
 
         # Initialize component weights to track relative importance for normalization
-        component_weights = {
-            "property_unit": weights["property_unit"],
-            "family": weights["family"],
-            "compositions_property_values": weights["compositions_property_values"],
-        }
+        component_weights = {f.name: weights[f.name] for f in fields}
 
-        # Normalize component weights to sum to 0.5 (composition portion)
+        # Normalize component weights to sum to 0.5 (section portion)
         total_weight = sum(component_weights.values())
         if total_weight > 0:
             for key in component_weights:
@@ -324,87 +334,604 @@ class MaterialsDataSemanticEvaluator:
             "false_negatives": 0,
         }
 
-        # Check property_unit (exact match)
-        ref_unit = reference_comp.get("property_unit")
-        test_unit = test_comp.get("property_unit")
-        unit_match = ref_unit == test_unit
-        details["property_unit"] = {
-            "match": unit_match,
-            "reference": ref_unit,
-            "test": test_unit,
+        evaluators = {
+            "exact": self._evaluate_scalar_field,
+            "numeric": self._evaluate_scalar_field,
+            "semantic": self._evaluate_semantic_field,
+            "item_list": self._evaluate_item_list_field,
+            "joined_text": self._evaluate_joined_text_field,
+            "keyed_values": self._evaluate_keyed_values_field,
+            None: self._evaluate_object_field,
+        }
+        for field in fields:
+            penalty, field_details, field_metrics = evaluators[field.match_mode](
+                field,
+                reference.get(field.name, self._empty_value(field)),
+                test.get(field.name, self._empty_value(field)),
+                component_weights[field.name],
+            )
+            score -= penalty
+            details[field.name] = field_details
+            for metric in absolute_metrics:
+                absolute_metrics[metric] += field_metrics[metric]
+
+        return max(0, score), details, absolute_metrics, component_weights
+
+    def _evaluate_composition_data(self, reference_comp, test_comp, weights=None):
+        """
+        Evaluate composition data section with semantic matching for keys and exact matching for values.
+
+        Args:
+            reference_comp (dict): Reference composition data
+            test_comp (dict): Test composition data
+            weights (dict, optional): Weights for different components
+
+        Returns:
+            tuple: (score, details, absolute_metrics, component_weights)
+        """
+        return self._evaluate_domain("composition", reference_comp, test_comp, weights)
+
+    def _evaluate_synthesis_data(self, reference_synth, test_synth, weights=None):
+        """
+        Evaluate synthesis data section with semantic understanding.
+
+        Args:
+            reference_synth (dict): Reference synthesis data
+            test_synth (dict): Test synthesis data
+            weights (dict, optional): Weights for different components
+
+        Returns:
+            tuple: (score, details, absolute_metrics, component_weights)
+        """
+        return self._evaluate_domain("synthesis", reference_synth, test_synth, weights)
+
+    @staticmethod
+    def _new_metrics():
+        return {"true_positives": 0, "false_positives": 0, "false_negatives": 0}
+
+    @staticmethod
+    def _empty_value(field):
+        """Value used when a field is absent from a record."""
+        if field.match_mode in ("item_list", "joined_text"):
+            return []
+        if field.match_mode == "keyed_values":
+            return {}
+        return None
+
+    def _values_match(self, field, ref_val, test_val):
+        """Check whether two values of a field match under its match mode."""
+        if field.match_mode == "numeric":
+            if field.similarity_threshold is None:
+                return self._is_value_in_range(
+                    ref_val, test_val, self.value_error_thresholds
+                )
+            return self._is_within_tolerance(field, ref_val, test_val)
+        if field.match_mode == "semantic":
+            if ref_val is None or test_val is None:
+                return ref_val == test_val
+            return (
+                self._calculate_text_similarity(ref_val, test_val)
+                >= self._field_threshold(field)
+            )
+        if field.match_mode == "item_list":
+            return self._compare_item_lists(field, ref_val or [], test_val or [])[
+                "match"
+            ]
+        if field.match_mode == "joined_text":
+            if not ref_val or not test_val:
+                return not ref_val and not test_val
+            return self._calculate_text_similarity(
+                " ".join(ref_val), " ".join(test_val)
+            ) >= self._field_threshold(field)
+        return ref_val == test_val
+
+    def _is_within_tolerance(self, field, ref_val, test_val):
+        """Compare numbers (or lists of numbers) using the field's similarity threshold."""
+        if ref_val is None or test_val is None:
+            return ref_val == test_val
+        if isinstance(ref_val, list) or isinstance(test_val, list):
+            if not isinstance(ref_val, list) or not isinstance(test_val, list):
+                return False
+            if len(ref_val) != len(test_val):
+                return False
+            return all(
+                self._is_within_tolerance(field, r, t)
+                for r, t in zip(sorted(ref_val), sorted(test_val))
+            )
+        try:
+            ref_num, test_num = float(ref_val), float(test_val)
+        except (ValueError, TypeError):
+            return ref_val == test_val
+        tolerance = field.similarity_threshold
+        if field.similarity_threshold_mode == "relative":
+            tolerance = abs(ref_num) * tolerance
+        return abs(ref_num - test_num) <= tolerance
+
+    def _leaf_values(self, fields, value, path=()):
+        """Yield (leaf_field, path, value) for every leaf of a nested value."""
+        for field in fields:
+            sub_value = value.get(field.name) if isinstance(value, dict) else None
+            if field.value_fields and field.is_object:
+                yield from self._leaf_values(
+                    field.value_fields, sub_value, path + (field.name,)
+                )
+            else:
+                yield field, path + (field.name,), sub_value
+
+    def _compare_values(self, field, ref_val, test_val):
+        """
+        Compare two values of a field leaf by leaf.
+
+        Args:
+            field (SchemaField): Field whose values are compared
+            ref_val: Reference value
+            test_val: Test value
+
+        Returns:
+            dict: match_fraction, match, metrics and per-leaf results
+        """
+        metrics = self._new_metrics()
+        if not field.value_fields:
+            if field.match_mode == "keyed_values":
+                match = self._is_value_in_range(
+                    ref_val, test_val, self.value_error_thresholds
+                )
+            else:
+                match = self._values_match(field, ref_val, test_val)
+            if match:
+                metrics["true_positives"] += 1
+            else:
+                metrics["false_positives"] += 1
+                metrics["false_negatives"] += 1
+            return {
+                "match_fraction": 1.0 if match else 0.0,
+                "match": match,
+                "metrics": metrics,
+                "leaves": None,
+            }
+
+        leaves = {}
+        matched_weight = 0.0
+        total_weight = 0.0
+        ref_leaves = list(self._leaf_values(field.value_fields, ref_val))
+        test_leaves = {
+            path: value
+            for _, path, value in self._leaf_values(field.value_fields, test_val)
+        }
+        for leaf, path, ref_leaf in ref_leaves:
+            test_leaf = test_leaves.get(path)
+            # Skip leaves absent from both
+            if ref_leaf is None and test_leaf is None:
+                continue
+            if ref_leaf is None:
+                match = False
+                metrics["false_positives"] += 1
+            elif test_leaf is None:
+                match = False
+                metrics["false_negatives"] += 1
+            else:
+                match = self._values_match(leaf, ref_leaf, test_leaf)
+                if match:
+                    metrics["true_positives"] += 1
+                else:
+                    metrics["false_positives"] += 1
+                    metrics["false_negatives"] += 1
+            total_weight += leaf.effective_weight
+            if match:
+                matched_weight += leaf.effective_weight
+            leaves[".".join(path)] = {
+                "match": match,
+                "reference": ref_leaf,
+                "test": test_leaf,
+            }
+        if total_weight > 0:
+            match_fraction = matched_weight / total_weight
+        else:
+            match_fraction = 1.0 if all(l["match"] for l in leaves.values()) else 0.0
+        return {
+            "match_fraction": match_fraction,
+            "match": match_fraction == 1.0,
+            "metrics": metrics,
+            "leaves": leaves,
         }
 
-        unit_weight = component_weights["property_unit"]
+    def _count_value_items(self, field, value):
+        """Number of evaluation items in one value of a field (one per present leaf)."""
+        if not field.value_fields:
+            return 1
+        return sum(
+            1
+            for _, _, leaf_value in self._leaf_values(field.value_fields, value)
+            if leaf_value is not None
+        )
 
-        if unit_match and ref_unit is not None:
-            absolute_metrics["true_positives"] += 1
-        elif ref_unit is not None and test_unit is not None:
-            absolute_metrics["false_negatives"] += 1
-            absolute_metrics["false_positives"] += 1
-            score -= unit_weight
-        elif ref_unit is not None:
-            absolute_metrics["false_negatives"] += 1
-            score -= unit_weight
-        elif test_unit is not None:
-            absolute_metrics["false_positives"] += 1
-
-        # Check family (exact match)
-        ref_family = reference_comp.get("family")
-        test_family = test_comp.get("family")
-        family_match = ref_family == test_family
-        details["family"] = {
-            "match": family_match,
-            "reference": ref_family,
-            "test": test_family,
+    def _evaluate_scalar_field(self, field, ref_value, test_value, weight):
+        """Evaluate a single-value field with exact or numeric matching."""
+        metrics = self._new_metrics()
+        penalty = 0.0
+        if field.match_mode == "numeric":
+            value_match = self._values_match(field, ref_value, test_value)
+        else:
+            value_match = ref_value == test_value
+        details = {
+            "match": value_match,
+            "reference": ref_value,
+            "test": test_value,
         }
 
-        family_weight = component_weights["family"]
+        if value_match and ref_value is not None:
+            metrics["true_positives"] += 1
+        elif ref_value is not None and test_value is not None:
+            metrics["false_negatives"] += 1
+            metrics["false_positives"] += 1
+            penalty += weight
+        elif ref_value is not None:
+            metrics["false_negatives"] += 1
+            penalty += weight
+        elif test_value is not None:
+            metrics["false_positives"] += 1
 
-        if family_match and ref_family is not None:
-            absolute_metrics["true_positives"] += 1
-        elif ref_family is not None and test_family is not None:
-            absolute_metrics["false_negatives"] += 1
-            absolute_metrics["false_positives"] += 1
-            score -= family_weight
-        elif ref_family is not None:
-            absolute_metrics["false_negatives"] += 1
-            score -= family_weight
-        elif test_family is not None:
-            absolute_metrics["false_positives"] += 1
+        return penalty, details, metrics
 
-        # Check compositions_property_values with semantic matching for keys
-        ref_values = reference_comp.get("compositions_property_values", {})
-        test_values = test_comp.get("compositions_property_values", {})
+    def _evaluate_semantic_field(self, field, ref_value, test_value, weight):
+        """Evaluate a text field with semantic similarity."""
+        metrics = self._new_metrics()
+        penalty = 0.0
+        threshold = self._field_threshold(field)
 
-        comp_values_weight = component_weights["compositions_property_values"]
+        if ref_value is not None and test_value is not None:
+            similarity = self._calculate_text_similarity(ref_value, test_value)
+            value_match = similarity >= threshold
+            details = {
+                "match": value_match,
+                "reference": ref_value,
+                "test": test_value,
+                "similarity": similarity,
+            }
+
+            if value_match:
+                metrics["true_positives"] += 1
+            else:
+                # Split the weight between false positive and false negative
+                metrics["false_negatives"] += 1
+                metrics["false_positives"] += 1
+                penalty += weight
+        else:
+            value_match = ref_value == test_value  # Both None is a match, one None is not
+            details = {
+                "match": value_match,
+                "reference": ref_value,
+                "test": test_value,
+                "similarity": 1.0 if value_match else 0.0,
+            }
+
+            if value_match and ref_value is not None:
+                metrics["true_positives"] += 1
+            elif ref_value is not None:
+                metrics["false_negatives"] += 1
+                penalty += weight
+            elif test_value is not None:
+                metrics["false_positives"] += 1
+
+        return penalty, details, metrics
+
+    def _compare_item_lists(self, field, ref_items, test_items):
+        """Match two non-empty lists item by item using tiered similarity."""
+        metrics = self._new_metrics()
+
+        # Case 1: Both empty
+        if not ref_items and not test_items:
+            return {
+                "match": True,
+                "similarity": 1.0,
+                "reference": [],
+                "test": [],
+                "very_high_similarity_matches": [],
+                "high_similarity_matches": [],
+                "missing_items": [],
+                "extra_items": [],
+                "metrics": metrics,
+            }
+        # Case 2: One empty, one not
+        if not ref_items:
+            # All weight goes to false positives
+            metrics["false_positives"] += len(test_items) * 2
+            return {
+                "match": False,
+                "similarity": 0.0,
+                "reference": [],
+                "test": test_items,
+                "very_high_similarity_matches": [],
+                "high_similarity_matches": [],
+                "missing_items": [],
+                "extra_items": test_items,
+                "metrics": metrics,
+            }
+        if not test_items:
+            # All weight goes to false negatives
+            metrics["false_negatives"] += len(ref_items) * 2
+            return {
+                "match": False,
+                "similarity": 0.0,
+                "reference": ref_items,
+                "test": [],
+                "very_high_similarity_matches": [],
+                "high_similarity_matches": [],
+                "missing_items": ref_items,
+                "extra_items": [],
+                "metrics": metrics,
+            }
+
+        # Case 3: Both non-empty, evaluate with item list comparison
+        # Define similarity thresholds
+        very_high_threshold = self._field_threshold(field)
+        high_threshold = 0.70
+
+        # Calculate similarity matrix
+        similarity_matrix = []
+        for ref_item in ref_items:
+            row = []
+            for test_item in test_items:
+                similarity = self._calculate_text_similarity(ref_item, test_item)
+                row.append(similarity)
+            similarity_matrix.append(row)
+
+        # Track matches
+        very_high_matches = []
+        high_matches = []
+        matched_ref_idxs = set()
+        matched_test_idxs = set()
+
+        # First pass: Find very high similarity matches
+        for i, ref_item in enumerate(ref_items):
+            if i in matched_ref_idxs:
+                continue  # Skip already matched reference items
+
+            best_match_idx = -1
+            best_similarity = very_high_threshold
+
+            for j, test_item in enumerate(test_items):
+                if j in matched_test_idxs:
+                    continue  # Skip already matched test items
+
+                if similarity_matrix[i][j] >= best_similarity:
+                    best_similarity = similarity_matrix[i][j]
+                    best_match_idx = j
+
+            if best_match_idx >= 0:
+                test_item = test_items[best_match_idx]
+                matched_ref_idxs.add(i)
+                matched_test_idxs.add(best_match_idx)
+
+                very_high_matches.append(
+                    {
+                        "reference": ref_item,
+                        "test": test_item,
+                        "similarity": best_similarity,
+                    }
+                )
+
+                # Add to metrics - count as true positive
+                metrics["true_positives"] += 2  # Count as 2 true positives
+
+        # Second pass: Find high similarity matches (>0.70)
+        for i, ref_item in enumerate(ref_items):
+            if i in matched_ref_idxs:
+                continue  # Skip already matched reference items
+
+            best_match_idx = -1
+            best_similarity = high_threshold
+
+            for j, test_item in enumerate(test_items):
+                if j in matched_test_idxs:
+                    continue  # Skip already matched test items
+
+                if similarity_matrix[i][j] >= best_similarity:
+                    best_similarity = similarity_matrix[i][j]
+                    best_match_idx = j
+
+            if best_match_idx >= 0:
+                test_item = test_items[best_match_idx]
+                matched_ref_idxs.add(i)
+                matched_test_idxs.add(best_match_idx)
+
+                high_matches.append(
+                    {
+                        "reference": ref_item,
+                        "test": test_item,
+                        "similarity": best_similarity,
+                    }
+                )
+
+                # Only partial credit for high similarity matches
+                metrics["true_positives"] += 1
+                metrics["false_positives"] += 1
+
+        # Process unmatched items
+        missing_items = [
+            ref_items[i] for i in range(len(ref_items)) if i not in matched_ref_idxs
+        ]
+        extra_items = [
+            test_items[i] for i in range(len(test_items)) if i not in matched_test_idxs
+        ]
+
+        # Add metrics for missing items
+        if missing_items:
+            metrics["false_negatives"] += len(missing_items) * 2
+
+        # Add metrics for extra items
+        if extra_items:
+            metrics["false_positives"] += len(extra_items) * 2
+
+        # Calculate overall similarity
+        total_matches = len(very_high_matches) + 0.7 * len(high_matches)
+        similarity_score = total_matches / len(ref_items) if ref_items else 0.0
+
+        return {
+            "match": similarity_score >= 0.80,  # Threshold for overall match
+            "similarity": similarity_score,
+            "reference": ref_items,
+            "test": test_items,
+            "very_high_similarity_matches": very_high_matches,
+            "high_similarity_matches": high_matches,
+            "missing_items": missing_items,
+            "extra_items": extra_items,
+            "fractional_value": 1.0 / len(ref_items) if ref_items else 0,
+            "metrics": metrics,
+        }
+
+    def _evaluate_item_list_field(self, field, ref_items, test_items, weight):
+        """Evaluate a list field by matching its items."""
+        details = self._compare_item_lists(field, ref_items, test_items)
+        metrics = details.pop("metrics")
+        penalty = 0.0
+        if ref_items and not test_items:
+            penalty += weight
+        elif ref_items and test_items and not details["match"]:
+            # Apply score penalty if not a good match
+            penalty += weight * (1 - details["similarity"])
+        return penalty, details, metrics
+
+    def _evaluate_joined_text_field(self, field, ref_steps, test_steps, weight):
+        """Evaluate a list field by comparing its items joined into one paragraph."""
+        metrics = self._new_metrics()
+        penalty = 0.0
+        threshold = self._field_threshold(field)
+
+        try:
+            # Case 1: Both empty
+            if not ref_steps and not test_steps:
+                details = {
+                    "steps_match": True,
+                    "reference_steps": [],
+                    "test_steps": [],
+                }
+            # Case 2: One empty, one not
+            elif not ref_steps:
+                details = {
+                    "steps_match": False,
+                    "message": "Reference steps are empty",
+                    "reference_steps": [],
+                    "test_steps": test_steps,
+                }
+
+                # All weight goes to false positives
+                metrics["false_positives"] += 2  # Count as 2 false positives
+
+            elif not test_steps:
+                details = {
+                    "steps_match": False,
+                    "message": "Test steps are empty",
+                    "reference_steps": ref_steps,
+                    "test_steps": [],
+                }
+
+                # All weight goes to false negatives
+                metrics["false_negatives"] += 2  # Count as 2 false negatives
+                penalty += weight
+
+            else:
+                # Case 3: Both non-empty, use semantic paragraph comparison
+                ref_paragraph = " ".join(ref_steps)
+                test_paragraph = " ".join(test_steps)
+                paragraph_similarity = self._calculate_text_similarity(
+                    ref_paragraph, test_paragraph
+                )
+
+                steps_match = paragraph_similarity >= threshold
+
+                details = {
+                    "reference_steps": ref_steps,
+                    "test_steps": test_steps,
+                    "paragraph_similarity": paragraph_similarity,
+                    "steps_match": steps_match,
+                    "paragraph_comparison": {
+                        "similarity_score": paragraph_similarity,
+                        "high_similarity": paragraph_similarity >= threshold,
+                        "method": (
+                            "semantic_model"
+                            if self.model_available
+                            else "sequence_matcher"
+                        ),
+                    },
+                }
+
+                # Add metrics based on similarity
+                if steps_match:
+                    # High similarity - all weight to true positives
+                    metrics["true_positives"] += 2
+                else:
+                    # Low similarity - split between false positive and negative
+                    metrics["false_positives"] += 1
+                    metrics["false_negatives"] += 1
+                    penalty += weight  # Full penalty
+        except Exception as e:
+            # Handle any errors in steps evaluation
+            print(f"Error in step evaluation: {str(e)}")
+            details = {
+                "steps_match": False,
+                "error": str(e),
+                "reference_steps": ref_steps,
+                "test_steps": test_steps,
+            }
+
+            # Count as false positive and negative
+            metrics["false_positives"] += 1
+            metrics["false_negatives"] += 1
+            penalty += weight
+
+        return penalty, details, metrics
+
+    def _evaluate_object_field(self, field, ref_value, test_value, weight):
+        """Evaluate a nested object field leaf by leaf."""
+        if ref_value is None and test_value is None:
+            return 0.0, {"match": True, "reference": None, "test": None}, self._new_metrics()
+        comparison = self._compare_values(field, ref_value, test_value)
+        details = {
+            "match": comparison["match"],
+            "similarity": comparison["match_fraction"],
+            "reference": ref_value,
+            "test": test_value,
+            "leaves": comparison["leaves"],
+        }
+        penalty = weight * (1 - comparison["match_fraction"])
+        return penalty, details, comparison["metrics"]
+
+    def _evaluate_keyed_values_field(self, field, ref_values, test_values, weight):
+        """Evaluate a composition-keyed field: match keys semantically, then compare values leaf by leaf."""
+        metrics = self._new_metrics()
+        penalty = 0.0
+        key_threshold = self._field_threshold(field)
 
         # Case 1: Both empty
         if not ref_values and not test_values:
-            details["compositions_property_values"] = {
+            details = {
                 "match": True,
-                "details": {"message": "Both compositions_property_values are empty"},
+                "details": {"message": f"Both {field.name} are empty"},
             }
-            return score, details, absolute_metrics, component_weights
+            return penalty, details, metrics
 
         # Case 2: One empty, one not
         if not ref_values:
-            details["compositions_property_values"] = {
+            details = {
                 "match": False,
-                "details": {
-                    "message": "Reference compositions_property_values is empty"
-                },
+                "details": {"message": f"Reference {field.name} is empty"},
             }
-            absolute_metrics["false_positives"] += len(test_values) * 2
-            return score, details, absolute_metrics, component_weights
+            metrics["false_positives"] += sum(
+                1 + self._count_value_items(field, v) for v in test_values.values()
+            )
+            return penalty, details, metrics
 
         if not test_values:
-            details["compositions_property_values"] = {
+            details = {
                 "match": False,
-                "details": {"message": "Test compositions_property_values is empty"},
+                "details": {"message": f"Test {field.name} is empty"},
             }
-            absolute_metrics["false_negatives"] += len(ref_values) * 2
-            score -= comp_values_weight
-            return score, details, absolute_metrics, component_weights
+            metrics["false_negatives"] += sum(
+                1 + self._count_value_items(field, v) for v in ref_values.values()
+            )
+            penalty += weight
+            return penalty, details, metrics
 
         # Case 3: Both non-empty, first find exact matches using sets, then apply similarity matching
         ref_keys_set = set(ref_values.keys())
@@ -418,12 +945,18 @@ class MaterialsDataSemanticEvaluator:
         # Track key matches and value matches
         key_matches = {}
         value_matches = {}
+        value_fractions = {}
+        leaf_matches = {}
         pair_matches = []
+
+        def _add_value_metrics(comparison):
+            for metric in metrics:
+                metrics[metric] += comparison["metrics"][metric]
 
         # Process exact matches
         for key in common_keys:
             # The key exists in both sets - count as true positive for key
-            absolute_metrics["true_positives"] += 1
+            metrics["true_positives"] += 1
 
             key_matches[key] = {
                 "matched_with": key,
@@ -431,39 +964,27 @@ class MaterialsDataSemanticEvaluator:
                 "match_type": "exact",
             }
 
-            # Check if values match exactly
+            # Check if values match
             ref_val = ref_values[key]
             test_val = test_values[key]
-            value_match = self._is_value_in_range(ref_val, test_val, self.value_error_thresholds)
-            value_matches[key] = value_match
+            comparison = self._compare_values(field, ref_val, test_val)
+            _add_value_metrics(comparison)
+            value_matches[key] = comparison["match"]
+            value_fractions[key] = comparison["match_fraction"]
+            if comparison["leaves"] is not None:
+                leaf_matches[key] = comparison["leaves"]
 
-            if value_match:
-                # Value matches - count as true positive for value
-                absolute_metrics["true_positives"] += 1
-
-                pair_matches.append(
-                    {
-                        "match": True,
-                        "reference": {key: ref_val},
-                        "test": {key: test_val},
-                        "similarity": 1.0,
-                        "match_type": "exact",
-                    }
-                )
-            else:
-                # Values don't match - split false positive/negative for value
-                absolute_metrics["false_positives"] += 1
-                absolute_metrics["false_negatives"] += 1
-
-                pair_matches.append(
-                    {
-                        "match": False,
-                        "reference": {key: ref_val},
-                        "test": {key: test_val},
-                        "similarity": 1.0,
-                        "match_type": "exact_key_different_value",
-                    }
-                )
+            pair_matches.append(
+                {
+                    "match": comparison["match"],
+                    "reference": {key: ref_val},
+                    "test": {key: test_val},
+                    "similarity": 1.0,
+                    "match_type": (
+                        "exact" if comparison["match"] else "exact_key_different_value"
+                    ),
+                }
+            )
 
         # Step 2: Apply similarity matching for remaining keys
         # Convert remaining keys to lists for indexing
@@ -483,13 +1004,13 @@ class MaterialsDataSemanticEvaluator:
         matched_ref_idxs = set()
         matched_test_idxs = set()
 
-        # Find high similarity matches (similarity > 0.9)
+        # Find high similarity matches (similarity > key threshold)
         for i, ref_key in enumerate(remaining_ref_keys_list):
             if i in matched_ref_idxs:
                 continue  # Skip already matched reference keys
 
             best_match_idx = -1
-            best_similarity = 0.9  # Only consider matches with similarity > 0.9
+            best_similarity = key_threshold
 
             # Find best match for this reference key
             for j, test_key in enumerate(remaining_test_keys_list):
@@ -514,40 +1035,30 @@ class MaterialsDataSemanticEvaluator:
                 }
 
                 # For high similarity matches, give partial credit for the key
-                absolute_metrics["true_positives"] += 1
+                metrics["true_positives"] += 1
 
                 ref_val = ref_values[ref_key]
                 test_val = test_values[test_key]
-                value_match = self._is_value_in_range(ref_val, test_val, self.value_error_thresholds)
-                value_matches[ref_key] = value_match
+                comparison = self._compare_values(field, ref_val, test_val)
+                _add_value_metrics(comparison)
+                value_matches[ref_key] = comparison["match"]
+                value_fractions[ref_key] = comparison["match_fraction"]
+                if comparison["leaves"] is not None:
+                    leaf_matches[ref_key] = comparison["leaves"]
 
-                if value_match:
-                    # Value matches - count as true positive for value
-                    absolute_metrics["true_positives"] += 1
-
-                    pair_matches.append(
-                        {
-                            "match": False,  # Not a true match because key isn't exact
-                            "reference": {ref_key: ref_val},
-                            "test": {test_key: test_val},
-                            "similarity": best_similarity,
-                            "match_type": "high_similarity_same_value",
-                        }
-                    )
-                else:
-                    # Value doesn't match - split false positive/negative for value
-                    absolute_metrics["false_positives"] += 1
-                    absolute_metrics["false_negatives"] += 1
-
-                    pair_matches.append(
-                        {
-                            "match": False,
-                            "reference": {ref_key: ref_val},
-                            "test": {test_key: test_val},
-                            "similarity": best_similarity,
-                            "match_type": "high_similarity_different_value",
-                        }
-                    )
+                pair_matches.append(
+                    {
+                        "match": False,  # Not a true match because key isn't exact
+                        "reference": {ref_key: ref_val},
+                        "test": {test_key: test_val},
+                        "similarity": best_similarity,
+                        "match_type": (
+                            "high_similarity_same_value"
+                            if comparison["match"]
+                            else "high_similarity_different_value"
+                        ),
+                    }
+                )
 
         # Process unmatched reference keys (truly missing keys)
         unmatched_ref_keys = [
@@ -557,8 +1068,11 @@ class MaterialsDataSemanticEvaluator:
         ]
 
         if unmatched_ref_keys:
-            # Missing keys - count as false negatives for both key and value components
-            absolute_metrics["false_negatives"] += len(unmatched_ref_keys) * 2
+            # Missing keys - count as false negatives for the key and every value item
+            metrics["false_negatives"] += sum(
+                1 + self._count_value_items(field, ref_values[key])
+                for key in unmatched_ref_keys
+            )
 
             for key in unmatched_ref_keys:
                 pair_matches.append(
@@ -579,8 +1093,11 @@ class MaterialsDataSemanticEvaluator:
         ]
 
         if unmatched_test_keys:
-            # Extra keys - count as false positives for both key and value
-            absolute_metrics["false_positives"] += len(unmatched_test_keys) * 2
+            # Extra keys - count as false positives for the key and every value item
+            metrics["false_positives"] += sum(
+                1 + self._count_value_items(field, test_values[key])
+                for key in unmatched_test_keys
+            )
 
             for key in unmatched_test_keys:
                 pair_matches.append(
@@ -609,13 +1126,13 @@ class MaterialsDataSemanticEvaluator:
         )
 
         # Only consider exact matched keys for value match ratio
-        value_match_count = sum(1 for k in common_keys if value_matches.get(k, False))
+        value_match_count = sum(value_fractions[k] for k in common_keys)
         value_match_ratio = (
             value_match_count / total_ref_keys if total_ref_keys > 0 else 0
         )
 
-        # Pair matches - count only exact key matches with matching values
-        pair_match_count = sum(1 for pair in pair_matches if pair.get("match", False))
+        # Pair matches - exact key matches, credited by the fraction of the value that matches
+        pair_match_count = sum(value_fractions[k] for k in common_keys)
         pair_match_ratio = (
             pair_match_count / total_ref_keys if total_ref_keys > 0 else 0
         )
@@ -628,8 +1145,7 @@ class MaterialsDataSemanticEvaluator:
 
         # Apply penalty if not a good match
         if not composition_match:
-            penalty = comp_values_weight * (1 - overall_match_ratio)
-            score -= penalty
+            penalty += weight * (1 - overall_match_ratio)
 
         # Build detailed results
         value_details = {
@@ -644,583 +1160,44 @@ class MaterialsDataSemanticEvaluator:
             "high_similarity_matches": high_similarity_matches,
             "missing_keys": unmatched_ref_keys,
             "extra_keys": unmatched_test_keys,
-            "similarity_threshold_used": 0.9,
+            "similarity_threshold_used": key_threshold,
             "fractional_value": 1.0 / total_ref_keys if total_ref_keys > 0 else 0,
             "total_reference_items": total_ref_keys,
         }
+        if leaf_matches:
+            value_details["leaf_matches"] = leaf_matches
 
-        details["compositions_property_values"] = {
+        details = {
             "match": composition_match,
             "similarity_score": overall_match_ratio,
             "details": value_details,
         }
 
-        return max(0, score), details, absolute_metrics, component_weights
-
-    def _evaluate_synthesis_data(self, reference_synth, test_synth, weights=None):
-        """
-        Evaluate synthesis data section with semantic understanding.
-
-        Args:
-            reference_synth (dict): Reference synthesis data
-            test_synth (dict): Test synthesis data
-            weights (dict, optional): Weights for different components
-
-        Returns:
-            tuple: (score, details, absolute_metrics, component_weights)
-        """
-        # Check if weights is None or if sum of weights is not 1.0 (with small tolerance for floating point)
-        if weights is None:
-            weights = self.default_weights
-        else:
-            # Check if the sum of weights is approximately 1.0
-            weight_sum = sum(weights.values())
-            if abs(weight_sum - 1.0) > 1e-6:  # Allow tiny floating point differences
-                print(
-                    f"Warning: Provided weights sum to {weight_sum}, not 1.0. Using default weights."
-                )
-                weights = self.default_weights
-
-        # Initialize component weights to track relative importance for normalization
-        component_weights = {
-            "method": weights["method"],
-            "precursors": weights["precursors"],
-            "characterization_techniques": weights["characterization_techniques"],
-            "steps": weights["steps"],
-        }
-
-        # Normalize component weights to sum to 0.5 (synthesis portion)
-        total_weight = sum(component_weights.values())
-        if total_weight > 0:
-            for key in component_weights:
-                component_weights[key] = component_weights[key] / total_weight * 0.5
-
-        score = 1.0
-        details = {}
-        absolute_metrics = {
-            "true_positives": 0,
-            "false_positives": 0,
-            "false_negatives": 0,
-        }
-
-        # Check method (semantic similarity with high threshold)
-        ref_method = reference_synth.get("method")
-        test_method = test_synth.get("method")
-
-        method_weight = component_weights["method"]
-
-        if ref_method is not None and test_method is not None:
-            method_similarity = self._calculate_text_similarity(ref_method, test_method)
-            method_match = (
-                method_similarity >= 0.9
-            )  # High threshold for semantic similarity
-            details["method"] = {
-                "match": method_match,
-                "reference": ref_method,
-                "test": test_method,
-                "similarity": method_similarity,
-            }
-
-            if method_match:
-                absolute_metrics["true_positives"] += 1
-            else:
-                # Split the weight between false positive and false negative
-                absolute_metrics["false_negatives"] += 1
-                absolute_metrics["false_positives"] += 1
-                score -= method_weight
-        else:
-            method_match = (
-                ref_method == test_method
-            )  # Both None is a match, one None is not
-            details["method"] = {
-                "match": method_match,
-                "reference": ref_method,
-                "test": test_method,
-                "similarity": 1.0 if method_match else 0.0,
-            }
-
-            if method_match and ref_method is not None:
-                absolute_metrics["true_positives"] += 1
-            elif ref_method is not None:
-                absolute_metrics["false_negatives"] += 1
-                score -= method_weight
-            elif test_method is not None:
-                absolute_metrics["false_positives"] += 1
-
-        # Check precursors using semantic similarity
-        ref_precursors = reference_synth.get("precursors", [])
-        test_precursors = test_synth.get("precursors", [])
-
-        precursors_weight = component_weights["precursors"]
-
-        # Case 1: Both empty
-        if not ref_precursors and not test_precursors:
-            details["precursors"] = {
-                "match": True,
-                "similarity": 1.0,
-                "reference": [],
-                "test": [],
-                "very_high_similarity_matches": [],
-                "high_similarity_matches": [],
-                "missing_items": [],
-                "extra_items": [],
-            }
-        # Case 2: One empty, one not
-        elif not ref_precursors:
-            details["precursors"] = {
-                "match": False,
-                "similarity": 0.0,
-                "reference": [],
-                "test": test_precursors,
-                "very_high_similarity_matches": [],
-                "high_similarity_matches": [],
-                "missing_items": [],
-                "extra_items": test_precursors,
-            }
-
-            # All weight goes to false positives
-            absolute_metrics["false_positives"] += len(test_precursors) * 2
-
-        elif not test_precursors:
-            details["precursors"] = {
-                "match": False,
-                "similarity": 0.0,
-                "reference": ref_precursors,
-                "test": [],
-                "very_high_similarity_matches": [],
-                "high_similarity_matches": [],
-                "missing_items": ref_precursors,
-                "extra_items": [],
-            }
-
-            # All weight goes to false negatives
-            absolute_metrics["false_negatives"] += len(ref_precursors) * 2
-            score -= precursors_weight
-
-        else:
-            # Case 3: Both non-empty, evaluate with item list comparison
-            # Define similarity thresholds
-            very_high_threshold = 0.90
-            high_threshold = 0.70
-
-            # Calculate similarity matrix
-            similarity_matrix = []
-            for ref_item in ref_precursors:
-                row = []
-                for test_item in test_precursors:
-                    similarity = self._calculate_text_similarity(ref_item, test_item)
-                    row.append(similarity)
-                similarity_matrix.append(row)
-
-            # Track matches
-            very_high_matches = []
-            high_matches = []
-            matched_ref_idxs = set()
-            matched_test_idxs = set()
-
-            # First pass: Find very high similarity matches (>0.90)
-            for i, ref_item in enumerate(ref_precursors):
-                if i in matched_ref_idxs:
-                    continue  # Skip already matched reference items
-
-                best_match_idx = -1
-                best_similarity = very_high_threshold
-
-                for j, test_item in enumerate(test_precursors):
-                    if j in matched_test_idxs:
-                        continue  # Skip already matched test items
-
-                    if similarity_matrix[i][j] >= best_similarity:
-                        best_similarity = similarity_matrix[i][j]
-                        best_match_idx = j
-
-                if best_match_idx >= 0:
-                    test_item = test_precursors[best_match_idx]
-                    matched_ref_idxs.add(i)
-                    matched_test_idxs.add(best_match_idx)
-
-                    match_info = {
-                        "reference": ref_item,
-                        "test": test_item,
-                        "similarity": best_similarity,
-                    }
-                    very_high_matches.append(match_info)
-
-                    # Add to metrics - count as true positive
-                    absolute_metrics["true_positives"] += 2  # Count as 2 true positives
-
-            # Second pass: Find high similarity matches (>0.70)
-            for i, ref_item in enumerate(ref_precursors):
-                if i in matched_ref_idxs:
-                    continue  # Skip already matched reference items
-
-                best_match_idx = -1
-                best_similarity = high_threshold
-
-                for j, test_item in enumerate(test_precursors):
-                    if j in matched_test_idxs:
-                        continue  # Skip already matched test items
-
-                    if similarity_matrix[i][j] >= best_similarity:
-                        best_similarity = similarity_matrix[i][j]
-                        best_match_idx = j
-
-                if best_match_idx >= 0:
-                    test_item = test_precursors[best_match_idx]
-                    matched_ref_idxs.add(i)
-                    matched_test_idxs.add(best_match_idx)
-
-                    match_info = {
-                        "reference": ref_item,
-                        "test": test_item,
-                        "similarity": best_similarity,
-                    }
-                    high_matches.append(match_info)
-
-                    # Only partial credit for high similarity matches
-                    absolute_metrics["true_positives"] += 1
-                    absolute_metrics["false_positives"] += 1
-
-            # Process unmatched items
-            missing_items = [
-                ref_precursors[i]
-                for i in range(len(ref_precursors))
-                if i not in matched_ref_idxs
-            ]
-            extra_items = [
-                test_precursors[i]
-                for i in range(len(test_precursors))
-                if i not in matched_test_idxs
-            ]
-
-            # Add metrics for missing items
-            if missing_items:
-                absolute_metrics["false_negatives"] += len(missing_items) * 2
-
-            # Add metrics for extra items
-            if extra_items:
-                absolute_metrics["false_positives"] += len(extra_items) * 2
-
-            # Calculate overall similarity
-            total_matches = len(very_high_matches) + 0.7 * len(high_matches)
-            similarity_score = (
-                total_matches / len(ref_precursors) if ref_precursors else 0.0
-            )
-            precursors_match = similarity_score >= 0.80  # Threshold for overall match
-
-            # Apply score penalty if not a good match
-            if not precursors_match:
-                penalty = precursors_weight * (1 - similarity_score)
-                score -= penalty
-
-            # Store details
-            details["precursors"] = {
-                "match": precursors_match,
-                "similarity": similarity_score,
-                "reference": ref_precursors,
-                "test": test_precursors,
-                "very_high_similarity_matches": very_high_matches,
-                "high_similarity_matches": high_matches,
-                "missing_items": missing_items,
-                "extra_items": extra_items,
-                "fractional_value": 1.0 / len(ref_precursors) if ref_precursors else 0,
-            }
-
-        # Check characterization_techniques using semantic similarity
-        ref_tech = reference_synth.get("characterization_techniques", [])
-        test_tech = test_synth.get("characterization_techniques", [])
-
-        tech_weight = component_weights["characterization_techniques"]
-
-        # Similar approach as precursors, but for characterization techniques
-        # Case 1: Both empty
-        if not ref_tech and not test_tech:
-            details["characterization_techniques"] = {
-                "match": True,
-                "similarity": 1.0,
-                "reference": [],
-                "test": [],
-                "very_high_similarity_matches": [],
-                "high_similarity_matches": [],
-                "missing_items": [],
-                "extra_items": [],
-            }
-        # Case 2: One empty, one not
-        elif not ref_tech:
-            details["characterization_techniques"] = {
-                "match": False,
-                "similarity": 0.0,
-                "reference": [],
-                "test": test_tech,
-                "very_high_similarity_matches": [],
-                "high_similarity_matches": [],
-                "missing_items": [],
-                "extra_items": test_tech,
-            }
-
-            # All weight goes to false positives
-            absolute_metrics["false_positives"] += len(test_tech) * 2
-
-        elif not test_tech:
-            details["characterization_techniques"] = {
-                "match": False,
-                "similarity": 0.0,
-                "reference": ref_tech,
-                "test": [],
-                "very_high_similarity_matches": [],
-                "high_similarity_matches": [],
-                "missing_items": ref_tech,
-                "extra_items": [],
-            }
-
-            # All weight goes to false negatives
-            absolute_metrics["false_negatives"] += len(ref_tech) * 2
-            score -= tech_weight
-
-        else:
-            # Case 3: Both non-empty, evaluate with item list comparison
-            # Define similarity thresholds
-            very_high_threshold = 0.90
-            high_threshold = 0.70
-
-            # Calculate similarity matrix
-            similarity_matrix = []
-            for ref_item in ref_tech:
-                row = []
-                for test_item in test_tech:
-                    similarity = self._calculate_text_similarity(ref_item, test_item)
-                    row.append(similarity)
-                similarity_matrix.append(row)
-
-            # Track matches
-            very_high_matches = []
-            high_matches = []
-            matched_ref_idxs = set()
-            matched_test_idxs = set()
-
-            # First pass: Find very high similarity matches (>0.90)
-            for i, ref_item in enumerate(ref_tech):
-                if i in matched_ref_idxs:
-                    continue  # Skip already matched reference items
-
-                best_match_idx = -1
-                best_similarity = very_high_threshold
-
-                for j, test_item in enumerate(test_tech):
-                    if j in matched_test_idxs:
-                        continue  # Skip already matched test items
-
-                    if similarity_matrix[i][j] >= best_similarity:
-                        best_similarity = similarity_matrix[i][j]
-                        best_match_idx = j
-
-                if best_match_idx >= 0:
-                    test_item = test_tech[best_match_idx]
-                    matched_ref_idxs.add(i)
-                    matched_test_idxs.add(best_match_idx)
-
-                    match_info = {
-                        "reference": ref_item,
-                        "test": test_item,
-                        "similarity": best_similarity,
-                    }
-                    very_high_matches.append(match_info)
-
-                    # Add to metrics - full weight per matched item
-                    absolute_metrics["true_positives"] += 2
-
-            # Second pass: Find high similarity matches (>0.70)
-            for i, ref_item in enumerate(ref_tech):
-                if i in matched_ref_idxs:
-                    continue  # Skip already matched reference items
-
-                best_match_idx = -1
-                best_similarity = high_threshold
-
-                for j, test_item in enumerate(test_tech):
-                    if j in matched_test_idxs:
-                        continue  # Skip already matched test items
-
-                    if similarity_matrix[i][j] >= best_similarity:
-                        best_similarity = similarity_matrix[i][j]
-                        best_match_idx = j
-
-                if best_match_idx >= 0:
-                    test_item = test_tech[best_match_idx]
-                    matched_ref_idxs.add(i)
-                    matched_test_idxs.add(best_match_idx)
-
-                    match_info = {
-                        "reference": ref_item,
-                        "test": test_item,
-                        "similarity": best_similarity,
-                    }
-                    high_matches.append(match_info)
-
-                    # Partial match - count as some true positive and some false
-                    absolute_metrics["true_positives"] += 1
-                    absolute_metrics["false_positives"] += 1
-
-            # Process unmatched items
-            missing_items = [
-                ref_tech[i] for i in range(len(ref_tech)) if i not in matched_ref_idxs
-            ]
-            extra_items = [
-                test_tech[i]
-                for i in range(len(test_tech))
-                if i not in matched_test_idxs
-            ]
-
-            # Add metrics for missing items
-            if missing_items:
-                absolute_metrics["false_negatives"] += len(missing_items) * 2
-
-            # Add metrics for extra items
-            if extra_items:
-                absolute_metrics["false_positives"] += len(extra_items) * 2
-
-            # Calculate overall similarity
-            total_matches = len(very_high_matches) + 0.7 * len(high_matches)
-            similarity_score = total_matches / len(ref_tech) if ref_tech else 0.0
-            tech_match = similarity_score >= 0.80  # Threshold for overall match
-
-            # Apply score penalty if not a good match
-            if not tech_match:
-                penalty = tech_weight * (1 - similarity_score)
-                score -= penalty
-
-            # Store details
-            details["characterization_techniques"] = {
-                "match": tech_match,
-                "similarity": similarity_score,
-                "reference": ref_tech,
-                "test": test_tech,
-                "very_high_similarity_matches": very_high_matches,
-                "high_similarity_matches": high_matches,
-                "missing_items": missing_items,
-                "extra_items": extra_items,
-                "fractional_value": 1.0 / len(ref_tech) if ref_tech else 0,
-            }
-
-        # Check steps using semantic paragraph comparison
-        ref_steps = reference_synth.get("steps", [])
-        test_steps = test_synth.get("steps", [])
-
-        steps_weight = component_weights["steps"]
-
-        try:
-            # Case 1: Both empty
-            if not ref_steps and not test_steps:
-                steps_details = {
-                    "steps_match": True,
-                    "reference_steps": [],
-                    "test_steps": [],
-                }
-            # Case 2: One empty, one not
-            elif not ref_steps:
-                steps_details = {
-                    "steps_match": False,
-                    "message": "Reference steps are empty",
-                    "reference_steps": [],
-                    "test_steps": test_steps,
-                }
-
-                # All weight goes to false positives
-                absolute_metrics["false_positives"] += 2  # Count as 2 false positives
-
-            elif not test_steps:
-                steps_details = {
-                    "steps_match": False,
-                    "message": "Test steps are empty",
-                    "reference_steps": ref_steps,
-                    "test_steps": [],
-                }
-
-                # All weight goes to false negatives
-                absolute_metrics["false_negatives"] += 2  # Count as 2 false negatives
-                score -= steps_weight
-
-            else:
-                # Case 3: Both non-empty, use semantic paragraph comparison
-                ref_paragraph = " ".join(ref_steps)
-                test_paragraph = " ".join(test_steps)
-                paragraph_similarity = self._calculate_text_similarity(
-                    ref_paragraph, test_paragraph
-                )
-
-                steps_match = (
-                    paragraph_similarity >= self.similarity_thresholds["steps_match"]
-                )
-
-                steps_details = {
-                    "reference_steps": ref_steps,
-                    "test_steps": test_steps,
-                    "paragraph_similarity": paragraph_similarity,
-                    "steps_match": steps_match,
-                    "paragraph_comparison": {
-                        "similarity_score": paragraph_similarity,
-                        "high_similarity": paragraph_similarity
-                        >= self.similarity_thresholds["steps_match"],
-                        "method": (
-                            "semantic_model"
-                            if self.model_available
-                            else "sequence_matcher"
-                        ),
-                    },
-                }
-
-                # Add metrics based on similarity
-                if steps_match:
-                    # High similarity - all weight to true positives
-                    absolute_metrics["true_positives"] += 2
-                else:
-                    # Low similarity - split between false positive and negative
-                    absolute_metrics["false_positives"] += 1
-                    absolute_metrics["false_negatives"] += 1
-                    score -= steps_weight  # Full penalty
-        except Exception as e:
-            # Handle any errors in steps evaluation
-            print(f"Error in step evaluation: {str(e)}")
-            steps_details = {
-                "steps_match": False,
-                "error": str(e),
-                "reference_steps": ref_steps,
-                "test_steps": test_steps,
-            }
-
-            # Count as false positive and negative
-            absolute_metrics["false_positives"] += 1
-            absolute_metrics["false_negatives"] += 1
-            score -= steps_weight
-
-        details["steps"] = steps_details
-
-        return max(0, score), details, absolute_metrics, component_weights
+        return penalty, details, metrics
 
     def _count_all_items(self, item):
         """Count all individual items in a data entry"""
         count = 0
-
-        # Count composition items
-        comp_data = item.get("composition_data", {})
-        if comp_data is not None:
-            if "property_unit" in comp_data:
-                count += 1
-            if "family" in comp_data:
-                count += 1
-            count += (
-                len(comp_data.get("compositions_property_values", {})) * 2
-            )  # Keys and values
-
-        # Count synthesis items
-        synth_data = item.get("synthesis_data", {})
-        if synth_data is not None:
-            if "method" in synth_data:
-                count += 1
-            count += len(synth_data.get("precursors", []))
-            count += len(synth_data.get("characterization_techniques", []))
-            if synth_data.get("steps"):
-                count += 2  # Count steps as 2 items (presence + content)
+        for domain in ("composition", "synthesis"):
+            section = item.get(f"{domain}_data", {})
+            if section is None:
+                continue
+            for field in self.schema_config.fields(domain, final_only=True):
+                if field.match_mode == "keyed_values":
+                    # Keys and value items
+                    count += sum(
+                        1 + self._count_value_items(field, value)
+                        for value in (section.get(field.name) or {}).values()
+                    )
+                elif field.match_mode == "item_list":
+                    count += len(section.get(field.name) or [])
+                elif field.match_mode == "joined_text":
+                    if section.get(field.name):
+                        count += 2  # Count as 2 items (presence + content)
+                elif field.match_mode is None:
+                    count += self._count_value_items(field, section.get(field.name))
+                elif field.name in section:
+                    count += 1
 
         return count
 

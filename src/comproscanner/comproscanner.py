@@ -929,6 +929,7 @@ class ComProScanner:
             fallback_model_name=fallback_model_name,
             similarity_thresholds=similarity_thresholds,
             value_error_thresholds=value_error_thresholds,
+            schema_config_path=self.schema_config_path,
         )
         results = evaluator.evaluate(
             ground_truth_file=ground_truth_file,
