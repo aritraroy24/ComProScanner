@@ -5,12 +5,12 @@ Branch: `feat/dynamic-extraction-schema`. Source plan: `DYNAMIC_SCHEMA_PLAN.md`.
 ## Phase 1 checklist
 
 - [x] 1. Audit `post_processing/data_cleaner.py` for hardcoded field names (findings below)
-- [ ] 2. `utils/configs/default_extraction_schema.yaml` + `utils/configs/schema_config.py` (`SchemaField`, `ExtractionSchemaConfig.from_yaml()`, `DEFAULT_SCHEMA_CONFIG`)
+- [x] 2. `utils/configs/default_extraction_schema.yaml` + `utils/configs/schema_config.py` (`SchemaField`, `ExtractionSchemaConfig.from_yaml()`, `DEFAULT_SCHEMA_CONFIG`)
 - [x] 3. `build_output_model()` + wire into the 4 crew files, replacing the hand-written Pydantic classes
 - [x] 4. Thread `schema_config_path` through `ComProScanner(...)`, `DataExtractionFlow.__init__` and `DataCleaner`
 - [x] 5. Replace literal `expected_keys` / `composition_expected_keys` / duplicated `default_synthesis_data` in `main_extraction_flow.py`
 - [x] 6. `{schema_fields_description}` / `{schema_example_json}` placeholders; rewrite the 8 crew YAML files; fix `'methods'` → `method`
-- [ ] 7. Regression tests (see "Regression strategy")
+- [x] 7. Regression tests (see "Regression strategy")
 
 ## Step 1 audit: `data_cleaner.py`
 
@@ -40,4 +40,15 @@ Byte-for-byte output diffs on live DOIs aren't meaningful: LLM output is non-det
 
 ## Review
 
-(filled in at the end of Phase 1)
+Phase 1 is complete in commits 7f292f3 (schema config), 06c8edb (generated models), 87d1cda (schema threaded through ComProScanner/flow/DataCleaner), d689b61 (schema-driven prompts).
+
+Verified:
+- The four generated output models are identical to the legacy hand-written ones: `model_json_schema()`, default dump, CrewAI `generate_model_description()` and `PydanticSchemaParser.get_schema()` (checked with real CrewAI outside pytest; the first two and the annotations are also pytest regression tests against the snapshot).
+- All four crews' prompts pass real CrewAI interpolation with the flow's exact kickoff inputs, for both the default schema and a branched custom schema, with no leftover placeholders.
+- Full suite: 653 passed, 1 failed (`test_embeddings.py::test_embed_documents_huggingface`, already failing on `main` before this branch). Existing tests pass unmodified.
+
+Deliberate behaviour changes with the default schema:
+- Prompt text changed (field list + rendered examples instead of hand-written prose). The LLM now sees the correct `compositions_property_values` key in the examples instead of `compositions`.
+- The synthesis "nothing to format" check looks at every synthesis field instead of method/precursors/steps only. With the default schema this path is only reached with all fields empty, so it's equivalent in practice.
+
+Not done: a live LLM run on fixed DOIs. Byte-identical output isn't achievable (LLM output varies run to run, and the prompts deliberately changed), so the deterministic checks above stand in for it. A small live spot-check before merging is still worthwhile.
