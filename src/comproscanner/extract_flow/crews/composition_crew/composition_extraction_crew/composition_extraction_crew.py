@@ -8,30 +8,14 @@ Date: 23-03-2025
 """
 
 import os
-from typing import List, Dict, Union, Optional
+from typing import Optional
 from crewai import Agent, Crew, Process, Task, LLM
 from crewai.project import CrewBase, agent, crew, task
-from pydantic import BaseModel
 from .....utils.configs.llm_config import LLMConfig
+from .....utils.configs.schema_config import ExtractionSchemaConfig, load_schema_config
+from .....utils.schema_tools import build_output_model
 from ....tools.graph_extractor_tool import GraphExtractorTool
 from ....tools.equation_tool import EquationTool
-
-
-class DetailedCompositionPropertyData(BaseModel):
-    """Detailed Composition Property"""
-
-    compositions_property_values: Dict[str, Union[int, float, None]] = {}
-    abbreviations: Dict[str, str] = []
-    property_unit: str = ""
-    family: str = ""
-
-
-class ExtractedCompositionPropertyData(BaseModel):
-    """Extracted Composition Property"""
-
-    composition_extracted_data: DetailedCompositionPropertyData = (
-        DetailedCompositionPropertyData()
-    )
 
 
 @CrewBase
@@ -54,6 +38,7 @@ class CompositionExtractionCrew:
         main_extraction_keyword: str = "",
         formula_instruction: str = None,
         equation_model: str = None,
+        schema_config: Optional[ExtractionSchemaConfig] = None,
     ):
         """
         Initialize the MaterialsDataIdentifierCrew.
@@ -69,6 +54,7 @@ class CompositionExtractionCrew:
         - related_figures_base_path (str, optional): Base path for saved figures. Defaults to "results/related_figures".
         - main_extraction_keyword (str, optional): Property keyword used to label axes in the VLM extraction prompt. Defaults to "".
         - equation_model (str, optional): Explicit litellm model name for EquationTool. Defaults to None (auto-select).
+        - schema_config (ExtractionSchemaConfig, optional): Extraction schema defining the output fields. Defaults to the bundled default schema.
         """
         if doi is None:
             raise ValueError("DOI must be provided")
@@ -84,6 +70,15 @@ class CompositionExtractionCrew:
         self.main_extraction_keyword = main_extraction_keyword
         self.formula_instruction = formula_instruction
         self.equation_model = equation_model
+        self.schema_config = schema_config or load_schema_config()
+        self.output_model = build_output_model(
+            self.schema_config.fields("composition"),
+            wrapper_key="composition_extracted_data",
+            model_name="ExtractedCompositionPropertyData",
+            inner_model_name="DetailedCompositionPropertyData",
+            model_doc="Extracted Composition Property",
+            inner_model_doc="Detailed Composition Property",
+        )
 
         # Initialize output file paths as None
         self.output_log_file = None
@@ -141,13 +136,13 @@ class CompositionExtractionCrew:
         if self.task_output_file:
             return Task(
                 config=self.tasks_config["extract_composition_property"],
-                output_pydantic=ExtractedCompositionPropertyData,
+                output_pydantic=self.output_model,
                 output_file=self.task_output_file,
             )
         else:
             return Task(
                 config=self.tasks_config["extract_composition_property"],
-                output_pydantic=ExtractedCompositionPropertyData,
+                output_pydantic=self.output_model,
             )
 
     # Crew

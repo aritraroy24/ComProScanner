@@ -8,26 +8,12 @@ Date: 27-03-2025
 """
 
 import os
-from typing import Optional, List
+from typing import Optional
 from crewai import Agent, Crew, Process, Task, LLM
 from crewai.project import CrewBase, agent, crew, task
-from pydantic import BaseModel
 from .....utils.configs.llm_config import LLMConfig
-
-
-class DetailedSynthesisData(BaseModel):
-    """Detailed Synthesis Data"""
-
-    method: str = ""
-    precursors: List[str] = []
-    steps: List[str] = []
-    characterization_techniques: List[str] = []
-
-
-class FormattedSynthesisData(BaseModel):
-    """Formatted Synthesis Data"""
-
-    synthesis_formatted_data: DetailedSynthesisData = DetailedSynthesisData()
+from .....utils.configs.schema_config import ExtractionSchemaConfig, load_schema_config
+from .....utils.schema_tools import build_output_model
 
 
 @CrewBase
@@ -45,6 +31,7 @@ class SynthesisFormatCrew:
         task_output_folder: Optional[str] = None,
         is_log_json: bool = False,
         verbose: Optional[bool] = True,
+        schema_config: Optional[ExtractionSchemaConfig] = None,
     ):
         """
         Initialize the MaterialsDataIdentifierCrew.
@@ -55,6 +42,7 @@ class SynthesisFormatCrew:
         - task_output_folder (str, optional): Folder path for storing the task outputs as .txt files inside {provided foler}/{doi} folder. Defaults to None.
         - is_log_json (bool, optional): Flag to save logs in JSON format. Defaults to False.
         - verbose: Optional boolean for verbosity. Default is True.
+        - schema_config (ExtractionSchemaConfig, optional): Extraction schema defining the output fields. Defaults to the bundled default schema.
         """
         if doi is None:
             raise ValueError("DOI must be provided")
@@ -65,6 +53,15 @@ class SynthesisFormatCrew:
         self.task_output_folder = task_output_folder
         self.is_log_json = is_log_json
         self.verbose = verbose
+        self.schema_config = schema_config or load_schema_config()
+        self.output_model = build_output_model(
+            self.schema_config.fields("synthesis", final_only=True),
+            wrapper_key="synthesis_formatted_data",
+            model_name="FormattedSynthesisData",
+            inner_model_name="DetailedSynthesisData",
+            model_doc="Formatted Synthesis Data",
+            inner_model_doc="Detailed Synthesis Data",
+        )
 
         # Initialize output file paths as None
         self.output_log_file = None
@@ -109,13 +106,13 @@ class SynthesisFormatCrew:
         if self.task_output_file:
             return Task(
                 config=self.tasks_config["format_synthesis_data"],
-                output_pydantic=FormattedSynthesisData,
+                output_pydantic=self.output_model,
                 output_file=self.task_output_file,
             )
         else:
             return Task(
                 config=self.tasks_config["format_synthesis_data"],
-                output_pydantic=FormattedSynthesisData,
+                output_pydantic=self.output_model,
             )
 
     # Crew

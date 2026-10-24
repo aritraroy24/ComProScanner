@@ -8,28 +8,13 @@ Date: 24-03-2025
 """
 
 import os
-from typing import Dict, Union, Optional
+from typing import Optional
 from crewai import Agent, Crew, Process, Task, LLM
 from crewai.project import CrewBase, agent, crew, task
-from pydantic import BaseModel
 from .....utils.configs.llm_config import LLMConfig
+from .....utils.configs.schema_config import ExtractionSchemaConfig, load_schema_config
+from .....utils.schema_tools import build_output_model
 from ....tools.material_parser_tool import MaterialParserTool
-
-
-class DetailedCompositionPropertyData(BaseModel):
-    """Detailed Composition Property"""
-
-    compositions_property_values: Dict[str, Union[int, float, None]] = {}
-    property_unit: str = ""
-    family: str = ""
-
-
-class FormattedCompositionPropertyData(BaseModel):
-    """Formatted Composition Property"""
-
-    composition_formatted_data: DetailedCompositionPropertyData = (
-        DetailedCompositionPropertyData()
-    )
 
 
 @CrewBase
@@ -47,6 +32,7 @@ class CompositionFormatCrew:
         task_output_folder: Optional[str] = None,
         is_log_json: bool = False,
         verbose: Optional[bool] = True,
+        schema_config: Optional[ExtractionSchemaConfig] = None,
     ):
         """
         Initialize the CompositionFormatCrew.
@@ -58,6 +44,7 @@ class CompositionFormatCrew:
         - task_output_folder (str, optional): Folder path for storing the task outputs as .txt files inside {provided foler}/{doi} folder. Defaults to None.
         - is_log_json (bool, optional): Flag to save logs in JSON format. Defaults to False.
         - verbose: Optional boolean for verbosity. Default is True.
+        - schema_config (ExtractionSchemaConfig, optional): Extraction schema defining the output fields. Defaults to the bundled default schema.
         """
         if doi is None:
             raise ValueError("DOI must be provided")
@@ -68,6 +55,15 @@ class CompositionFormatCrew:
         self.task_output_folder = task_output_folder
         self.is_log_json = is_log_json
         self.verbose = verbose
+        self.schema_config = schema_config or load_schema_config()
+        self.output_model = build_output_model(
+            self.schema_config.fields("composition", final_only=True),
+            wrapper_key="composition_formatted_data",
+            model_name="FormattedCompositionPropertyData",
+            inner_model_name="DetailedCompositionPropertyData",
+            model_doc="Formatted Composition Property",
+            inner_model_doc="Detailed Composition Property",
+        )
 
         # Initialize output file paths as None
         self.output_log_file = None
@@ -112,13 +108,13 @@ class CompositionFormatCrew:
         if self.task_output_file:
             return Task(
                 config=self.tasks_config["format_composition_property"],
-                output_pydantic=FormattedCompositionPropertyData,
+                output_pydantic=self.output_model,
                 output_file=self.task_output_file,
             )
         else:
             return Task(
                 config=self.tasks_config["format_composition_property"],
-                output_pydantic=FormattedCompositionPropertyData,
+                output_pydantic=self.output_model,
             )
 
     # Crew

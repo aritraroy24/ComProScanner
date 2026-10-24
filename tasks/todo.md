@@ -6,7 +6,7 @@ Branch: `feat/dynamic-extraction-schema`. Source plan: `DYNAMIC_SCHEMA_PLAN.md`.
 
 - [x] 1. Audit `post_processing/data_cleaner.py` for hardcoded field names (findings below)
 - [ ] 2. `utils/configs/default_extraction_schema.yaml` + `utils/configs/schema_config.py` (`SchemaField`, `ExtractionSchemaConfig.from_yaml()`, `DEFAULT_SCHEMA_CONFIG`)
-- [ ] 3. `build_output_model()` + wire into the 4 crew files, replacing the hand-written Pydantic classes
+- [x] 3. `build_output_model()` + wire into the 4 crew files, replacing the hand-written Pydantic classes
 - [ ] 4. Thread `schema_config_path` through `ComProScanner(...)`, `DataExtractionFlow.__init__` and `DataCleaner`
 - [ ] 5. Replace literal `expected_keys` / `composition_expected_keys` / duplicated `default_synthesis_data` in `main_extraction_flow.py`
 - [ ] 6. `{schema_fields_description}` / `{schema_example_json}` placeholders; rewrite the 8 crew YAML files; fix `'methods'` → `method`
