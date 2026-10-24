@@ -21,7 +21,7 @@ Decisions agreed with the user: only weights come from the schema, the scoring f
 
 ## Phase 2 review
 
-Commits 485158a (schema settings), e24d1e3 (semantic evaluator), f29abe5 (agentic evaluator), 852ba1f (charts). With the default schema every evaluator score and chart reproduces the previous code (semantic: 19 text-matcher + 3 PhysBERT runs; agentic: 13 replays; charts: identical data on real files). Full suite: 713 passed. Open item for the user: the pre-existing hash-seed-dependent fuzzy key matching in the semantic evaluator.
+Commits 485158a (schema settings), e24d1e3 (semantic evaluator), f29abe5 (agentic evaluator), 852ba1f (charts). With the default schema every evaluator score and chart reproduces the previous code (semantic: 19 text-matcher + 3 PhysBERT runs; agentic: 13 replays; charts: identical data on real files). Full suite: 713 passed. The hash-seed-dependent fuzzy key matching was then fixed at the user's request, together with a swap-correction step (ea8788b): 48 of 1692 stored paper evaluations change, 5 scores up, none down.
 
 # Phase 1 — schema file, loader, crews, flow, prompts
 
