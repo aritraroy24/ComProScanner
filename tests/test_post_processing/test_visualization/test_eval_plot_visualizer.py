@@ -15,6 +15,10 @@ import matplotlib
 import numpy as np
 from unittest.mock import Mock, patch, MagicMock
 
+from comproscanner.post_processing.visualization.eval_plot_visualizers import (
+    EvalVisualizer,
+)
+
 # Use non-interactive backend for testing
 matplotlib.use("Agg")
 
@@ -364,3 +368,74 @@ class TestEdgeCases:
         # F1 score should be 0 when recall is 0
         metrics = extreme_data["absolute_classification_metrics"]
         assert metrics["f1_score"] == 0.0
+
+
+class TestSchemaFieldMetrics:
+    """Test per-field match metrics driven by the extraction schema"""
+
+    @pytest.fixture
+    def result(self):
+        return {
+            "item_results": {
+                "10.1/a": {
+                    "details": {
+                        "composition_data": {
+                            "compositions_property_values": {"similarity_score": 0.9},
+                            "family": {"match": True},
+                        },
+                        "synthesis_data": {
+                            "method": {"match": False},
+                            "precursors": {"similarity": 0.5},
+                            "steps": {"paragraph_similarity": 0.7},
+                            "sintering_atmosphere": {"match": True},
+                        },
+                    }
+                }
+            }
+        }
+
+    def test_default_metric_selection_unchanged(self):
+        visualizer = EvalVisualizer()
+        available = list(visualizer._get_metric_extractors().keys())
+        defaults = visualizer._default_metric_ids(available)
+        assert [m for m in defaults if m.endswith("_match")] == [
+            "property_match",
+            "method_match",
+            "precursors_match",
+            "steps_match",
+        ]
+        # Other default-schema fields are available on request
+        assert "family_match" in available
+
+    def test_values_follow_match_mode(self, result):
+        visualizer = EvalVisualizer()
+        item = result["item_results"]["10.1/a"]
+        assert visualizer._field_match_value(item, "property_match") == 0.9
+        assert visualizer._field_match_value(item, "family_match") == 1
+        assert visualizer._field_match_value(item, "method_match") == 0
+        assert visualizer._field_match_value(item, "precursors_match") == 0.5
+        assert visualizer._field_match_value(item, "steps_match") == 0.7
+        assert visualizer._field_match_value(item, "overall_accuracy") is None
+
+    def test_custom_field_metric(self, result, tmp_path):
+        schema_path = tmp_path / "schema.yaml"
+        schema_path.write_text(
+            'version: "1.0"\n'
+            "composition_fields:\n"
+            '  - {name: compositions_property_values, type: "dict[str, float|None]"}\n'
+            "synthesis_fields:\n"
+            "  - {name: method, type: str}\n"
+            "  - {name: sintering_atmosphere, type: str, match_mode: exact}\n",
+            encoding="utf-8",
+        )
+        visualizer = EvalVisualizer(schema_config_path=schema_path)
+        available = list(visualizer._get_metric_extractors().keys())
+        # Custom fields are charted by default
+        assert "sintering_atmosphere_match" in visualizer._default_metric_ids(available)
+        assert visualizer._extract_per_doi_metric_values(
+            result, "sintering_atmosphere_match"
+        ) == [1]
+        assert (
+            visualizer._get_detailed_metric_display_names()["sintering_atmosphere_match"]
+            == "Sintering Atmosphere\nMatch"
+        )

@@ -18,6 +18,10 @@ import difflib
 from collections import Counter
 import numpy as np
 
+from comproscanner.post_processing.visualization.data_distribution_visualizers import (
+    DataDistributionVisualizer,
+)
+
 # Use non-interactive backend for testing
 matplotlib.use("Agg")
 
@@ -658,3 +662,147 @@ class TestUtilityFunctions:
         duplicate_counter = Counter(duplicate_items)
         assert len(duplicate_counter) == 1
         assert duplicate_counter["XRD"] == 3
+
+
+BRANCHED_SCHEMA_YAML = """
+version: "1.0"
+composition_fields:
+  - name: compositions_property_values
+    type: "dict[str, object]"
+    plot_kind: none
+    value_fields:
+      - name: d33_data
+        type: object
+        value_fields:
+          - {name: value, type: "float|int|None", plot_kind: numeric_distribution}
+          - {name: unit, type: str, plot_kind: categorical_distribution}
+      - name: grain
+        type: object
+        value_fields:
+          - {name: grain_size, type: "list[float]", plot_kind: numeric_distribution}
+  - {name: property_unit, type: str}
+synthesis_fields:
+  - {name: sintering_atmosphere, type: str, plot_kind: categorical_distribution}
+"""
+
+BRANCHED_DATA = {
+    "10.1/a": {
+        "composition_data": {
+            "compositions_property_values": {
+                "BaTiO3": {
+                    "d33_data": {"value": 190, "unit": "pC/N"},
+                    "grain": {"grain_size": [2.8, 3.1]},
+                },
+                "KNbO3": {"d33_data": {"value": 0, "unit": "pm/V"}},
+            }
+        },
+        "synthesis_data": {"sintering_atmosphere": "air"},
+    },
+    "10.1/b": {
+        "composition_data": {
+            "compositions_property_values": {
+                "SrTiO3": {"d33_data": {"value": 120, "unit": "pC/N"}}
+            }
+        },
+        "synthesis_data": {"sintering_atmosphere": "oxygen"},
+    },
+}
+
+
+class TestSchemaDrivenDistributions:
+    """Test distribution plots driven by a custom extraction schema"""
+
+    @pytest.fixture
+    def visualizer(self, tmp_path):
+        schema_path = tmp_path / "schema.yaml"
+        schema_path.write_text(BRANCHED_SCHEMA_YAML, encoding="utf-8")
+        visualizer = DataDistributionVisualizer(schema_config_path=schema_path)
+        visualizer._load_data([BRANCHED_DATA])
+        return visualizer
+
+    def test_nested_leaf_counts(self, visualizer):
+        counter = visualizer._extract_field_counter(
+            "compositions_property_values.d33_data.unit"
+        )
+        assert counter == Counter({"pC/N": 2, "pm/V": 1})
+
+    def test_numeric_values_keep_zero_and_flatten_lists(self, visualizer):
+        assert sorted(
+            visualizer._numeric_values("compositions_property_values.d33_data.value")
+        ) == [0.0, 120.0, 190.0]
+        assert visualizer._numeric_values(
+            "compositions_property_values.grain.grain_size"
+        ) == [2.8, 3.1]
+
+    def test_unknown_field_path_rejected(self, visualizer):
+        with pytest.raises(ValueError, match="Unknown schema field"):
+            visualizer._field_items("compositions_property_values.d33_data.colour")
+
+    def test_plot_numeric_distribution(self, visualizer, tmp_path):
+        output_file = tmp_path / "d33.png"
+        fig = visualizer.plot_numeric_distribution(
+            "compositions_property_values.d33_data.value", output_file=str(output_file)
+        )
+        assert output_file.exists()
+        plt.close(fig)
+
+    def test_plot_categorical_distribution(self, visualizer):
+        fig = visualizer.plot_categorical_distribution(
+            "sintering_atmosphere", is_semantic_clustering_enabled=False
+        )
+        assert fig is not None
+        plt.close(fig)
+
+    def test_plot_all_distributions_uses_plot_kind(self, visualizer, tmp_path):
+        figures = visualizer.plot_all_distributions(
+            output_folder=str(tmp_path), is_semantic_clustering_enabled=False
+        )
+        assert set(figures) == {
+            "compositions_property_values.d33_data.value",
+            "compositions_property_values.d33_data.unit",
+            "compositions_property_values.grain.grain_size",
+            "sintering_atmosphere",
+        }
+        assert (tmp_path / "sintering_atmosphere_distribution.png").exists()
+        for fig in figures.values():
+            plt.close(fig)
+
+
+class TestLegacyWrappers:
+    """Test fixes in the default-schema wrappers"""
+
+    @pytest.fixture
+    def visualizer(self):
+        visualizer = DataDistributionVisualizer()
+        visualizer._load_data(
+            [
+                {
+                    "10.1/a": {
+                        "composition_data": {"family": "BaTiO3"},
+                        "synthesis_data": {
+                            "precursors": ["BaCO3", "TiO2"],
+                            "characterization_techniques": ["XRD", "SEM"],
+                        },
+                    }
+                }
+            ]
+        )
+        return visualizer
+
+    def test_histogram_with_default_palette_none(self, visualizer):
+        fig = visualizer.plot_precursors_histogram(is_semantic_clustering_enabled=False)
+        assert fig is not None
+        plt.close(fig)
+
+    def test_get_technique_clusters(self, visualizer):
+        with patch.object(
+            visualizer, "cluster_items", return_value={"XRD": ["XRD"], "SEM": ["SEM"]}
+        ) as cluster_items:
+            assert visualizer.get_technique_clusters() == {"XRD": ["XRD"], "SEM": ["SEM"]}
+        cluster_items.assert_called_once_with(["XRD", "SEM"], 0.8)
+
+    def test_no_data_message_unchanged(self):
+        visualizer = DataDistributionVisualizer()
+        visualizer._load_data([{"10.1/a": {"composition_data": {"family": ""}}}])
+        with pytest.raises(ValueError, match="No family data found"):
+            visualizer.plot_family_pie_chart(is_semantic_clustering_enabled=False)

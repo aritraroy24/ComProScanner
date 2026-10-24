@@ -46,6 +46,7 @@ def plot_single_bar_chart(
         "normalized_recall",
         "normalized_f1_score",
     ],
+    schema_config_path: str | None = None,
 ) -> "Figure":
     """
     Plot evaluation metrics from results file or dictionary.
@@ -70,6 +71,7 @@ def plot_single_bar_chart(
         y_axis_range (tuple, optional): Range for the y-axis (default: (0, 1))
         dpi (int, optional): dpi for the output image (default: 300)
         metrics_to_include (list, optional): List of metrics to include in the plot (default: ['overall_accuracy', 'overall_composition_accuracy', 'overall_synthesis_accuracy', 'absolute_precision', 'absolute_recall', 'absolute_f1_score', 'normalized_precision', 'normalized_recall', 'normalized_f1_score'])
+        schema_config_path (str, optional): Path to the extraction schema YAML file the results were produced with, used to resolve '<field>_match' metrics of custom fields (default: None, bundled default schema)
 
     Returns:
         Figure: The generated matplotlib figure object
@@ -78,7 +80,7 @@ def plot_single_bar_chart(
         ValueError: If neither result_file nor result_dict is provided
     """
 
-    visualizer = EvalVisualizer()
+    visualizer = EvalVisualizer(schema_config_path=schema_config_path)
     fig = visualizer.plot_single_bar_chart(
         result_file=result_file,
         result_dict=result_dict,
@@ -136,6 +138,7 @@ def plot_multiple_bar_charts(
         "normalized_recall",
         "normalized_f1_score",
     ],
+    schema_config_path: str | None = None,
 ) -> "Figure":
     """
     Plot evaluation metrics from multiple result files or dictionaries as grouped bar charts.
@@ -163,6 +166,7 @@ def plot_multiple_bar_charts(
         y_axis_range (Tuple[float, float]): Range for the y-axis (default: (0, 1))
         dpi (int): dpi for the output image (default: 300)
         metrics_to_include (Optional[List[str]]): List of metrics to include from the plot (default: ['overall_accuracy', 'overall_composition_accuracy', 'overall_synthesis_accuracy', 'precision', 'recall', 'f1_score', 'normalized_precision', 'normalized_recall', 'normalized_f1_score'])
+        schema_config_path (str, optional): Path to the extraction schema YAML file the results were produced with, used to resolve '<field>_match' metrics of custom fields (default: None, bundled default schema)
 
     Returns:
         Figure: The generated matplotlib figure object
@@ -170,7 +174,7 @@ def plot_multiple_bar_charts(
     Raises:
         ValueErrorHandler: If neither result_sources nor folder_path is provided, or if the specified path does not exist
     """
-    visualizer = EvalVisualizer()
+    visualizer = EvalVisualizer(schema_config_path=schema_config_path)
     fig = visualizer.plot_multiple_bar_charts(
         result_sources=result_sources,
         folder_path=folder_path,
@@ -242,6 +246,7 @@ def plot_single_radar_chart(
         "normalized_recall",
         "normalized_f1_score",
     ],
+    schema_config_path: str | None = None,
 ) -> "Figure":
     """
     Plot radar chart for a single evaluation result.
@@ -280,6 +285,7 @@ def plot_single_radar_chart(
         radar_range (tuple): Range for the radar axes
         dpi (int): DPI for the output image
         metrics_to_include (list, optional): List of metrics to include
+        schema_config_path (str, optional): Path to the extraction schema YAML file the results were produced with, used to resolve '<field>_match' metrics of custom fields (default: None, bundled default schema)
 
     Returns:
         Figure: The generated matplotlib figure object
@@ -287,7 +293,7 @@ def plot_single_radar_chart(
     Raises:
         ValueErrorHandler: If neither result_file nor result_dict is provided, or if the specified path does not exist
     """
-    visualizer = EvalVisualizer()
+    visualizer = EvalVisualizer(schema_config_path=schema_config_path)
     fig = visualizer.plot_single_radar_chart(
         result_file=result_file,
         result_dict=result_dict,
@@ -370,6 +376,7 @@ def plot_multiple_radar_charts(
         "normalized_recall",
         "normalized_f1_score",
     ],
+    schema_config_path: str | None = None,
 ) -> "Figure":
     """
     Plot evaluation metrics from multiple result files or dictionaries as a radar chart.
@@ -408,6 +415,7 @@ def plot_multiple_radar_charts(
         radar_range (Tuple[float, float]): Range for the radar axes
         dpi (int): dpi for the output image
         metrics_to_include (Optional[List[str]]): List of metrics to include in the plot
+        schema_config_path (str, optional): Path to the extraction schema YAML file the results were produced with, used to resolve '<field>_match' metrics of custom fields (default: None, bundled default schema)
 
     Returns:
         Figure: The generated matplotlib figure object
@@ -415,7 +423,7 @@ def plot_multiple_radar_charts(
     Raises:
         ValueErrorHandler: If neither result_sources nor folder_path is provided, or if the specified path does not exist
     """
-    visualizer = EvalVisualizer()
+    visualizer = EvalVisualizer(schema_config_path=schema_config_path)
     fig = visualizer.plot_multiple_radar_charts(
         result_sources=result_sources,
         folder_path=folder_path,
@@ -491,6 +499,7 @@ def plot_single_performance_heatmap(
     group_label_right_margin: int = 1,
     average_value_left_margin: int = 1,
     plot_padding: float = 0.1,
+    schema_config_path: str | None = None,
 ) -> "Figure":
     """
     Create a heatmap showing the distribution of scores across metrics for a single model.
@@ -522,6 +531,7 @@ def plot_single_performance_heatmap(
         group_label_right_margin (int, optional): Right margin for group labels (default: 1)
         average_value_left_margin (int, optional): Left margin for average values (default: 1)
         plot_padding (float, optional): Padding between heatmap and axes (default: 0.1)
+        schema_config_path (str, optional): Path to the extraction schema YAML file the results were produced with, used to resolve '<field>_match' metrics of custom fields (default: None, bundled default schema)
 
     Returns:
         Figure: The generated matplotlib figure object
@@ -529,7 +539,7 @@ def plot_single_performance_heatmap(
     Raises:
         ValueErrorHandler: If neither result_file nor result_dict is provided, or if the specified path does not exist
     """
-    visualizer = EvalVisualizer()
+    visualizer = EvalVisualizer(schema_config_path=schema_config_path)
     fig = visualizer.plot_single_performance_heatmap(
         result_file=result_file,
         result_dict=result_dict,
@@ -599,6 +609,7 @@ def plot_multiple_performance_heatmaps(
     group_label_right_margin: int = 1,
     average_value_left_margin: int = 1,
     plot_padding: float = 0.1,
+    schema_config_path: str | None = None,
 ) -> "Figure":
     """
     Create a heatmap showing the distribution of scores across metrics for multiple models.
@@ -631,6 +642,7 @@ def plot_multiple_performance_heatmaps(
         group_label_right_margin (int): Right margin for group labels
         average_value_left_margin (int): Left margin for average values
         plot_padding (float): Padding between heatmap and axes labels and title
+        schema_config_path (str, optional): Path to the extraction schema YAML file the results were produced with, used to resolve '<field>_match' metrics of custom fields (default: None, bundled default schema)
 
     Returns:
         Figure: The generated matplotlib figure object
@@ -638,7 +650,7 @@ def plot_multiple_performance_heatmaps(
     Raises:
         ValueErrorHandler: If neither result_sources nor folder_path is provided, or if the specified path does not exist
     """
-    visualizer = EvalVisualizer()
+    visualizer = EvalVisualizer(schema_config_path=schema_config_path)
     fig = visualizer.plot_multiple_performance_heatmaps(
         result_sources=result_sources,
         folder_path=folder_path,
@@ -705,6 +717,7 @@ def plot_multiple_confusion_matrices_combined(
     colorbar_label: str = "Score",
     colorbar_fontsize: int = 10,
     plot_padding: float = 0.1,
+    schema_config_path: str | None = None,
 ) -> "Figure":
     """
     Create a confusion matrix-style heatmap showing all models vs all performance metrics in a single visualization.
@@ -733,11 +746,12 @@ def plot_multiple_confusion_matrices_combined(
         colorbar_label (str): Label for the colorbar
         colorbar_fontsize (int): Font size for colorbar labels
         plot_padding (float): Padding between heatmap and axes labels and title
+        schema_config_path (str, optional): Path to the extraction schema YAML file the results were produced with, used to resolve '<field>_match' metrics of custom fields (default: None, bundled default schema)
 
     Returns:
         Figure: The generated matplotlib figure object
     """
-    visualizer = EvalVisualizer()
+    visualizer = EvalVisualizer(schema_config_path=schema_config_path)
     fig = visualizer.plot_multiple_confusion_matrices_combined(
         result_sources=result_sources,
         folder_path=folder_path,
@@ -797,6 +811,7 @@ def plot_single_histogram_chart(
     legend_loc: Optional[str] = "best",
     bbox_to_anchor: Optional[str] = None,
     dpi: int = 300,
+    schema_config_path: str | None = None,
 ) -> "Figure":
     """
     Create a histogram for a single metric from evaluation results.
@@ -828,6 +843,7 @@ def plot_single_histogram_chart(
         legend_loc (str, optional): Location for the legend
         bbox_to_anchor (tuple, optional): Bounding box for the legend
         dpi (int, optional): DPI for the output image
+        schema_config_path (str, optional): Path to the extraction schema YAML file the results were produced with, used to resolve '<field>_match' metrics of custom fields (default: None, bundled default schema)
 
     Returns:
         Figure: The generated matplotlib figure object
@@ -835,7 +851,7 @@ def plot_single_histogram_chart(
     Raises:
         ValueErrorHandler: If neither result_file nor result_dict is provided, or if the specified path does not exist
     """
-    visualizer = EvalVisualizer()
+    visualizer = EvalVisualizer(schema_config_path=schema_config_path)
     fig = visualizer.plot_single_histogram_chart(
         result_file=result_file,
         result_dict=result_dict,
@@ -905,6 +921,7 @@ def plot_multiple_histogram_charts(
     is_normalized: bool = True,
     shared_bins: bool = True,
     dpi: int = 300,
+    schema_config_path: str | None = None,
 ) -> "Figure":
     """
     Create histograms for a single metric from evaluation results for multiple models.
@@ -943,6 +960,7 @@ def plot_multiple_histogram_charts(
         is_normalized (bool, optional): Whether to normalize histograms to show percentages (default: True)
         shared_bins (bool, optional): Whether to use shared bins across all histograms (default: True)
         dpi (int, optional): DPI for the output image (default: 300)
+        schema_config_path (str, optional): Path to the extraction schema YAML file the results were produced with, used to resolve '<field>_match' metrics of custom fields (default: None, bundled default schema)
 
     Returns:
         Figure: The generated matplotlib figure object
@@ -950,7 +968,7 @@ def plot_multiple_histogram_charts(
     Raises:
         ValueErrorHandler: If neither result_sources nor folder_path is provided, or if the specified path does not exist
     """
-    visualizer = EvalVisualizer()
+    visualizer = EvalVisualizer(schema_config_path=schema_config_path)
     fig = visualizer.plot_multiple_histogram_charts(
         result_sources=result_sources,
         folder_path=folder_path,
@@ -1032,6 +1050,7 @@ def plot_single_violin_chart(
         "normalized_recall",
         "normalized_f1_score",
     ],
+    schema_config_path: str | None = None,
 ) -> "Figure":
     """
     Create a violin plot for all metrics from a single model's evaluation results.
@@ -1069,6 +1088,7 @@ def plot_single_violin_chart(
         inner (str, optional): The representation of the data points inside the violin ('box', 'stick', 'point', or None) (default: 'box')
         dpi (int, optional): Resolution for saved image (default: 300)
         metrics_to_include (list, optional): Specific metrics to include in the plot (default: None - all available)
+        schema_config_path (str, optional): Path to the extraction schema YAML file the results were produced with, used to resolve '<field>_match' metrics of custom fields (default: None, bundled default schema)
 
     Returns:
         Figure: The generated matplotlib figure object
@@ -1076,7 +1096,7 @@ def plot_single_violin_chart(
     Raises:
         ValueErrorHandler: If neither result_file nor result_dict is provided, or if the specified path does not exist
     """
-    visualizer = EvalVisualizer()
+    visualizer = EvalVisualizer(schema_config_path=schema_config_path)
     fig = visualizer.plot_single_violin_chart(
         result_file=result_file,
         result_dict=result_dict,
@@ -1147,6 +1167,7 @@ def plot_multiple_violin_charts(
     label_rotation: int = 45,
     inner: str = "box",
     dpi: int = 300,
+    schema_config_path: str | None = None,
 ) -> "Figure":
     """
     Create violin plots comparing multiple models on a single metric.
@@ -1184,6 +1205,7 @@ def plot_multiple_violin_charts(
         label_rotation (int, optional): Rotation angle for x-axis labels (default: 45)
         inner (str, optional): The representation of the data points inside the violin ('box', 'stick', 'point', or None) (default: 'box')
         dpi (int, optional): Resolution for saved image (default: 300)
+        schema_config_path (str, optional): Path to the extraction schema YAML file the results were produced with, used to resolve '<field>_match' metrics of custom fields (default: None, bundled default schema)
 
     Returns:
         Figure: The generated matplotlib figure object
@@ -1191,7 +1213,7 @@ def plot_multiple_violin_charts(
     Raises:
         ValueErrorHandler: If neither result_sources nor folder_path is provided, or if the specified path does not exist
     """
-    visualizer = EvalVisualizer()
+    visualizer = EvalVisualizer(schema_config_path=schema_config_path)
     fig = visualizer.plot_multiple_violin_charts(
         result_sources=result_sources,
         folder_path=folder_path,

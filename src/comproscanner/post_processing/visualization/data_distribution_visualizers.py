@@ -14,6 +14,7 @@ import numpy as np
 import difflib
 from collections import Counter
 from tqdm import tqdm
+from ...utils.configs.schema_config import load_schema_config
 from ...utils.logger import setup_logger
 
 logger = setup_logger("comproscanner.log", module_name="data_distribution_visualizers")
@@ -35,11 +36,15 @@ except ImportError:
 
 
 class DataDistributionVisualizer:
-    def __init__(self):
+    def __init__(self, schema_config_path=None):
         """
         Initialize the DataDistributionVisualizer class for visualizing material data distributions.
+
+        Args:
+            schema_config_path (str | Path, optional): Path to the extraction schema YAML file. Defaults to None (bundled default schema).
         """
         self.data = None
+        self.schema_config = load_schema_config(schema_config_path)
 
     def _load_semantic_model(self, model_name="thellert/physbert_cased"):
         """
@@ -272,29 +277,82 @@ class DataDistributionVisualizer:
         )
         return clusters
 
-    def _extract_with_clustering(self, data_key, sub_key, similarity_threshold=0.8):
+    def _resolve_field(self, field_path):
         """
-        Generic function to extract and cluster data from loaded data.
+        Resolve a schema field name or dotted leaf path to its location in the data.
 
         Args:
-            data_key (str): Key in item_data to look for (e.g., "composition_data", "synthesis_data")
-            sub_key (str): Sub-key within data_key (e.g., "family", "precursors", "characterization_techniques")
+            field_path (str): Field name (e.g. "family") or dotted leaf path (e.g. "compositions_property_values.d33_data.unit")
+
+        Returns:
+            tuple: (data_key, top-level SchemaField, remaining path parts)
+        """
+        parts = field_path.split(".")
+        for domain in ("composition", "synthesis"):
+            for field in self.schema_config.fields(domain, final_only=True):
+                if field.name != parts[0]:
+                    continue
+                # Validate the remaining path against the field's value_fields
+                current = field
+                for part in parts[1:]:
+                    sub_fields = {f.name: f for f in current.value_fields or []}
+                    if part not in sub_fields:
+                        raise ValueError(f"Unknown schema field path '{field_path}'")
+                    current = sub_fields[part]
+                return f"{domain}_data", field, parts[1:]
+        raise ValueError(f"Unknown schema field '{field_path}'")
+
+    def _field_items(self, field_path, skip_falsy=True):
+        """
+        Collect all values of a field or nested leaf across the loaded data.
+
+        Args:
+            field_path (str): Field name or dotted leaf path
+            skip_falsy (bool): Skip empty values (otherwise only None is skipped)
+
+        Returns:
+            list: Values, with list values flattened
+        """
+        data_key, field, rest = self._resolve_field(field_path)
+        items = []
+        for doi, item_data in self.data.items():
+            section = item_data.get(data_key)
+            if not isinstance(section, dict) or field.name not in section:
+                continue
+            value = section[field.name]
+            # Keyed fields hold one value per composition
+            if field.match_mode == "keyed_values" and isinstance(value, dict):
+                candidates = list(value.values())
+            else:
+                candidates = [value]
+            for candidate in candidates:
+                for part in rest:
+                    candidate = candidate.get(part) if isinstance(candidate, dict) else None
+                if (not candidate) if skip_falsy else (candidate is None):
+                    continue
+                if isinstance(candidate, list):
+                    items.extend(candidate)
+                else:
+                    items.append(candidate)
+        return items
+
+    def _extract_field_counter(
+        self, field_path, is_semantic_clustering_enabled=False, similarity_threshold=0.8
+    ):
+        """
+        Count the values of a field, optionally merging semantically similar values.
+
+        Args:
+            field_path (str): Field name or dotted leaf path
+            is_semantic_clustering_enabled (bool): Whether to cluster similar values
             similarity_threshold (float): Threshold for similarity-based clustering
 
         Returns:
-            Counter: Counter with canonicalized items
+            Counter: Counter with (canonicalized) items
         """
-        all_items = []
-
-        # Extract all raw items from the data
-        for doi, item_data in self.data.items():
-            if data_key in item_data and sub_key in item_data[data_key]:
-                items = item_data[data_key][sub_key]
-                if items:  # Only add if not empty
-                    if isinstance(items, list):
-                        all_items.extend(items)
-                    else:
-                        all_items.append(items)
+        all_items = self._field_items(field_path)
+        if not is_semantic_clustering_enabled:
+            return Counter(all_items)
 
         if not all_items:
             return Counter()
@@ -315,22 +373,18 @@ class DataDistributionVisualizer:
 
     def _extract_families_with_clustering(self, similarity_threshold=0.8):
         """Extract material families with semantic clustering."""
-        return self._extract_with_clustering(
-            "composition_data", "family", similarity_threshold
-        )
+        return self._extract_field_counter("family", True, similarity_threshold)
 
     def _extract_precursors_with_clustering(self, similarity_threshold=0.8):
         """Extract precursors with semantic clustering."""
-        return self._extract_with_clustering(
-            "synthesis_data", "precursors", similarity_threshold
-        )
+        return self._extract_field_counter("precursors", True, similarity_threshold)
 
     def _extract_characterization_techniques_with_clustering(
         self, similarity_threshold=0.8
     ):
         """Extract characterization techniques with semantic clustering."""
-        return self._extract_with_clustering(
-            "synthesis_data", "characterization_techniques", similarity_threshold
+        return self._extract_field_counter(
+            "characterization_techniques", True, similarity_threshold
         )
 
     def get_clusters(
@@ -340,7 +394,7 @@ class DataDistributionVisualizer:
         Get clusters of similar items based on semantic similarity.
 
         Args:
-            data_type (str): Type of data to cluster ("families", "precursors", "characterization_techniques")
+            data_type (str): Schema field name or dotted leaf path to cluster ("families" is accepted for "family")
             data_sources (Union[List[str], List[Dict], str], optional): List of paths to JSON files
             folder_path (str, optional): Path to folder containing JSON data files
             similarity_threshold (float): Threshold for similarity-based clustering
@@ -352,26 +406,11 @@ class DataDistributionVisualizer:
         if self.data is None or data_sources is not None or folder_path is not None:
             self._load_data(data_sources, folder_path)
 
-        # Get all items based on data type
-        all_items = []
-
-        if data_type == "families":
-            data_key, sub_key = "composition_data", "family"
-        elif data_type == "precursors":
-            data_key, sub_key = "synthesis_data", "precursors"
-        elif data_type == "characterization_techniques":
-            data_key, sub_key = "synthesis_data", "characterization_techniques"
-        else:
+        field_path = "family" if data_type == "families" else data_type
+        try:
+            all_items = self._field_items(field_path)
+        except ValueError:
             raise ValueError(f"Unsupported data_type: {data_type}")
-
-        for doi, item_data in self.data.items():
-            if data_key in item_data and sub_key in item_data[data_key]:
-                items = item_data[data_key][sub_key]
-                if items:  # Only add if not empty
-                    if isinstance(items, list):
-                        all_items.extend(items)
-                    else:
-                        all_items.append(items)
 
         if not all_items:
             return {}
@@ -495,18 +534,7 @@ class DataDistributionVisualizer:
         Returns:
             dict: Counter object with family names and their frequencies
         """
-        families = []
-
-        for doi, item_data in self.data.items():
-            if (
-                "composition_data" in item_data
-                and "family" in item_data["composition_data"]
-            ):
-                family = item_data["composition_data"]["family"]
-                if family:  # Only add if not empty
-                    families.append(family)
-
-        return Counter(families)
+        return self._extract_field_counter("family")
 
     def _extract_precursors(self):
         """
@@ -515,18 +543,7 @@ class DataDistributionVisualizer:
         Returns:
             dict: Counter object with precursor names and their frequencies
         """
-        all_precursors = []
-
-        for doi, item_data in self.data.items():
-            if (
-                "synthesis_data" in item_data
-                and "precursors" in item_data["synthesis_data"]
-            ):
-                precursors = item_data["synthesis_data"]["precursors"]
-                if precursors:  # Only add if list is not empty
-                    all_precursors.extend(precursors)
-
-        return Counter(all_precursors)
+        return self._extract_field_counter("precursors")
 
     def _extract_characterization_techniques(self):
         """
@@ -535,18 +552,7 @@ class DataDistributionVisualizer:
         Returns:
             dict: Counter object with technique names and their frequencies
         """
-        all_techniques = []
-
-        for doi, item_data in self.data.items():
-            if (
-                "synthesis_data" in item_data
-                and "characterization_techniques" in item_data["synthesis_data"]
-            ):
-                techniques = item_data["synthesis_data"]["characterization_techniques"]
-                if techniques:  # Only add if list is not empty
-                    all_techniques.extend(techniques)
-
-        return Counter(all_techniques)
+        return self._extract_field_counter("characterization_techniques")
 
     def _plot_pie_chart(
         self,
@@ -821,6 +827,222 @@ class DataDistributionVisualizer:
 
         return fig
 
+    def plot_categorical_distribution(
+        self,
+        field,
+        chart_type="histogram",
+        data_sources=None,
+        folder_path=None,
+        output_file=None,
+        title=None,
+        color_palette="Blues",
+        is_semantic_clustering_enabled=True,
+        similarity_threshold=0.8,
+        data_label=None,
+        **chart_kwargs,
+    ):
+        """
+        Create a pie chart or histogram of the values of any schema field.
+
+        Args:
+            field (str): Schema field name or dotted leaf path (e.g. "family", "compositions_property_values.d33_data.unit")
+            chart_type (str, optional): "pie" or "histogram" (Default: "histogram")
+            data_sources (Union[List[str], List[Dict], str], optional): List of paths to JSON files or dictionaries containing materials data
+            folder_path (str, optional): Path to folder containing JSON data files. Either data_sources or folder_path must be provided.
+            output_file (str, optional): Path to save the output plot image. If None, the plot is not saved
+            title (str, optional): Title for the plot (Default: derived from the field name)
+            color_palette (str, optional): Matplotlib colormap name (Default: "Blues")
+            is_semantic_clustering_enabled (bool, optional): Whether to enable semantic clustering of values (Default: True)
+            similarity_threshold (float, optional): Similarity threshold for clustering (Default: 0.8)
+            data_label (str, optional): Name used in the "no data" error message (Default: field name)
+            **chart_kwargs: Further styling arguments for the pie chart or histogram
+
+        Returns:
+            matplotlib.figure.Figure: The generated figure object
+        """
+        # Load data if not already loaded
+        if self.data is None or data_sources is not None or folder_path is not None:
+            self._load_data(data_sources, folder_path)
+
+        label = field.split(".")[-1].replace("_", " ")
+        if title is None:
+            title = f"Distribution of {label.title()}"
+
+        counter = self._extract_field_counter(
+            field, is_semantic_clustering_enabled, similarity_threshold
+        )
+        if is_semantic_clustering_enabled:
+            title = f"{title} (Semantically Clustered)"
+
+        if not counter:
+            raise ValueError(
+                f"No {data_label or label} data found in the provided data sources"
+            )
+
+        # Use default colour palette if not specified
+        if color_palette is None:
+            color_palette = "Blues"
+
+        if chart_type == "pie":
+            return self._plot_pie_chart(
+                counter,
+                title,
+                output_file=output_file,
+                color_palette=color_palette,
+                **chart_kwargs,
+            )
+        if chart_type == "histogram":
+            chart_kwargs.setdefault("x_label", label.title())
+            return self._plot_histogram(
+                counter,
+                title,
+                output_file=output_file,
+                color_palette=color_palette,
+                **chart_kwargs,
+            )
+        raise ValueError(f"Unsupported chart_type: {chart_type}")
+
+    def _numeric_values(self, field):
+        """Collect the numeric values of a field or nested leaf, flattening lists."""
+        values = []
+        for item in self._field_items(field, skip_falsy=False):
+            if isinstance(item, bool):
+                continue
+            try:
+                values.append(float(item))
+            except (TypeError, ValueError):
+                continue
+        return values
+
+    def plot_numeric_distribution(
+        self,
+        field,
+        data_sources=None,
+        folder_path=None,
+        output_file=None,
+        figsize=(12, 8),
+        dpi=300,
+        bins=20,
+        title=None,
+        x_label=None,
+        y_label="Frequency",
+        color="steelblue",
+        title_fontsize=14,
+        xlabel_fontsize=12,
+        ylabel_fontsize=12,
+        grid_alpha=0.3,
+    ):
+        """
+        Create a histogram of the numeric values of any schema field.
+
+        Args:
+            field (str): Schema field name or dotted leaf path (e.g. "compositions_property_values", "compositions_property_values.sintering_temp.value")
+            data_sources (Union[List[str], List[Dict], str], optional): List of paths to JSON files or dictionaries containing materials data
+            folder_path (str, optional): Path to folder containing JSON data files. Either data_sources or folder_path must be provided.
+            output_file (str, optional): Path to save the output plot image. If None, the plot is not saved
+            figsize (tuple, optional): Figure size as (width, height) in inches (Default: (12, 8))
+            dpi (int, optional): DPI for output image (Default: 300)
+            bins (int, optional): Number of histogram bins (Default: 20)
+            title (str, optional): Title for the plot (Default: derived from the field name)
+            x_label (str, optional): Label for the x-axis (Default: derived from the field name)
+            y_label (str, optional): Label for the y-axis (Default: "Frequency")
+            color (str, optional): Bar colour (Default: "steelblue")
+            title_fontsize (int, optional): Font size for the title (Default: 14)
+            xlabel_fontsize (int, optional): Font size for the x-axis label (Default: 12)
+            ylabel_fontsize (int, optional): Font size for the y-axis label (Default: 12)
+            grid_alpha (float, optional): Alpha (transparency) for grid lines (Default: 0.3)
+
+        Returns:
+            matplotlib.figure.Figure: The generated figure object
+        """
+        # Load data if not already loaded
+        if self.data is None or data_sources is not None or folder_path is not None:
+            self._load_data(data_sources, folder_path)
+
+        label = field.split(".")[-1].replace("_", " ")
+        values = self._numeric_values(field)
+        if not values:
+            raise ValueError(f"No numeric {label} data found in the provided data sources")
+
+        fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
+        ax.hist(values, bins=bins, color=color, edgecolor="black", alpha=0.8)
+        ax.set_title(title or f"Distribution of {label.title()} Values", fontsize=title_fontsize)
+        ax.set_xlabel(x_label or label.title(), fontsize=xlabel_fontsize)
+        ax.set_ylabel(y_label, fontsize=ylabel_fontsize)
+        ax.grid(axis="y", linestyle="--", alpha=grid_alpha)
+        plt.tight_layout()
+
+        if output_file:
+            output_dir = os.path.dirname(output_file)
+            if output_dir:
+                os.makedirs(output_dir, exist_ok=True)
+            plt.savefig(output_file, dpi=dpi, bbox_inches="tight")
+            logger.info(f"Plot saved to {output_file}")
+
+        return fig
+
+    def _plot_kind_fields(self):
+        """Dotted paths and plot kinds of every schema field or leaf with a plot_kind."""
+
+        def walk(fields, prefix=""):
+            for field in fields:
+                path = f"{prefix}{field.name}"
+                if field.plot_kind != "none":
+                    yield path, field.plot_kind
+                if field.value_fields:
+                    yield from walk(field.value_fields, f"{path}.")
+
+        for domain in ("composition", "synthesis"):
+            yield from walk(self.schema_config.fields(domain, final_only=True))
+
+    def plot_all_distributions(
+        self,
+        data_sources=None,
+        folder_path=None,
+        output_folder=None,
+        is_semantic_clustering_enabled=True,
+        similarity_threshold=0.8,
+    ):
+        """
+        Plot every schema field that declares a plot_kind.
+
+        Args:
+            data_sources (Union[List[str], List[Dict], str], optional): List of paths to JSON files or dictionaries containing materials data
+            folder_path (str, optional): Path to folder containing JSON data files. Either data_sources or folder_path must be provided.
+            output_folder (str, optional): Folder to save one "<field>_distribution.png" per plot. If None, plots are not saved
+            is_semantic_clustering_enabled (bool, optional): Whether to cluster categorical values (Default: True)
+            similarity_threshold (float, optional): Similarity threshold for clustering (Default: 0.8)
+
+        Returns:
+            Dict[str, matplotlib.figure.Figure]: Figures keyed by field path; fields without data are skipped
+        """
+        # Load data if not already loaded
+        if self.data is None or data_sources is not None or folder_path is not None:
+            self._load_data(data_sources, folder_path)
+
+        figures = {}
+        for path, plot_kind in self._plot_kind_fields():
+            output_file = (
+                os.path.join(output_folder, f"{path}_distribution.png")
+                if output_folder
+                else None
+            )
+            try:
+                if plot_kind == "numeric_distribution":
+                    figures[path] = self.plot_numeric_distribution(
+                        path, output_file=output_file
+                    )
+                else:
+                    figures[path] = self.plot_categorical_distribution(
+                        path,
+                        output_file=output_file,
+                        is_semantic_clustering_enabled=is_semantic_clustering_enabled,
+                        similarity_threshold=similarity_threshold,
+                    )
+            except ValueError as e:
+                logger.warning(f"Skipping plot for {path}: {e}")
+        return figures
+
     def plot_family_pie_chart(
         self,
         data_sources=None,
@@ -860,38 +1082,23 @@ class DataDistributionVisualizer:
         Returns:
             matplotlib.figure.Figure: The generated figure object
         """
-        # Load data if not already loaded
-        if self.data is None or data_sources is not None or folder_path is not None:
-            self._load_data(data_sources, folder_path)
-
-        # Extract families
-        if is_semantic_clustering_enabled:
-            family_counter = self._extract_families_with_clustering(
-                similarity_threshold
-            )
-            title = f"{title} (Semantically Clustered)"
-        else:
-            family_counter = self._extract_families()
-
-        if not family_counter:
-            raise ValueError("No family data found in the provided data sources")
-
-        # Use default colour palette if not specified
-        if color_palette is None:
-            color_palette = self.color_palettes["family"]
-
-        # Create pie chart
-        return self._plot_pie_chart(
-            family_counter,
-            title,
-            figsize,
-            dpi,
-            output_file,
-            min_percentage,
-            color_palette,
-            title_fontsize,
-            label_fontsize,
-            legend_fontsize,
+        return self.plot_categorical_distribution(
+            "family",
+            chart_type="pie",
+            data_label="family",
+            data_sources=data_sources,
+            folder_path=folder_path,
+            output_file=output_file,
+            figsize=figsize,
+            dpi=dpi,
+            min_percentage=min_percentage,
+            title=title,
+            color_palette=color_palette,
+            title_fontsize=title_fontsize,
+            label_fontsize=label_fontsize,
+            legend_fontsize=legend_fontsize,
+            is_semantic_clustering_enabled=is_semantic_clustering_enabled,
+            similarity_threshold=similarity_threshold,
         )
 
     def plot_family_histogram(
@@ -950,47 +1157,32 @@ class DataDistributionVisualizer:
         Returns:
             matplotlib.figure.Figure: The generated figure object
         """
-        # Load data if not already loaded
-        if self.data is None or data_sources is not None or folder_path is not None:
-            self._load_data(data_sources, folder_path)
-
-        # Extract families
-        if is_semantic_clustering_enabled:
-            family_counter = self._extract_families_with_clustering(
-                similarity_threshold
-            )
-            title = f"{title} (Semantically Clustered)"
-        else:
-            family_counter = self._extract_families()
-
-        if not family_counter:
-            raise ValueError("No family data found in the provided data sources")
-
-        # Use default colour palette if not specified
-        if color_palette is None:
-            color_palette = self.color_palettes["family"]
-
-        # Create histogram
-        return self._plot_histogram(
-            family_counter,
-            title,
-            figsize,
-            dpi,
-            output_file,
-            max_items,
-            color_palette,
-            x_label,
-            y_label,
-            rotation,
-            title_fontsize,
-            xlabel_fontsize,
-            ylabel_fontsize,
-            xtick_fontsize,
-            ytick_fontsize,
-            value_label_fontsize,
-            grid_axis,
-            grid_linestyle,
-            grid_alpha,
+        return self.plot_categorical_distribution(
+            "family",
+            chart_type="histogram",
+            data_label="family",
+            data_sources=data_sources,
+            folder_path=folder_path,
+            output_file=output_file,
+            figsize=figsize,
+            dpi=dpi,
+            max_items=max_items,
+            title=title,
+            color_palette=color_palette,
+            x_label=x_label,
+            y_label=y_label,
+            rotation=rotation,
+            title_fontsize=title_fontsize,
+            xlabel_fontsize=xlabel_fontsize,
+            ylabel_fontsize=ylabel_fontsize,
+            xtick_fontsize=xtick_fontsize,
+            ytick_fontsize=ytick_fontsize,
+            value_label_fontsize=value_label_fontsize,
+            grid_axis=grid_axis,
+            grid_linestyle=grid_linestyle,
+            grid_alpha=grid_alpha,
+            is_semantic_clustering_enabled=is_semantic_clustering_enabled,
+            similarity_threshold=similarity_threshold,
         )
 
     def plot_precursors_pie_chart(
@@ -1031,38 +1223,23 @@ class DataDistributionVisualizer:
         Returns:
             matplotlib.figure.Figure: The generated figure object
         """
-        # Load data if not already loaded
-        if self.data is None or data_sources is not None or folder_path is not None:
-            self._load_data(data_sources, folder_path)
-
-        # Extract precursors
-        if is_semantic_clustering_enabled:
-            precursors_counter = self._extract_precursors_with_clustering(
-                similarity_threshold
-            )
-            title = f"{title} (Semantically Clustered)"
-        else:
-            precursors_counter = self._extract_precursors()
-
-        if not precursors_counter:
-            raise ValueError("No precursors data found in the provided data sources")
-
-        # Use default colour palette if not specified
-        if color_palette is None:
-            color_palette = self.color_palettes["precursors"]
-
-        # Create pie chart
-        return self._plot_pie_chart(
-            precursors_counter,
-            title,
-            figsize,
-            dpi,
-            output_file,
-            min_percentage,
-            color_palette,
-            title_fontsize,
-            label_fontsize,
-            legend_fontsize,
+        return self.plot_categorical_distribution(
+            "precursors",
+            chart_type="pie",
+            data_label="precursors",
+            data_sources=data_sources,
+            folder_path=folder_path,
+            output_file=output_file,
+            figsize=figsize,
+            dpi=dpi,
+            min_percentage=min_percentage,
+            title=title,
+            color_palette=color_palette,
+            title_fontsize=title_fontsize,
+            label_fontsize=label_fontsize,
+            legend_fontsize=legend_fontsize,
+            is_semantic_clustering_enabled=is_semantic_clustering_enabled,
+            similarity_threshold=similarity_threshold,
         )
 
     def plot_precursors_histogram(
@@ -1121,47 +1298,32 @@ class DataDistributionVisualizer:
         Returns:
             matplotlib.figure.Figure: The generated figure object
         """
-        # Load data if not already loaded
-        if self.data is None or data_sources is not None or folder_path is not None:
-            self._load_data(data_sources, folder_path)
-
-        # Extract precursors
-        if is_semantic_clustering_enabled:
-            precursors_counter = self._extract_precursors_with_clustering(
-                similarity_threshold
-            )
-            title = f"{title} (Semantically Clustered)"
-        else:
-            precursors_counter = self._extract_precursors()
-
-        if not precursors_counter:
-            raise ValueError("No precursors data found in the provided data sources")
-
-        # Use default colour palette if not specified
-        if color_palette is None:
-            color_palette = self.color_palettes["precursors"]
-
-        # Create histogram
-        return self._plot_histogram(
-            precursors_counter,
-            title,
-            figsize,
-            dpi,
-            output_file,
-            max_items,
-            color_palette,
-            x_label,
-            y_label,
-            rotation,
-            title_fontsize,
-            xlabel_fontsize,
-            ylabel_fontsize,
-            xtick_fontsize,
-            ytick_fontsize,
-            value_label_fontsize,
-            grid_axis,
-            grid_linestyle,
-            grid_alpha,
+        return self.plot_categorical_distribution(
+            "precursors",
+            chart_type="histogram",
+            data_label="precursors",
+            data_sources=data_sources,
+            folder_path=folder_path,
+            output_file=output_file,
+            figsize=figsize,
+            dpi=dpi,
+            max_items=max_items,
+            title=title,
+            color_palette=color_palette,
+            x_label=x_label,
+            y_label=y_label,
+            rotation=rotation,
+            title_fontsize=title_fontsize,
+            xlabel_fontsize=xlabel_fontsize,
+            ylabel_fontsize=ylabel_fontsize,
+            xtick_fontsize=xtick_fontsize,
+            ytick_fontsize=ytick_fontsize,
+            value_label_fontsize=value_label_fontsize,
+            grid_axis=grid_axis,
+            grid_linestyle=grid_linestyle,
+            grid_alpha=grid_alpha,
+            is_semantic_clustering_enabled=is_semantic_clustering_enabled,
+            similarity_threshold=similarity_threshold,
         )
 
     def plot_characterization_techniques_pie_chart(
@@ -1202,43 +1364,23 @@ class DataDistributionVisualizer:
         Returns:
             matplotlib.figure.Figure: The generated figure object
         """
-        # Load data if not already loaded
-        if self.data is None or data_sources is not None or folder_path is not None:
-            self._load_data(data_sources, folder_path)
-
-        # Extract characterization techniques
-        if is_semantic_clustering_enabled:
-            techniques_counter = (
-                self._extract_characterization_techniques_with_clustering(
-                    similarity_threshold
-                )
-            )
-            # Add clustering info to title if semantic clustering is used
-            title = f"{title} (Semantically Clustered)"
-        else:
-            techniques_counter = self._extract_characterization_techniques()
-
-        if not techniques_counter:
-            raise ValueError(
-                "No characterization techniques data found in the provided data sources"
-            )
-
-        # Use default colour palette if not specified
-        if color_palette is None:
-            color_palette = self.color_palettes["characterization_techniques"]
-
-        # Create pie chart
-        return self._plot_pie_chart(
-            techniques_counter,
-            title,
-            figsize,
-            dpi,
-            output_file,
-            min_percentage,
-            color_palette,
-            title_fontsize,
-            label_fontsize,
-            legend_fontsize,
+        return self.plot_categorical_distribution(
+            "characterization_techniques",
+            chart_type="pie",
+            data_label="characterization techniques",
+            data_sources=data_sources,
+            folder_path=folder_path,
+            output_file=output_file,
+            figsize=figsize,
+            dpi=dpi,
+            min_percentage=min_percentage,
+            title=title,
+            color_palette=color_palette,
+            is_semantic_clustering_enabled=is_semantic_clustering_enabled,
+            similarity_threshold=similarity_threshold,
+            title_fontsize=title_fontsize,
+            label_fontsize=label_fontsize,
+            legend_fontsize=legend_fontsize,
         )
 
     def plot_characterization_techniques_histogram(
@@ -1298,90 +1440,30 @@ class DataDistributionVisualizer:
         Returns:
             matplotlib.figure.Figure: The generated figure object
         """
-        # Load data if not already loaded
-        if self.data is None or data_sources is not None or folder_path is not None:
-            self._load_data(data_sources, folder_path)
-
-        # Extract characterization techniques
-        if is_semantic_clustering_enabled:
-            techniques_counter = (
-                self._extract_characterization_techniques_with_clustering(
-                    similarity_threshold
-                )
-            )
-            # Add clustering info to title if semantic clustering is used
-            title = f"{title} (Semantically Clustered)"
-        else:
-            techniques_counter = self._extract_characterization_techniques()
-
-        if not techniques_counter:
-            raise ValueError(
-                "No characterization techniques data found in the provided data sources"
-            )
-
-        # Use default colour palette if not specified
-        if color_palette is None:
-            color_palette = self.color_palettes["characterization_techniques"]
-
-        # Create histogram
-        return self._plot_histogram(
-            techniques_counter,
-            title,
-            figsize,
-            dpi,
-            output_file,
-            max_items,
-            color_palette,
-            x_label,
-            y_label,
-            rotation,
-            title_fontsize,
-            xlabel_fontsize,
-            ylabel_fontsize,
-            xtick_fontsize,
-            ytick_fontsize,
-            value_label_fontsize,
-            grid_axis,
-            grid_linestyle,
-            grid_alpha,
-        )
-
-    def get_technique_clusters(
-        self, data_sources=None, folder_path=None, similarity_threshold=0.8
-    ):
-        """
-        Get clusters of similar characterization techniques based on semantic similarity.
-
-        This is a utility method to inspect how techniques are being clustered.
-
-        Args:
-            data_sources (Union[List[str], List[Dict], str], optional): List of paths to JSON files
-                or dictionaries containing materials data
-            folder_path (str, optional): Path to folder containing JSON data files
-            similarity_threshold (float): Threshold for similarity-based clustering
-
-        Returns:
-            Dict[str, List[str]]: Dictionary mapping canonical names to lists of similar techniques
-        """
-        # Load data if not already loaded
-        if self.data is None or data_sources is not None or folder_path is not None:
-            self._load_data(data_sources, folder_path)
-
-        # Get all techniques
-        all_techniques = []
-        for doi, item_data in self.data.items():
-            if (
-                "synthesis_data" in item_data
-                and "characterization_techniques" in item_data["synthesis_data"]
-            ):
-                techniques = item_data["synthesis_data"]["characterization_techniques"]
-                if techniques:  # Only add if list is not empty
-                    all_techniques.extend(techniques)
-
-        if not all_techniques:
-            return {}
-
-        # Return clusters of similar techniques
-        return self._cluster_characterization_techniques(
-            all_techniques, similarity_threshold
+        return self.plot_categorical_distribution(
+            "characterization_techniques",
+            chart_type="histogram",
+            data_label="characterization techniques",
+            data_sources=data_sources,
+            folder_path=folder_path,
+            output_file=output_file,
+            figsize=figsize,
+            dpi=dpi,
+            max_items=max_items,
+            title=title,
+            color_palette=color_palette,
+            x_label=x_label,
+            y_label=y_label,
+            rotation=rotation,
+            is_semantic_clustering_enabled=is_semantic_clustering_enabled,
+            similarity_threshold=similarity_threshold,
+            title_fontsize=title_fontsize,
+            xlabel_fontsize=xlabel_fontsize,
+            ylabel_fontsize=ylabel_fontsize,
+            xtick_fontsize=xtick_fontsize,
+            ytick_fontsize=ytick_fontsize,
+            value_label_fontsize=value_label_fontsize,
+            grid_axis=grid_axis,
+            grid_linestyle=grid_linestyle,
+            grid_alpha=grid_alpha,
         )

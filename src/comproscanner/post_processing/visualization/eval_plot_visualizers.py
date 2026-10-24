@@ -20,12 +20,85 @@ from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.lines import Line2D
 from typing import List, Dict, Union, Optional, Tuple
 
+from ...utils.configs.schema_config import DEFAULT_SCHEMA_CONFIG, load_schema_config
 from ...utils.error_handler import ValueErrorHandler
+
+# Legacy per-field metric ids and the schema fields they score
+LEGACY_FIELD_METRICS = {
+    "property_match": "compositions_property_values",
+    "method_match": "method",
+    "precursors_match": "precursors",
+    "steps_match": "steps",
+}
 
 
 class EvalVisualizer:
-    def __init__(self):
-        pass
+    def __init__(self, schema_config_path=None):
+        """
+        Args:
+            schema_config_path (str | Path, optional): Path to the extraction schema YAML file. Defaults to None (bundled default schema).
+        """
+        self.schema_config = load_schema_config(schema_config_path)
+
+    def _match_metric_field(self, metric_id):
+        """Return (data_key, field) for a per-field '<field>_match' metric id, or None."""
+        name = LEGACY_FIELD_METRICS.get(metric_id)
+        if name is None:
+            if not metric_id.endswith("_match"):
+                return None
+            name = metric_id[: -len("_match")]
+        for domain in ("composition", "synthesis"):
+            for field in self.schema_config.fields(domain, final_only=True):
+                if field.name == name:
+                    return f"{domain}_data", field
+        return None
+
+    def _field_match_value(self, item, metric_id):
+        """Per-paper match score of a field for a '<field>_match' metric, or None if not a field metric."""
+        resolved = self._match_metric_field(metric_id)
+        if resolved is None:
+            return None
+        data_key, field = resolved
+        details = item.get("details", {}).get(data_key, {}).get(field.name, {})
+        if field.match_mode == "keyed_values":
+            return details.get("similarity_score", 0)
+        if field.match_mode == "joined_text":
+            return details.get("paragraph_similarity", 0)
+        if field.match_mode in ("item_list", None):
+            return details.get("similarity", 0)
+        return 1 if details.get("match", False) else 0
+
+    def _field_metric_ids(self):
+        """Per-field metric ids: legacy ids first, then '<field>_match' for every other schema field."""
+        covered = set(LEGACY_FIELD_METRICS.values())
+        return list(LEGACY_FIELD_METRICS) + [
+            f"{field.name}_match"
+            for domain in ("composition", "synthesis")
+            for field in self.schema_config.fields(domain, final_only=True)
+            if field.name not in covered
+        ]
+
+    def _default_metric_ids(self, available_metrics):
+        """Metrics shown when none are requested: all except per-field metrics of default-schema fields without a legacy id."""
+        default_fields = {
+            field.name
+            for domain in ("composition", "synthesis")
+            for field in DEFAULT_SCHEMA_CONFIG.fields(domain, final_only=True)
+        } - set(LEGACY_FIELD_METRICS.values())
+        hidden = {f"{name}_match" for name in default_fields}
+        return [m for m in available_metrics if m not in hidden]
+
+    def _field_metric_display_names(self, include_legacy=True):
+        """Display names for per-field metrics."""
+        names = {}
+        for metric_id in self._field_metric_ids():
+            if not include_legacy and metric_id in LEGACY_FIELD_METRICS:
+                continue
+            resolved = self._match_metric_field(metric_id)
+            if resolved is not None:
+                label = resolved[1].name.replace("_", " ").title()
+                names[metric_id] = f"{label}\nMatch"
+        return names
 
     def _load_results_data(
         self, result_sources=None, folder_path=None, model_names=None
@@ -739,6 +812,7 @@ class EvalVisualizer:
             dict: Dictionary mapping metric names to display names
         """
         return {
+            **self._field_metric_display_names(include_legacy=False),
             "overall_accuracy": "Overall\nAccuracy",
             "overall_composition_accuracy": "Composition\nAccuracy",
             "overall_synthesis_accuracy": "Synthesis\nAccuracy",
@@ -800,38 +874,10 @@ class EvalVisualizer:
                         value = item.get("normalized_classification_metrics", {}).get(
                             base_metric, 0
                         )
-                    elif metric_id == "property_match":
-                        value = (
-                            item.get("details", {})
-                            .get("composition_data", {})
-                            .get("compositions_property_values", {})
-                            .get("similarity_score", 0)
-                        )
-                    elif metric_id == "method_match":
-                        value = (
-                            1
-                            if item.get("details", {})
-                            .get("synthesis_data", {})
-                            .get("method", {})
-                            .get("match", False)
-                            else 0
-                        )
-                    elif metric_id == "precursors_match":
-                        value = (
-                            item.get("details", {})
-                            .get("synthesis_data", {})
-                            .get("precursors", {})
-                            .get("similarity", 0)
-                        )
-                    elif metric_id == "steps_match":
-                        value = (
-                            item.get("details", {})
-                            .get("synthesis_data", {})
-                            .get("steps", {})
-                            .get("paragraph_similarity", 0)
-                        )
                     else:
-                        continue
+                        value = self._field_match_value(item, metric_id)
+                        if value is None:
+                            continue
 
                     # Find the appropriate bin
                     bin_idx = min(
@@ -911,36 +957,10 @@ class EvalVisualizer:
                         all_doi_metrics[doi][metric_id] = item.get(
                             "normalized_classification_metrics", {}
                         ).get(base_metric, 0)
-                    elif metric_id == "property_match":
-                        all_doi_metrics[doi][metric_id] = (
-                            item.get("details", {})
-                            .get("composition_data", {})
-                            .get("compositions_property_values", {})
-                            .get("similarity_score", 0)
-                        )
-                    elif metric_id == "method_match":
-                        all_doi_metrics[doi][metric_id] = (
-                            1
-                            if item.get("details", {})
-                            .get("synthesis_data", {})
-                            .get("method", {})
-                            .get("match", False)
-                            else 0
-                        )
-                    elif metric_id == "precursors_match":
-                        all_doi_metrics[doi][metric_id] = (
-                            item.get("details", {})
-                            .get("synthesis_data", {})
-                            .get("precursors", {})
-                            .get("similarity", 0)
-                        )
-                    elif metric_id == "steps_match":
-                        all_doi_metrics[doi][metric_id] = (
-                            item.get("details", {})
-                            .get("synthesis_data", {})
-                            .get("steps", {})
-                            .get("paragraph_similarity", 0)
-                        )
+                    else:
+                        value = self._field_match_value(item, metric_id)
+                        if value is not None:
+                            all_doi_metrics[doi][metric_id] = value
 
         # Initialize distribution matrix
         distribution = np.zeros((len(metrics_to_use), bin_count))
@@ -1097,46 +1117,17 @@ class EvalVisualizer:
                 "overall_synthesis_accuracy", 0
             ),
             # Component scores
-            "property_match": lambda r: np.mean(
-                [
-                    item.get("details", {})
-                    .get("composition_data", {})
-                    .get("compositions_property_values", {})
-                    .get("similarity_score", 0)
-                    for item in r.get("item_results", {}).values()
-                ]
-            ),
-            "method_match": lambda r: np.mean(
-                [
-                    (
-                        1
-                        if item.get("details", {})
-                        .get("synthesis_data", {})
-                        .get("method", {})
-                        .get("match", False)
-                        else 0
+            **{
+                metric_id: (
+                    lambda r, metric_id=metric_id: np.mean(
+                        [
+                            self._field_match_value(item, metric_id)
+                            for item in r.get("item_results", {}).values()
+                        ]
                     )
-                    for item in r.get("item_results", {}).values()
-                ]
-            ),
-            "precursors_match": lambda r: np.mean(
-                [
-                    item.get("details", {})
-                    .get("synthesis_data", {})
-                    .get("precursors", {})
-                    .get("similarity", 0)
-                    for item in r.get("item_results", {}).values()
-                ]
-            ),
-            "steps_match": lambda r: np.mean(
-                [
-                    item.get("details", {})
-                    .get("synthesis_data", {})
-                    .get("steps", {})
-                    .get("paragraph_similarity", 0)
-                    for item in r.get("item_results", {}).values()
-                ]
-            ),
+                )
+                for metric_id in self._field_metric_ids()
+            },
             # Absolute metrics
             "precision": lambda r: r.get("absolute_classification_metrics", {}).get(
                 "precision", 0
@@ -1167,6 +1158,7 @@ class EvalVisualizer:
             dict: Dictionary mapping metric names to display names
         """
         return {
+            **self._field_metric_display_names(),
             "overall_accuracy": "Overall\nAccuracy",
             "overall_composition_accuracy": "Composition\nAccuracy",
             "overall_synthesis_accuracy": "Synthesis\nAccuracy",
@@ -1274,51 +1266,13 @@ class EvalVisualizer:
                     )
                     values.append(metric_value)
 
-        elif metric_name == "property_match":
-            # Extract property match scores from each DOI
+        else:
+            # Extract per-field match scores from each DOI
             for _, item_data in result.get("item_results", {}).items():
-                similarity_score = (
-                    item_data.get("details", {})
-                    .get("composition_data", {})
-                    .get("compositions_property_values", {})
-                    .get("similarity_score", 0)
-                )
-                values.append(similarity_score)
-
-        elif metric_name == "method_match":
-            # Extract method match scores (0 or 1) from each DOI
-            for _, item_data in result.get("item_results", {}).items():
-                is_match = (
-                    1
-                    if item_data.get("details", {})
-                    .get("synthesis_data", {})
-                    .get("method", {})
-                    .get("match", False)
-                    else 0
-                )
-                values.append(is_match)
-
-        elif metric_name == "precursors_match":
-            # Extract precursors similarity scores from each DOI
-            for _, item_data in result.get("item_results", {}).items():
-                similarity = (
-                    item_data.get("details", {})
-                    .get("synthesis_data", {})
-                    .get("precursors", {})
-                    .get("similarity", 0)
-                )
-                values.append(similarity)
-
-        elif metric_name == "steps_match":
-            # Extract steps similarity scores from each DOI
-            for _, item_data in result.get("item_results", {}).items():
-                similarity = (
-                    item_data.get("details", {})
-                    .get("synthesis_data", {})
-                    .get("steps", {})
-                    .get("paragraph_similarity", 0)
-                )
-                values.append(similarity)
+                value = self._field_match_value(item_data, metric_name)
+                if value is None:
+                    break
+                values.append(value)
 
         return values
 
@@ -2119,7 +2073,7 @@ class EvalVisualizer:
         if metrics_to_include:
             metrics_to_use = [m for m in metrics_to_include if m in available_metrics]
         else:
-            metrics_to_use = available_metrics.copy()
+            metrics_to_use = self._default_metric_ids(available_metrics)
 
         # Get human-readable metric names
         metric_display_names = self._get_detailed_metric_display_names()
@@ -2315,7 +2269,7 @@ class EvalVisualizer:
         if metrics_to_include:
             metrics_to_use = [m for m in metrics_to_include if m in available_metrics]
         else:
-            metrics_to_use = available_metrics.copy()
+            metrics_to_use = self._default_metric_ids(available_metrics)
 
         # Get human-readable metric names
         metric_display_names = self._get_detailed_metric_display_names()
@@ -3315,7 +3269,7 @@ class EvalVisualizer:
         if metrics_to_include:
             metrics_to_use = [m for m in metrics_to_include if m in available_metrics]
         else:
-            metrics_to_use = available_metrics.copy()
+            metrics_to_use = self._default_metric_ids(available_metrics)
 
         data_dict = {}
         for metric_id in metrics_to_use:

@@ -447,6 +447,141 @@ def plot_characterization_techniques_histogram(
     return fig
 
 
+def plot_categorical_distribution(
+    field: str,
+    chart_type: str = "histogram",
+    data_sources: Union[List[str], List[Dict], str] = None,
+    folder_path: Optional[str] = None,
+    output_file: Optional[str] = None,
+    title: Optional[str] = None,
+    color_palette: str = "Blues",
+    is_semantic_clustering_enabled: bool = True,
+    similarity_threshold: float = 0.8,
+    schema_config_path: Optional[str] = None,
+    **chart_kwargs,
+) -> "Figure":
+    """
+    Create a pie chart or histogram of the values of any extraction schema field.
+
+    Args:
+        field (str): Schema field name or dotted leaf path, e.g. "family" or "compositions_property_values.d33_data.unit"
+        chart_type (str, optional): "pie" or "histogram" (Default: "histogram")
+        data_sources (Union[List[str], List[Dict], str], optional): List of paths to JSON files or dictionaries containing materials data
+        folder_path (str, optional): Path to folder containing JSON data files
+        output_file (str, optional): Path to save the output plot image. If None, the plot is not saved.
+        title (str, optional): Title for the plot (Default: derived from the field name)
+        color_palette (str, optional): Matplotlib colormap name (Default: "Blues")
+        is_semantic_clustering_enabled (bool, optional): Whether to use semantic similarity for clustering similar values (Default: True)
+        similarity_threshold (float, optional): Similarity threshold for clustering (Default: 0.8)
+        schema_config_path (str, optional): Path to the extraction schema YAML file the data was extracted with (Default: None, bundled default schema)
+        **chart_kwargs: Further styling arguments of the pie chart or histogram (e.g. figsize, dpi, max_items, min_percentage)
+
+    Returns:
+        Figure: The generated matplotlib figure object
+
+    Raises:
+        ValueError: If neither data_sources nor folder_path is provided, if the field is unknown, or if no data is found
+    """
+    visualizer = DataDistributionVisualizer(schema_config_path=schema_config_path)
+    return visualizer.plot_categorical_distribution(
+        field,
+        chart_type=chart_type,
+        data_sources=data_sources,
+        folder_path=folder_path,
+        output_file=output_file,
+        title=title,
+        color_palette=color_palette,
+        is_semantic_clustering_enabled=is_semantic_clustering_enabled,
+        similarity_threshold=similarity_threshold,
+        **chart_kwargs,
+    )
+
+
+def plot_numeric_distribution(
+    field: str,
+    data_sources: Union[List[str], List[Dict], str] = None,
+    folder_path: Optional[str] = None,
+    output_file: Optional[str] = None,
+    figsize: Tuple[int, int] = (12, 8),
+    dpi: int = 300,
+    bins: int = 20,
+    title: Optional[str] = None,
+    x_label: Optional[str] = None,
+    y_label: str = "Frequency",
+    color: str = "steelblue",
+    schema_config_path: Optional[str] = None,
+) -> "Figure":
+    """
+    Create a histogram of the numeric values of any extraction schema field.
+
+    Args:
+        field (str): Schema field name or dotted leaf path, e.g. "compositions_property_values" or "compositions_property_values.sintering_temp.value"
+        data_sources (Union[List[str], List[Dict], str], optional): List of paths to JSON files or dictionaries containing materials data
+        folder_path (str, optional): Path to folder containing JSON data files
+        output_file (str, optional): Path to save the output plot image. If None, the plot is not saved.
+        figsize (tuple, optional): Figure size as (width, height) in inches (Default: (12, 8))
+        dpi (int, optional): DPI for output image (Default: 300)
+        bins (int, optional): Number of histogram bins (Default: 20)
+        title (str, optional): Title for the plot (Default: derived from the field name)
+        x_label (str, optional): Label for the x-axis (Default: derived from the field name)
+        y_label (str, optional): Label for the y-axis (Default: "Frequency")
+        color (str, optional): Bar colour (Default: "steelblue")
+        schema_config_path (str, optional): Path to the extraction schema YAML file the data was extracted with (Default: None, bundled default schema)
+
+    Returns:
+        Figure: The generated matplotlib figure object
+
+    Raises:
+        ValueError: If neither data_sources nor folder_path is provided, if the field is unknown, or if no numeric data is found
+    """
+    visualizer = DataDistributionVisualizer(schema_config_path=schema_config_path)
+    return visualizer.plot_numeric_distribution(
+        field,
+        data_sources=data_sources,
+        folder_path=folder_path,
+        output_file=output_file,
+        figsize=figsize,
+        dpi=dpi,
+        bins=bins,
+        title=title,
+        x_label=x_label,
+        y_label=y_label,
+        color=color,
+    )
+
+
+def plot_all_distributions(
+    data_sources: Union[List[str], List[Dict], str] = None,
+    folder_path: Optional[str] = None,
+    output_folder: Optional[str] = None,
+    is_semantic_clustering_enabled: bool = True,
+    similarity_threshold: float = 0.8,
+    schema_config_path: Optional[str] = None,
+) -> Dict[str, "Figure"]:
+    """
+    Plot every extraction schema field that declares a plot_kind.
+
+    Args:
+        data_sources (Union[List[str], List[Dict], str], optional): List of paths to JSON files or dictionaries containing materials data
+        folder_path (str, optional): Path to folder containing JSON data files
+        output_folder (str, optional): Folder to save one "<field>_distribution.png" per plot. If None, plots are not saved.
+        is_semantic_clustering_enabled (bool, optional): Whether to cluster categorical values (Default: True)
+        similarity_threshold (float, optional): Similarity threshold for clustering (Default: 0.8)
+        schema_config_path (str, optional): Path to the extraction schema YAML file the data was extracted with (Default: None, bundled default schema)
+
+    Returns:
+        Dict[str, Figure]: Figures keyed by field path; fields without data are skipped
+    """
+    visualizer = DataDistributionVisualizer(schema_config_path=schema_config_path)
+    return visualizer.plot_all_distributions(
+        data_sources=data_sources,
+        folder_path=folder_path,
+        output_folder=output_folder,
+        is_semantic_clustering_enabled=is_semantic_clustering_enabled,
+        similarity_threshold=similarity_threshold,
+    )
+
+
 def create_knowledge_graph(
     result_file: str = None,
     is_semantic_clustering_enabled: bool = True,

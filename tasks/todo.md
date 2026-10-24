@@ -14,9 +14,9 @@ Decisions agreed with the user: only weights come from the schema, the scoring f
 - [x] 3. Regression: semantic baseline reproduced exactly; permanent pytest regression on a compact subset
 - [x] 4. `eval_flow.py` (agentic): weights from the schema; per-`match_mode` scoring/metrics; agent task prompts templated from the schema (incl. response shape per field); leaf-level evaluation for nested values
 - [x] 5. Regression: agentic replay baseline reproduced exactly; permanent pytest regression
-- [ ] 6. `data_distribution_visualizers.py`: one generic categorical path driven by `plot_kind`, plus a new numeric-distribution plot; keep the existing public `plot_family_*` / `plot_precursors_*` / `plot_characterization_techniques_*` functions as thin wrappers
-- [ ] 7. Regression: identical extracted distributions for the default schema
-- [ ] 8. `eval_plot_visualizers.py`: audit its hardcoded per-field metrics (`method`, `precursors_match`, `steps`, `compositions_property_values`) and make them schema-driven where it doesn't change existing charts
+- [x] 6. `data_distribution_visualizers.py`: one generic categorical path driven by `plot_kind`, plus a new numeric-distribution plot; keep the existing public `plot_family_*` / `plot_precursors_*` / `plot_characterization_techniques_*` functions as thin wrappers
+- [x] 7. Regression: identical extracted distributions for the default schema
+- [x] 8. `eval_plot_visualizers.py`: audit its hardcoded per-field metrics (`method`, `precursors_match`, `steps`, `compositions_property_values`) and make them schema-driven where it doesn't change existing charts
 - [ ] 9. Update `DYNAMIC_SCHEMA_PLAN.md` implementation log; review
 
 # Phase 1 — schema file, loader, crews, flow, prompts
