@@ -21,9 +21,12 @@ from comproscanner.utils.configs import RAGConfig
 @pytest.fixture
 def mock_huggingface_model():
     """Fixture to mock HuggingFace model components"""
+    # Force CPU and clear the model cache
     with (
         patch("comproscanner.utils.embeddings.AutoTokenizer") as mock_tokenizer_class,
         patch("comproscanner.utils.embeddings.AutoModel") as mock_model_class,
+        patch("comproscanner.utils.embeddings.torch.cuda.is_available", return_value=False),
+        patch.dict(MultiModelEmbeddings._hf_model_cache, clear=True),
     ):
         mock_tokenizer_instance = MagicMock()
         mock_tokenizer_instance.return_value = {
