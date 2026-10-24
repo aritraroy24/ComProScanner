@@ -17,7 +17,11 @@ Decisions agreed with the user: only weights come from the schema, the scoring f
 - [x] 6. `data_distribution_visualizers.py`: one generic categorical path driven by `plot_kind`, plus a new numeric-distribution plot; keep the existing public `plot_family_*` / `plot_precursors_*` / `plot_characterization_techniques_*` functions as thin wrappers
 - [x] 7. Regression: identical extracted distributions for the default schema
 - [x] 8. `eval_plot_visualizers.py`: audit its hardcoded per-field metrics (`method`, `precursors_match`, `steps`, `compositions_property_values`) and make them schema-driven where it doesn't change existing charts
-- [ ] 9. Update `DYNAMIC_SCHEMA_PLAN.md` implementation log; review
+- [x] 9. Update `DYNAMIC_SCHEMA_PLAN.md` implementation log; review
+
+## Phase 2 review
+
+Commits 485158a (schema settings), e24d1e3 (semantic evaluator), f29abe5 (agentic evaluator), 852ba1f (charts). With the default schema every evaluator score and chart reproduces the previous code (semantic: 19 text-matcher + 3 PhysBERT runs; agentic: 13 replays; charts: identical data on real files). Full suite: 713 passed. Open item for the user: the pre-existing hash-seed-dependent fuzzy key matching in the semantic evaluator.
 
 # Phase 1 — schema file, loader, crews, flow, prompts
 
