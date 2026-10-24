@@ -20,6 +20,14 @@
 #   similarity_threshold_mode  relative | absolute tolerance for numeric fields
 #   plot_kind            categorical_distribution | numeric_distribution | none
 #   evaluation_note      field-specific judging rule for the agentic evaluator
+#   graph_role           knowledge-graph role of a leaf: node_property | node_cluster | joined_node | skip
+#   graph_label          Neo4j node label (default: field name in CamelCase)
+#   relationship_type    relationship from the parent node (default: HAS_<FIELD>, or USES_<FIELD> for clusters)
+#   graph_edge_sources   for a composition-domain cluster: relationship type per source node (paper, composition)
+#   graph_key_property   property holding a keyed entry's key (default: key)
+#   graph_value_property property holding a keyed entry's scalar value or a joined node's text (default: value)
+#   graph_default        graph value used when the field is missing or empty
+#   cluster_similarity_threshold  semantic clustering threshold for node_cluster values (default: 0.85)
 
 version: "1.0"
 
@@ -46,6 +54,10 @@ composition_fields:
       "(1-x)Na0.2K2(x)Bi0.5TiO3 - (y)NaNbO3 where x=0.1, y=0.4": 325
       "(1-x)Na0.2K2(x)Bi0.5TiO3 - (y)NaNbO3 where x=0.2, y=0.3": 375
       "(1-x)Na0.2K2(x)Bi0.5TiO3 - (y)NaNbO3 where x=0.3, y=0.1": 425
+    graph_label: Composition
+    relationship_type: MENTIONS
+    graph_key_property: composition
+    graph_value_property: property_value
     evaluation_note: |-
       For each entry, decide:
          a. Keys: Determine if each ground truth key is matched in test data (1) or missing (0)
@@ -95,6 +107,11 @@ composition_fields:
     plot_kind: categorical_distribution
     example: BaTiO3
     variable_example: NaNbO3
+    graph_role: node_cluster
+    graph_label: Family
+    graph_edge_sources: {paper: BELONGS_TO_FAMILY, composition: BELONGS_TO}
+    graph_default: UNKNOWN_FAMILY
+    cluster_similarity_threshold: 0.9
     evaluation_note: |-
       Decide if the material family descriptions match (1) or not (0) - can have some variation, but overall should be similar.
 
@@ -107,6 +124,11 @@ synthesis_fields:
     allowed_values_ref: allowed_synthesis_methods
     format_note: If allowed values are listed, change the method to the matching allowed value; otherwise keep it as it is.
     example: solid-state reaction
+    graph_role: node_cluster
+    graph_label: Method
+    relationship_type: USES_METHOD
+    graph_default: UNKNOWN_METHOD
+    cluster_similarity_threshold: 0.8
     evaluation_note: |-
       Decide if the synthesis methods match (1) or not (0)
 
@@ -120,6 +142,10 @@ synthesis_fields:
     format_note: >-
       If a precursor is given by an industry name or chemical name instead of a chemical composition, rewrite it as the chemical composition. Keep it a list of strings.
     example: ["BaCO3", "CaCO3", "TiO2", "ZrO2"]
+    graph_role: node_cluster
+    graph_label: Precursor
+    relationship_type: USED_PRECURSOR
+    cluster_similarity_threshold: 0.9
     evaluation_note: |-
       For each precursor, decide if it's correctly identified (1) or not (0)
          Note: The order of precursors doesn't matter, only whether each ground truth precursor is correctly identified in the test data. Keys can be either in chemical formula or chemical name - you need to understand the meaning of the keys.
@@ -132,6 +158,11 @@ synthesis_fields:
     match_mode: joined_text
     format_note: Keep the steps unmodified.
     example: ["Raw powders were weighed in stoichiometric ratio and ball-milled for 24 h", "The mixture was calcined at 1200 °C for 2 h", "Pellets were sintered at 1450 °C for 4 h"]
+    graph_role: joined_node
+    graph_label: Step
+    relationship_type: USED_SYNTHESIS_STEPS
+    graph_value_property: steps
+    graph_default: No steps available
     evaluation_note: |-
       Decide if the synthesis procedure steps match or not. The match value should be a float between 0.00 and 1.00 and it should be round up to two decimal points.
          Note: This is a holistic judgment about whether the test steps capture the same procedure as the ground truth steps.
@@ -146,6 +177,10 @@ synthesis_fields:
     allowed_values_ref: allowed_characterization_techniques
     format_note: If allowed values are listed, change each technique to the matching allowed value; otherwise keep them as they are.
     example: ["XRD", "SEM", "Raman Spectroscopy"]
+    graph_role: node_cluster
+    graph_label: CharacterizationTechnique
+    relationship_type: USED_CHARACTERIZATION_TECHNIQUE
+    cluster_similarity_threshold: 0.8
     evaluation_note: |-
       For each technique, decide if it's correctly identified (1) or not (0)
          Note: The order of techniques doesn't matter, only whether each ground truth technique is correctly identified in the test data. Keys can be either in instrument name or short name of the characterization process - you need to understand the meaning of the keys.

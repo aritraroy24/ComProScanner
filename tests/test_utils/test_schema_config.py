@@ -387,3 +387,50 @@ class TestEvaluationSettings:
         raw["synthesis_fields"][0][key] = value
         with pytest.raises(SchemaValidationError, match=message):
             ExtractionSchemaConfig.from_dict(raw)
+
+
+class TestGraphSettings:
+    @pytest.mark.parametrize(
+        "key, value, message",
+        [
+            ("graph_role", "edge", "Unknown graph_role"),
+            ("graph_label", "method", "graph_label"),
+            ("graph_label", "Method) DETACH DELETE (n", "graph_label"),
+            ("relationship_type", "uses-method", "relationship type"),
+            ("graph_key_property", "Name", "graph_key_property"),
+        ],
+    )
+    def test_unsafe_graph_settings_rejected(self, key, value, message):
+        raw = minimal_schema_dict()
+        raw["synthesis_fields"][0][key] = value
+        with pytest.raises(SchemaValidationError, match=message):
+            ExtractionSchemaConfig.from_dict(raw)
+
+    def test_derived_label_and_relationship(self):
+        raw = minimal_schema_dict()
+        raw["synthesis_fields"].append(
+            {"name": "sintering_atmosphere", "type": "str", "graph_role": "node_cluster"}
+        )
+        field = ExtractionSchemaConfig.from_dict(raw).synthesis_fields[-1]
+        assert field.graph_label == "SinteringAtmosphere"
+        assert field.relationship_type == "USES_SINTERING_ATMOSPHERE"
+
+    def test_graph_role_only_on_leaves(self):
+        raw = minimal_schema_dict()
+        raw["composition_fields"][0]["graph_role"] = "node_cluster"
+        with pytest.raises(SchemaValidationError, match="leaf fields only"):
+            ExtractionSchemaConfig.from_dict(raw)
+
+    def test_joined_node_requires_list(self):
+        raw = minimal_schema_dict()
+        raw["synthesis_fields"][0]["graph_role"] = "joined_node"
+        with pytest.raises(SchemaValidationError, match="requires a list type"):
+            ExtractionSchemaConfig.from_dict(raw)
+
+    def test_edge_sources_validated(self):
+        raw = minimal_schema_dict()
+        raw["composition_fields"][1].update(
+            {"graph_role": "node_cluster", "graph_edge_sources": {"journal": "IN_JOURNAL"}}
+        )
+        with pytest.raises(SchemaValidationError, match="graph_edge_sources"):
+            ExtractionSchemaConfig.from_dict(raw)

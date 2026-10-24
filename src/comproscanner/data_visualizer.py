@@ -590,6 +590,7 @@ def create_knowledge_graph(
     precursor_clustering_similarity_threshold: float = 0.9,
     technique_clustering_similarity_threshold: float = 0.8,
     keyword_clustering_similarity_threshold: float = 0.85,
+    schema_config_path: Optional[str] = None,
 ) -> None:
     """
     Create a knowledge graph from extracted composition-property data directly in Neo4j database.
@@ -602,6 +603,7 @@ def create_knowledge_graph(
         precursor_clustering_similarity_threshold (float, optional): Similarity threshold for precursor clustering (Default: 0.9)
         technique_clustering_similarity_threshold (float, optional): Similarity threshold for technique clustering (Default: 0.8)
         keyword_clustering_similarity_threshold (float, optional): Similarity threshold for keyword clustering (Default: 0.85)
+        schema_config_path (str, optional): Path to the extraction schema YAML file the data was extracted with; it decides how fields map to nodes and relationships (Default: None, bundled default schema)
 
     Returns:
         None: Knowledge graph is created directly in Neo4j database.
@@ -618,7 +620,7 @@ def create_knowledge_graph(
         )
 
     try:
-        with CreateKG() as create_kg:
+        with CreateKG(schema_config_path=schema_config_path) as create_kg:
             return create_kg.create_knowledge_graph(
                 result_file=result_file,
                 is_semantic_clustering_enabled=is_semantic_clustering_enabled,

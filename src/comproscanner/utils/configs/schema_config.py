@@ -34,6 +34,11 @@ DEFAULT_SIMILARITY_THRESHOLDS = {
     "keyed_values": 0.9,
 }
 PLOT_KINDS = {"categorical_distribution", "numeric_distribution", "none"}
+GRAPH_ROLES = {"node_property", "node_cluster", "joined_node", "skip"}
+GRAPH_EDGE_SOURCES = {"paper", "composition"}
+# Safe Neo4j labels and relationship types (interpolated into Cypher)
+_SAFE_LABEL = re.compile(r"^[A-Z][A-Za-z0-9]*$")
+_SAFE_RELATIONSHIP = re.compile(r"^[A-Z][A-Z0-9_]*$")
 
 
 class SchemaValidationError(ValueError):
@@ -118,6 +123,14 @@ class SchemaField:
         similarity_threshold_mode (str, optional): "relative" or "absolute" tolerance for numeric fields (default: "relative").
         plot_kind (str, optional): "categorical_distribution", "numeric_distribution" or "none" (default: "none").
         evaluation_note (str, optional): Field-specific judging rule for the agentic evaluator.
+        graph_role (str, optional): Knowledge-graph role of a leaf: "node_property", "node_cluster", "joined_node" or "skip" (default: "node_property").
+        graph_label (str, optional): Neo4j label of the field's nodes (default: field name in CamelCase).
+        relationship_type (str, optional): Relationship from the parent node (default: derived from the field name).
+        graph_edge_sources (dict, optional): For a composition-domain cluster, relationship type per source node ("paper", "composition").
+        graph_key_property (str, optional): Property holding a keyed entry's key (default: "key").
+        graph_value_property (str, optional): Property holding a keyed entry's scalar value (default: "value").
+        graph_default (Any, optional): Graph value used when the field is missing or empty (default: None, not added).
+        cluster_similarity_threshold (float, optional): Semantic clustering threshold for node_cluster values (default: 0.85).
     """
 
     name: str
@@ -138,6 +151,14 @@ class SchemaField:
     similarity_threshold_mode: str = "relative"
     plot_kind: str = "none"
     evaluation_note: Optional[str] = None
+    graph_role: str = "node_property"
+    graph_label: Optional[str] = None
+    relationship_type: Optional[str] = None
+    graph_edge_sources: Optional[Dict[str, str]] = None
+    graph_key_property: str = "key"
+    graph_value_property: str = "value"
+    graph_default: Any = None
+    cluster_similarity_threshold: float = 0.85
     parsed_type: ParsedType = field(init=False, repr=False)
     effective_weight: float = field(init=False, default=0.0)
 
@@ -163,6 +184,45 @@ class SchemaField:
             )
         if self.weight is not None and not 0 <= self.weight <= 1:
             raise SchemaValidationError(f"weight must be between 0 and 1, got {self.weight}")
+        self._validate_graph_settings()
+
+    def _validate_graph_settings(self):
+        if self.graph_role not in GRAPH_ROLES:
+            raise SchemaValidationError(
+                f"Unknown graph_role '{self.graph_role}'; supported: {sorted(GRAPH_ROLES)}"
+            )
+        if self.graph_label is None:
+            self.graph_label = "".join(part.capitalize() for part in self.name.split("_"))
+        if not _SAFE_LABEL.match(self.graph_label):
+            raise SchemaValidationError(
+                f"graph_label '{self.graph_label}' must match {_SAFE_LABEL.pattern}"
+            )
+        if self.relationship_type is None:
+            prefix = "USES" if self.graph_role == "node_cluster" else "HAS"
+            self.relationship_type = f"{prefix}_{self.name.upper()}"
+        relationship_types = [self.relationship_type] + list(
+            (self.graph_edge_sources or {}).values()
+        )
+        for relationship_type in relationship_types:
+            if not _SAFE_RELATIONSHIP.match(str(relationship_type)):
+                raise SchemaValidationError(
+                    f"relationship type '{relationship_type}' must match {_SAFE_RELATIONSHIP.pattern}"
+                )
+        if self.graph_edge_sources is not None:
+            unknown = set(self.graph_edge_sources) - GRAPH_EDGE_SOURCES
+            if unknown or not self.graph_edge_sources:
+                raise SchemaValidationError(
+                    f"graph_edge_sources keys must be among {sorted(GRAPH_EDGE_SOURCES)}"
+                )
+            if self.graph_role != "node_cluster":
+                raise SchemaValidationError("graph_edge_sources requires graph_role 'node_cluster'")
+        for attr in ("graph_key_property", "graph_value_property"):
+            if not _SAFE_NAME.match(str(getattr(self, attr))):
+                raise SchemaValidationError(
+                    f"{attr} '{getattr(self, attr)}' must match {_SAFE_NAME.pattern}"
+                )
+        if self.graph_role == "joined_node" and self.parsed_type.kind != "list":
+            raise SchemaValidationError("graph_role 'joined_node' requires a list type")
 
     @property
     def is_object(self) -> bool:
@@ -237,6 +297,14 @@ _FIELD_KEYS = {
     "similarity_threshold_mode",
     "plot_kind",
     "evaluation_note",
+    "graph_role",
+    "graph_label",
+    "relationship_type",
+    "graph_edge_sources",
+    "graph_key_property",
+    "graph_value_property",
+    "graph_default",
+    "cluster_similarity_threshold",
 }
 
 
@@ -281,6 +349,10 @@ def _parse_fields(raw_fields: Any, location: str) -> List[SchemaField]:
         if schema_field.value_fields and not needs_value_fields:
             raise SchemaValidationError(
                 f"{where} ('{name}') declares value_fields, which require type 'object' or 'dict[str, object]'"
+            )
+        if (needs_value_fields or schema_field.parsed_type.kind == "dict") and schema_field.graph_role != "node_property":
+            raise SchemaValidationError(
+                f"{where} ('{name}'): graph_role applies to leaf fields only; nested and keyed fields are always nodes"
             )
         if schema_field.parsed_type.contains("object") and not needs_value_fields:
             raise SchemaValidationError(

@@ -6,10 +6,10 @@ The planned and executed details (decisions, deviations, verification) are also 
 
 Decision (user): nested values become nodes following the JSON structure, to any depth; block nodes are owned by their parent. Design and verification plan in `DYNAMIC_SCHEMA_PLAN.md` ("Phase 3").
 
-- [ ] 1. Graph attributes on `SchemaField` (+ label / relationship-type validation); default schema reproduces today's labels, relationships, fallbacks and thresholds
-- [ ] 2. Generic clustering for `node_cluster` fields (legacy threshold parameters keep precedence)
-- [ ] 3. Recursive schema-driven graph writer replacing `create_paper_with_compositions`'s per-field Cypher
-- [ ] 4. Regression: old vs new graph in a throwaway Neo4j (or mocked-driver fallback)
+- [x] 1. Graph attributes on `SchemaField` (+ label / relationship-type validation); default schema reproduces today's labels, relationships, fallbacks and thresholds
+- [x] 2. Generic clustering for `node_cluster` fields (legacy threshold parameters keep precedence)
+- [x] 3. Recursive schema-driven graph writer replacing `create_paper_with_compositions`'s per-field Cypher
+- [x] 4. Regression: old vs new graph in a throwaway Neo4j (or mocked-driver fallback)
 - [ ] 5. Tests for nested / custom schemas; update `DYNAMIC_SCHEMA_PLAN.md`; review
 
 # Phase 2 — evaluation and visualization

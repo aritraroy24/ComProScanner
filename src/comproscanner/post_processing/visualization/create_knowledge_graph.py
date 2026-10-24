@@ -36,6 +36,7 @@ except ImportError:
 
 # Import utility functions
 try:
+    from ...utils.configs.schema_config import load_schema_config
     from ...utils.logger import setup_logger
     from ...utils.get_paper_data import PaperMetadataExtractor
     from ...utils.error_handler import ValueErrorHandler
@@ -302,15 +303,33 @@ class SemanticMatcher:
 
 
 class CreateKG:
-    def __init__(self):
-        """Initialize Neo4j connection using environment variables"""
+    def __init__(self, schema_config_path=None):
+        """
+        Initialize Neo4j connection using environment variables
+
+        Args:
+            schema_config_path (str | Path, optional): Path to the extraction schema YAML file. Defaults to None (bundled default schema).
+        """
         self.driver = None
         self.semantic_matcher = None
-        self.method_clusters = {}
-        self.technique_clusters = {}
+        self.schema_config = load_schema_config(schema_config_path)
+        self.field_clusters = {}
         self.keyword_clusters = {}
-        self.family_clusters = {}
-        self.precursor_clusters = {}
+
+        # Schema fields by (domain, path of field names)
+        self._field_by_path = {}
+
+        def index(domain, fields, path):
+            for field in fields:
+                self._field_by_path[(domain, path + (field.name,))] = field
+                if field.value_fields:
+                    index(domain, field.value_fields, path + (field.name,))
+
+        for domain in ("composition", "synthesis"):
+            index(domain, self.schema_config.fields(domain, final_only=True), ())
+        self._primary_field = self._field_by_path[
+            ("composition", (self.schema_config.primary_composition_field,))
+        ]
 
         try:
             uri = os.getenv("NEO4J_URI")
@@ -370,120 +389,106 @@ class CreateKG:
             return item
         return self.semantic_matcher.get_canonical_name(item, clusters)
 
-    def build_family_clusters(self, results, similarity_threshold):
+    def _cluster_fields(self):
+        """Yield (domain, path, field) for every node_cluster leaf of the schema."""
+
+        def walk(fields, path):
+            for field in fields:
+                if field.value_fields:
+                    yield from walk(field.value_fields, path + (field,))
+                elif field.graph_role == "node_cluster":
+                    yield path + (field,)
+
+        for domain in ("composition", "synthesis"):
+            for path in walk(self.schema_config.fields(domain, final_only=True), ()):
+                yield domain, tuple(f.name for f in path), path
+
+    def _cluster_values(self, results, domain, path):
         """
-        Build clusters of semantically similar material families
+        Collect the values of a node_cluster leaf across all papers for clustering.
 
         Args:
             results (dict): Dictionary containing results data
-            similarity_threshold (float): Minimum similarity to consider two families as similar
+            domain (str): "composition" or "synthesis"
+            path (tuple): Schema fields from the top-level field down to the leaf
 
         Returns:
-            dict: Dictionary mapping canonical families to similar families
+            list: Values to cluster
         """
-        # Extract all families from results
-        all_families = []
+        leaf = path[-1]
+        sentinel = (
+            leaf.graph_default.strip().lower()
+            if isinstance(leaf.graph_default, str)
+            else None
+        )
+        values = []
         for _, paper_data in results.items():
-            if (
-                "composition_data" in paper_data
-                and "family" in paper_data["composition_data"]
-            ):
-                family = paper_data["composition_data"]["family"]
-                if family and family.strip().lower() != "unknown_family":
-                    all_families.append(family)
+            section = paper_data.get(f"{domain}_data") or {}
+            candidates = [section]
+            for field in path:
+                next_candidates = []
+                for candidate in candidates:
+                    if not isinstance(candidate, dict) or field.name not in candidate:
+                        continue
+                    value = candidate[field.name]
+                    # Keyed fields hold one value per entry
+                    if field is not leaf and field.parsed_type.kind == "dict":
+                        next_candidates.extend((value or {}).values())
+                    else:
+                        next_candidates.append(value)
+                candidates = next_candidates
+            for value in candidates:
+                if isinstance(value, list):
+                    if value:
+                        values.extend(value)
+                elif value and not (
+                    sentinel and isinstance(value, str) and value.strip().lower() == sentinel
+                ):
+                    values.append(value)
+        return values
 
-        # Cluster families
-        family_clusters = self.semantic_matcher.cluster_items(
-            all_families, similarity_threshold
+    def build_field_clusters(self, results, domain, path, similarity_threshold):
+        """
+        Build clusters of semantically similar values of a node_cluster field
+
+        Args:
+            results (dict): Dictionary containing results data
+            domain (str): "composition" or "synthesis"
+            path (tuple): Schema fields from the top-level field down to the leaf
+            similarity_threshold (float): Minimum similarity to consider two values as similar
+
+        Returns:
+            dict: Dictionary mapping canonical values to similar values
+        """
+        return self.semantic_matcher.cluster_items(
+            self._cluster_values(results, domain, path), similarity_threshold
         )
 
-        return family_clusters
+    def _top_level_cluster_path(self, name):
+        for domain, names, path in self._cluster_fields():
+            if names == (name,):
+                return domain, path
+        return None
+
+    def build_family_clusters(self, results, similarity_threshold):
+        """Build clusters of semantically similar material families"""
+        domain, path = self._top_level_cluster_path("family")
+        return self.build_field_clusters(results, domain, path, similarity_threshold)
 
     def build_precursor_clusters(self, results, similarity_threshold):
-        """
-        Build clusters of semantically similar precursors
-
-        Args:
-            results (dict): Dictionary containing results data
-            similarity_threshold (float): Minimum similarity to consider two precursors as similar
-
-        Returns:
-            dict: Dictionary mapping canonical precursors to similar precursors
-        """
-        # Extract all precursors from results
-        all_precursors = []
-        for _, paper_data in results.items():
-            if (
-                "synthesis_data" in paper_data
-                and "precursors" in paper_data["synthesis_data"]
-            ):
-                precursors = paper_data["synthesis_data"]["precursors"]
-                if precursors:
-                    all_precursors.extend(precursors)
-
-        # Cluster precursors
-        precursor_clusters = self.semantic_matcher.cluster_items(
-            all_precursors, similarity_threshold
-        )
-
-        return precursor_clusters
+        """Build clusters of semantically similar precursors"""
+        domain, path = self._top_level_cluster_path("precursors")
+        return self.build_field_clusters(results, domain, path, similarity_threshold)
 
     def build_method_clusters(self, results, similarity_threshold):
-        """
-        Build clusters of semantically similar synthesis methods
-
-        Args:
-            results (dict): Dictionary containing results data
-
-        Returns:
-            dict: Dictionary mapping canonical methods to similar methods
-        """
-        # Extract all methods from results
-        all_methods = []
-        for _, paper_data in results.items():
-            if (
-                "synthesis_data" in paper_data
-                and "method" in paper_data["synthesis_data"]
-            ):
-                method = paper_data["synthesis_data"]["method"]
-                if method and method.strip().lower() != "unknown_method":
-                    all_methods.append(method)
-
-        # Cluster methods
-        method_clusters = self.semantic_matcher.cluster_items(
-            all_methods, similarity_threshold
-        )
-
-        return method_clusters
+        """Build clusters of semantically similar synthesis methods"""
+        domain, path = self._top_level_cluster_path("method")
+        return self.build_field_clusters(results, domain, path, similarity_threshold)
 
     def build_technique_clusters(self, results, similarity_threshold):
-        """
-        Build clusters of semantically similar characterization techniques
-
-        Args:
-            results (dict): Dictionary containing results data
-            similarity_threshold (float): Minimum similarity to consider two techniques as similar
-
-        Returns:
-            dict: Dictionary mapping canonical techniques to similar techniques
-        """
-        # Extract all techniques from results
-        all_techniques = []
-        for _, paper_data in results.items():
-            if (
-                "synthesis_data" in paper_data
-                and "characterization_techniques" in paper_data["synthesis_data"]
-            ):
-                techniques = paper_data["synthesis_data"]["characterization_techniques"]
-                if techniques:
-                    all_techniques.extend(techniques)
-
-        # Cluster techniques
-        technique_clusters = self.semantic_matcher.cluster_items(
-            all_techniques, similarity_threshold
-        )
-
-        return technique_clusters
+        """Build clusters of semantically similar characterization techniques"""
+        domain, path = self._top_level_cluster_path("characterization_techniques")
+        return self.build_field_clusters(results, domain, path, similarity_threshold)
 
     def build_keyword_clusters(self, results, similarity_threshold):
         """
@@ -514,6 +519,121 @@ class CreateKG:
 
         return keyword_clusters
 
+    def _write_field(self, tx, domain, path, parent_ids, value, relationship_type=None):
+        """
+        Write one schema field's value under its parent nodes, recursing into nested values.
+
+        Args:
+            tx: Open Neo4j transaction
+            domain (str): "composition" or "synthesis"
+            path (tuple): Names of the fields from the top-level field down to this one
+            parent_ids (list): Element ids of the parent nodes
+            value: The field's value
+            relationship_type (str, optional): Overrides the field's relationship type
+        """
+        field = self._field_by_path[(domain, path)]
+        if not parent_ids:
+            return
+        relationship = relationship_type or field.relationship_type
+
+        # Nested object: one child node per parent
+        if field.value_fields and field.is_object:
+            if not isinstance(value, dict):
+                return
+            for parent_id in parent_ids:
+                child_id = tx.run(
+                    f"MATCH (n) WHERE elementId(n) = $parent_id "
+                    f"MERGE (n)-[:{relationship}]->(c:{field.graph_label}) "
+                    f"RETURN elementId(c) AS id",
+                    parent_id=parent_id,
+                ).single().get("id")
+                for sub_field in field.value_fields:
+                    self._write_field(
+                        tx, domain, path + (sub_field.name,), [child_id], value.get(sub_field.name)
+                    )
+            return
+
+        # Keyed field: one node per entry
+        if field.parsed_type.kind == "dict":
+            if not isinstance(value, dict) or not value:
+                return
+            for parent_id in parent_ids:
+                for key, entry in value.items():
+                    set_value = (
+                        ""
+                        if field.value_fields
+                        else f"SET c.{field.graph_value_property} = $entry "
+                    )
+                    entry_id = tx.run(
+                        f"MATCH (n) WHERE elementId(n) = $parent_id "
+                        f"MERGE (n)-[:{relationship}]->(c:{field.graph_label} {{{field.graph_key_property}: $key}}) "
+                        f"{set_value}RETURN elementId(c) AS id",
+                        parent_id=parent_id,
+                        key=key,
+                        entry=None if field.value_fields else entry,
+                    ).single().get("id")
+                    if field.value_fields:
+                        for sub_field in field.value_fields:
+                            sub_value = entry.get(sub_field.name) if isinstance(entry, dict) else None
+                            self._write_field(
+                                tx, domain, path + (sub_field.name,), [entry_id], sub_value
+                            )
+            return
+
+        if field.graph_role == "skip":
+            return
+
+        if field.graph_role == "node_property":
+            tx.run(
+                f"UNWIND $parent_ids AS parent_id "
+                f"MATCH (n) WHERE elementId(n) = parent_id "
+                f"SET n.{field.name} = $value",
+                parent_ids=parent_ids,
+                value=value,
+            )
+            return
+
+        if field.graph_role == "joined_node":
+            text = "\n".join(f"- {item}" for item in value or []) or field.graph_default
+            if not text:
+                return
+            tx.run(
+                f"MERGE (j:{field.graph_label} {{{field.graph_value_property}: $text}}) "
+                f"WITH j UNWIND $parent_ids AS parent_id "
+                f"MATCH (n) WHERE elementId(n) = parent_id "
+                f"MERGE (n)-[:{relationship}]->(j)",
+                parent_ids=parent_ids,
+                text=text,
+            )
+            return
+
+        # node_cluster: shared node per (canonical) value
+        if isinstance(value, list):
+            values = value
+        else:
+            values = [] if value is None else [value]
+        clusters = self.field_clusters.get((domain, path), {})
+        canonical_values = [self.get_canonical_name_safe(v, clusters) for v in values]
+        if not canonical_values:
+            return
+        tx.run(
+            f"UNWIND $values AS value "
+            f"MERGE (v:{field.graph_label} {{name: value}}) "
+            f"WITH v UNWIND $parent_ids AS parent_id "
+            f"MATCH (n) WHERE elementId(n) = parent_id "
+            f"MERGE (n)-[:{relationship}]->(v)",
+            parent_ids=parent_ids,
+            values=canonical_values,
+        )
+
+    def _section_value(self, section, field):
+        """A top-level field's value, falling back to its graph_default when missing."""
+        if field.name in section:
+            return section[field.name]
+        if field.graph_role == "node_cluster":
+            return field.graph_default
+        return None
+
     def create_paper_with_compositions(
         self,
         synthesis_data: Dict,
@@ -531,49 +651,10 @@ class CreateKG:
         Returns:
             bool: True if the operation was successful, False otherwise
         """
+        synthesis_data = synthesis_data or {}
+        composition_data = composition_data or {}
         try:
             with self.driver.session(database=self.database) as session:
-                # Get original family name and use semantic matcher to find canonical name
-                original_family_name = composition_data.get("family", "UNKNOWN_FAMILY")
-                family_name = self.get_canonical_name_safe(
-                    original_family_name, self.family_clusters
-                )
-
-                if original_family_name != family_name:
-                    logger.info(
-                        f"Mapped family '{original_family_name}' to canonical '{family_name}'"
-                    )
-
-                # Get original method name and use semantic matcher to find canonical name
-                original_method_name = synthesis_data.get("method", "UNKNOWN_METHOD")
-                method_name = self.get_canonical_name_safe(
-                    original_method_name, self.method_clusters
-                )
-
-                if original_method_name != method_name:
-                    logger.info(
-                        f"Mapped method '{original_method_name}' to canonical '{method_name}'"
-                    )
-
-                # Get original precursors and use semantic matcher to find canonical names
-                original_precursors = synthesis_data.get("precursors", [])
-                canonical_precursors = []
-
-                for precursor in original_precursors:
-                    canonical = self.get_canonical_name_safe(
-                        precursor, self.precursor_clusters
-                    )
-                    canonical_precursors.append(canonical)
-                    if canonical != precursor:
-                        logger.debug(
-                            f"Mapped precursor '{precursor}' to canonical '{canonical}'"
-                        )
-
-                synthesis_steps = (
-                    "\n".join(f"- {step}" for step in synthesis_data.get("steps", []))
-                    or "No steps available"
-                )
-
                 # Verify if paper already exists
                 check_query = "MATCH (p:Paper {doi: $doi}) RETURN p"
                 result = session.run(check_query, doi=paper_metadata.get("doi"))
@@ -584,22 +665,6 @@ class CreateKG:
                         f"Paper with DOI {paper_metadata.get('doi')} already exists in database. Skipping."
                     )
                     return True  # Consider it a success if it already exists
-
-                # Process characterization techniques to use canonical names
-                original_techniques = synthesis_data.get(
-                    "characterization_techniques", []
-                )
-                canonical_techniques = []
-
-                for technique in original_techniques:
-                    canonical = self.get_canonical_name_safe(
-                        technique, self.technique_clusters
-                    )
-                    canonical_techniques.append(canonical)
-                    if canonical != technique:
-                        logger.debug(
-                            f"Mapped technique '{technique}' to canonical '{canonical}'"
-                        )
 
                 # Process keywords to use canonical names
                 original_keywords = paper_metadata.get("keywords", [])
@@ -615,29 +680,11 @@ class CreateKG:
                             f"Mapped keyword '{keyword}' to canonical '{canonical}'"
                         )
 
-                # Update with canonical technique names
-                synthesis_data_modified = dict(synthesis_data)
-                synthesis_data_modified["characterization_techniques"] = (
-                    canonical_techniques
-                )
-
                 # Update with canonical keyword names
                 paper_metadata_modified = dict(paper_metadata)
                 paper_metadata_modified["keywords"] = canonical_keywords
-
                 params = {
-                    "synthesis_data": synthesis_data_modified or {},
-                    "composition_data": composition_data or {},
                     "paper_metadata": paper_metadata_modified,
-                    "synthesis_steps": synthesis_steps,
-                    "family_name": family_name,
-                    "method_name": method_name,
-                    "compositions": composition_data.get(
-                        "compositions_property_values", {}
-                    ),
-                    "property_unit": composition_data.get("property_unit"),
-                    "precursors": canonical_precursors,
-                    "characterization_techniques": canonical_techniques,
                     "keywords": canonical_keywords,
                 }
 
@@ -645,28 +692,13 @@ class CreateKG:
                 tx = session.begin_transaction()
                 try:
                     main_query = """
-                    // Create or find family node with unique name
-                    MERGE (f:Family {name: $family_name})
-                    
                     // Create or find paper node based on unique DOI
                     MERGE (p:Paper {doi: $paper_metadata.doi})
                     SET p.title = $paper_metadata.title,
                         p.journal = $paper_metadata.journal,
                         p.year = $paper_metadata.year,
                         p.isOpenAccess = $paper_metadata.isOpenAccess
-                    
-                    // Create or find method node based on unique name
-                    MERGE (m:Method {name: $method_name})
-                    MERGE (p)-[:USES_METHOD]->(m)
-                    
-                    // Create or find step node based on unique steps
-                    MERGE (st:Step {steps: $synthesis_steps})
-                    MERGE (p)-[:USED_SYNTHESIS_STEPS]->(st)
-                    
-                    // Create relationships between paper and family
-                    MERGE (p)-[:BELONGS_TO_FAMILY]->(f)
-                    
-                    RETURN p
+                    RETURN elementId(p) AS id
                     """
 
                     result = tx.run(main_query, **params)
@@ -678,75 +710,98 @@ class CreateKG:
                         )
                         tx.rollback()
                         return False
+                    paper_id = paper_node.get("id")
 
                     if paper_metadata.get("authors"):
                         authors_query = """
                         MATCH (p:Paper {doi: $paper_metadata.doi})
-                        
+
                         WITH p
                         UNWIND $paper_metadata.authors as author
                         MERGE (a:Author {name: author.name})
                         SET a.affiliation_id = author.affiliation_id
-                        
+
                         MERGE (aff:Affiliation {affiliation_id: author.affiliation_id})
                         SET aff.name = author.affiliation_name,
                             aff.country = author.affiliation_country
-                        
+
                         MERGE (a)-[:AFFILIATED_WITH]->(aff)
                         MERGE (a)-[:WROTE]->(p)
                         """
 
                         tx.run(authors_query, **params)
 
-                    # Handle compositions separately
-                    if composition_data.get("compositions_property_values"):
-                        compositions_query = """
-                        MATCH (p:Paper {doi: $paper_metadata.doi})
-                        MATCH (f:Family {name: $family_name})
-                        
-                        WITH p, f
+                    # Synthesis fields hang off the paper
+                    for field in self.schema_config.fields("synthesis", final_only=True):
+                        self._write_field(
+                            tx,
+                            "synthesis",
+                            (field.name,),
+                            [paper_id],
+                            self._section_value(synthesis_data, field),
+                        )
+
+                    # Composition nodes from the primary composition field, scoped to this paper
+                    primary = self._primary_field
+                    composition_ids = []
+                    entries = composition_data.get(primary.name)
+                    if isinstance(entries, dict) and entries:
+                        set_value = (
+                            ""
+                            if primary.value_fields
+                            else f"SET c.{primary.graph_value_property} = $compositions[comp_name]\n"
+                        )
+                        compositions_query = f"""
+                        MATCH (p:Paper {{doi: $paper_metadata.doi}})
+
+                        WITH p
                         UNWIND keys($compositions) as comp_name
                         // Create or find composition node scoped to this paper
-                        MERGE (c:Composition {composition: comp_name, doi: $paper_metadata.doi})
-                        SET c.property_value = $compositions[comp_name],
-                            c.property_unit = $property_unit
-                        MERGE (c)-[:BELONGS_TO]->(f)
-                        MERGE (p)-[:MENTIONS]->(c)
+                        MERGE (c:{primary.graph_label} {{{primary.graph_key_property}: comp_name, doi: $paper_metadata.doi}})
+                        {set_value}MERGE (p)-[:{primary.relationship_type}]->(c)
+                        RETURN comp_name, elementId(c) AS id
                         """
+                        records = tx.run(
+                            compositions_query,
+                            compositions=entries if not primary.value_fields else {k: None for k in entries},
+                            **params,
+                        ).data()
+                        entry_ids = {record["comp_name"]: record["id"] for record in records}
+                        composition_ids = list(entry_ids.values())
+                        if primary.value_fields:
+                            for comp_name, entry_id in entry_ids.items():
+                                entry = entries.get(comp_name)
+                                for sub_field in primary.value_fields:
+                                    sub_value = entry.get(sub_field.name) if isinstance(entry, dict) else None
+                                    self._write_field(
+                                        tx,
+                                        "composition",
+                                        (primary.name, sub_field.name),
+                                        [entry_id],
+                                        sub_value,
+                                    )
 
-                        tx.run(compositions_query, **params)
-
-                    # Handle precursors separately
-                    if synthesis_data.get("precursors"):
-                        precursors_query = """
-                        MATCH (p:Paper {doi: $paper_metadata.doi})
-                        
-                        WITH p
-                        UNWIND $precursors as precursor_name
-                        MERGE (pre:Precursor {name: precursor_name})
-                        MERGE (p)-[:USED_PRECURSOR]->(pre)
-                        """
-
-                        tx.run(precursors_query, **params)
-
-                    # Handle characterization techniques separately
-                    if canonical_techniques:
-                        techniques_query = """
-                        MATCH (p:Paper {doi: $paper_metadata.doi})
-                        
-                        WITH p
-                        UNWIND $characterization_techniques as technique_name
-                        MERGE (char:CharacterizationTechnique {name: technique_name})
-                        MERGE (p)-[:USED_CHARACTERIZATION_TECHNIQUE]->(char)
-                        """
-
-                        tx.run(techniques_query, **params)
+                    # Other composition fields hang off each composition (and the paper if configured)
+                    for field in self.schema_config.fields("composition", final_only=True):
+                        if field.name == primary.name:
+                            continue
+                        value = self._section_value(composition_data, field)
+                        if field.graph_edge_sources:
+                            for source, relationship_type in field.graph_edge_sources.items():
+                                parent_ids = [paper_id] if source == "paper" else composition_ids
+                                self._write_field(
+                                    tx, "composition", (field.name,), parent_ids, value, relationship_type
+                                )
+                        else:
+                            self._write_field(
+                                tx, "composition", (field.name,), composition_ids, value
+                            )
 
                     # Handle keywords separately
                     if canonical_keywords:
                         keywords_query = """
                         MATCH (p:Paper {doi: $paper_metadata.doi})
-                        
+
                         WITH p
                         UNWIND $keywords as keyword_name
                         MERGE (k:Keyword {name: keyword_name})
@@ -864,23 +919,24 @@ class CreateKG:
                 # Initialize the semantic matcher
                 self._initialize_semantic_matcher()
 
-                self.method_clusters = self.build_method_clusters(
-                    results, similarity_threshold=method_clustering_similarity_threshold
-                )
-                self.technique_clusters = self.build_technique_clusters(
-                    results,
-                    similarity_threshold=technique_clustering_similarity_threshold,
-                )
+                # Legacy threshold parameters take precedence for their fields
+                legacy_thresholds = {
+                    "family": family_clustering_similarity_threshold,
+                    "method": method_clustering_similarity_threshold,
+                    "precursors": precursor_clustering_similarity_threshold,
+                    "characterization_techniques": technique_clustering_similarity_threshold,
+                }
+                self.field_clusters = {}
+                for domain, names, path in self._cluster_fields():
+                    threshold = path[-1].cluster_similarity_threshold
+                    if len(names) == 1 and names[0] in legacy_thresholds:
+                        threshold = legacy_thresholds[names[0]]
+                    self.field_clusters[(domain, names)] = self.build_field_clusters(
+                        results, domain, path, threshold
+                    )
                 self.keyword_clusters = self.build_keyword_clusters(
                     results,
                     similarity_threshold=keyword_clustering_similarity_threshold,
-                )
-                self.family_clusters = self.build_family_clusters(
-                    results, similarity_threshold=family_clustering_similarity_threshold
-                )
-                self.precursor_clusters = self.build_precursor_clusters(
-                    results,
-                    similarity_threshold=precursor_clustering_similarity_threshold,
                 )
                 logger.debug("Semantic clustering completed.")
             else:
@@ -888,11 +944,8 @@ class CreateKG:
                     "Skipping semantic clustering (is_semantic_clustering_enabled=False)"
                 )
                 # Initialize empty clusters - items will be used as-is
-                self.method_clusters = {}
-                self.technique_clusters = {}
+                self.field_clusters = {}
                 self.keyword_clusters = {}
-                self.family_clusters = {}
-                self.precursor_clusters = {}
 
             # Initialize the paper metadata extractor
             paper_metadata_extractor = PaperMetadataExtractor()
@@ -961,38 +1014,16 @@ class CreateKG:
                 db_paper_count = result.single()["paper_count"]
                 logger.info(f"  Total papers in database: {db_paper_count}")
 
-                # Count unique families after semantic clustering
-                result = session.run("MATCH (f:Family) RETURN count(f) as family_count")
-                family_count = result.single()["family_count"]
-                logger.info(f"  Total unique families in database: {family_count}")
-
-                # Count unique methods after semantic clustering
-                result = session.run("MATCH (m:Method) RETURN count(m) as method_count")
-                method_count = result.single()["method_count"]
-                logger.info(f"  Total unique methods in database: {method_count}")
-
-                # Count unique precursors after semantic clustering
-                result = session.run(
-                    "MATCH (pre:Precursor) RETURN count(pre) as precursor_count"
-                )
-                precursor_count = result.single()["precursor_count"]
-                logger.info(f"  Total unique precursors in database: {precursor_count}")
-
-                # Count unique characterization techniques after semantic clustering
-                result = session.run(
-                    "MATCH (c:CharacterizationTechnique) RETURN count(c) as technique_count"
-                )
-                technique_count = result.single()["technique_count"]
-                logger.info(
-                    f"  Total unique characterization techniques in database: {technique_count}"
-                )
-
-                # Count unique keywords after semantic clustering
-                result = session.run(
-                    "MATCH (k:Keyword) RETURN count(k) as keyword_count"
-                )
-                keyword_count = result.single()["keyword_count"]
-                logger.info(f"  Total unique keywords in database: {keyword_count}")
+                # Count unique clustered nodes per label
+                cluster_labels = []
+                for _, _, path in self._cluster_fields():
+                    if path[-1].graph_label not in cluster_labels:
+                        cluster_labels.append(path[-1].graph_label)
+                for label in cluster_labels + ["Keyword"]:
+                    result = session.run(f"MATCH (n:{label}) RETURN count(n) as count")
+                    logger.info(
+                        f"  Total unique {label} nodes in database: {result.single()['count']}"
+                    )
 
             if db_paper_count != success_count:
                 logger.warning(

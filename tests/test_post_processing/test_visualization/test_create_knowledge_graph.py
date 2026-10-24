@@ -482,3 +482,173 @@ class TestCompositionNodeDoiScoping:
         call = self._compositions_query_call(mock_tx)
         assert call is not None
         assert call.kwargs["paper_metadata"]["doi"] == "10.1000/test2"
+
+
+NESTED_SCHEMA_YAML = """
+version: "1.0"
+composition_fields:
+  - name: compositions_property_values
+    type: "dict[str, object]"
+    graph_label: Composition
+    relationship_type: MENTIONS
+    graph_key_property: composition
+    value_fields:
+      - name: grain
+        type: object
+        value_fields:
+          - {name: unit, type: str}
+          - name: measurements
+            type: "dict[str, object]"
+            graph_key_property: technique
+            value_fields:
+              - {name: mean, type: "float|None"}
+      - {name: family, type: str, graph_role: node_cluster, graph_label: Family, relationship_type: BELONGS_TO}
+synthesis_fields:
+  - {name: method, type: str, graph_role: node_cluster, graph_label: Method}
+  - {name: notes, type: str, graph_role: skip}
+"""
+
+
+class FakeRecord(dict):
+    """Neo4j record stand-in supporting both item access and .get"""
+
+
+class FakeResult:
+    def __init__(self, record=None, records=None):
+        self._record = record
+        self._records = records or []
+
+    def single(self):
+        return self._record
+
+    def data(self):
+        return self._records
+
+
+class FakeTransaction:
+    """Records every query and hands out sequential element ids"""
+
+    def __init__(self):
+        self.calls = []
+        self._next_id = 0
+
+    def _new_id(self):
+        self._next_id += 1
+        return f"id{self._next_id}"
+
+    def run(self, query, **params):
+        self.calls.append((query, params))
+        if "UNWIND keys($compositions)" in query:
+            return FakeResult(
+                records=[{"comp_name": key, "id": self._new_id()} for key in params["compositions"]]
+            )
+        return FakeResult(record=FakeRecord(id=self._new_id()))
+
+    def commit(self):
+        pass
+
+    def rollback(self):
+        pass
+
+    def closed(self):
+        return False
+
+
+class TestSchemaDrivenGraph:
+    """Test graph writes driven by a nested custom schema"""
+
+    @pytest.fixture
+    def kg_and_tx(self, tmp_path):
+        schema_path = tmp_path / "schema.yaml"
+        schema_path.write_text(NESTED_SCHEMA_YAML, encoding="utf-8")
+        env = {
+            "NEO4J_URI": "bolt://localhost:7687",
+            "NEO4J_USER": "neo4j",
+            "NEO4J_PASSWORD": "password",
+        }
+        with (
+            patch.dict(os.environ, env),
+            patch(
+                "comproscanner.post_processing.visualization.create_knowledge_graph.GraphDatabase"
+            ) as mock_graph_db,
+        ):
+            from comproscanner.post_processing.visualization.create_knowledge_graph import (
+                CreateKG,
+            )
+
+            tx = FakeTransaction()
+            mock_session = Mock()
+            mock_session.run.return_value.single.side_effect = [None, Mock()]
+            mock_session.begin_transaction.return_value = tx
+            mock_driver = Mock()
+            mock_driver.session.return_value = MagicMock()
+            mock_driver.session.return_value.__enter__.return_value = mock_session
+            mock_graph_db.driver.return_value = mock_driver
+            yield CreateKG(schema_config_path=schema_path), tx
+
+    def write(self, kg):
+        composition_data = {
+            "compositions_property_values": {
+                "BaTiO3": {
+                    "grain": {"unit": "um", "measurements": {"SEM": {"mean": 3.1}}},
+                    "family": "BT",
+                },
+                "KNbO3": {"family": "KN"},
+            }
+        }
+        synthesis_data = {"method": "sol-gel", "notes": "ignored"}
+        paper_metadata = {"doi": "10.1/x", "title": "T", "authors": [], "keywords": []}
+        return kg.create_paper_with_compositions(synthesis_data, composition_data, paper_metadata)
+
+    def queries(self, tx, fragment):
+        return [(q, p) for q, p in tx.calls if fragment in q]
+
+    def test_nested_values_follow_json_structure(self, kg_and_tx):
+        kg, tx = kg_and_tx
+        assert self.write(kg) is True
+        # Object block: one child node per composition, owned by its parent
+        grain = self.queries(tx, "MERGE (n)-[:HAS_GRAIN]->(c:Grain)")
+        assert len(grain) == 1
+        # Keyed dictionary inside the block: one node per entry
+        measurements = self.queries(tx, "MERGE (n)-[:HAS_MEASUREMENTS]->(c:Measurements {technique: $key})")
+        assert [p["key"] for _, p in measurements] == ["SEM"]
+        # Leaves become properties of their own parent node
+        assert {p["value"] for _, p in self.queries(tx, "SET n.mean = $value")} == {3.1}
+        assert {p["value"] for _, p in self.queries(tx, "SET n.unit = $value")} == {"um"}
+
+    def test_nested_cluster_links_each_composition(self, kg_and_tx):
+        kg, tx = kg_and_tx
+        self.write(kg)
+        families = self.queries(tx, "MERGE (v:Family {name: value})")
+        assert sorted(p["values"][0] for _, p in families) == ["BT", "KN"]
+        assert all("MERGE (n)-[:BELONGS_TO]->(v)" in q for q, _ in families)
+
+    def test_synthesis_fields_hang_off_paper_and_skip_is_respected(self, kg_and_tx):
+        kg, tx = kg_and_tx
+        self.write(kg)
+        method = self.queries(tx, "MERGE (v:Method {name: value})")
+        assert method and method[0][1]["values"] == ["sol-gel"]
+        assert "MERGE (n)-[:USES_METHOD]->(v)" in method[0][0]
+        assert not self.queries(tx, "notes")
+
+
+class TestDefaultSchemaGraphSettings:
+    """The default schema reproduces the legacy graph vocabulary"""
+
+    def test_legacy_labels_and_relationships(self):
+        from comproscanner.utils.configs.schema_config import DEFAULT_SCHEMA_CONFIG
+
+        fields = {
+            f.name: f
+            for domain in ("composition", "synthesis")
+            for f in DEFAULT_SCHEMA_CONFIG.fields(domain, final_only=True)
+        }
+        primary = fields["compositions_property_values"]
+        assert (primary.graph_label, primary.relationship_type) == ("Composition", "MENTIONS")
+        assert (primary.graph_key_property, primary.graph_value_property) == ("composition", "property_value")
+        assert fields["family"].graph_edge_sources == {"paper": "BELONGS_TO_FAMILY", "composition": "BELONGS_TO"}
+        assert fields["family"].graph_default == "UNKNOWN_FAMILY"
+        assert (fields["method"].graph_label, fields["method"].graph_default) == ("Method", "UNKNOWN_METHOD")
+        assert (fields["precursors"].graph_label, fields["precursors"].relationship_type) == ("Precursor", "USED_PRECURSOR")
+        assert fields["characterization_techniques"].relationship_type == "USED_CHARACTERIZATION_TECHNIQUE"
+        assert (fields["steps"].graph_role, fields["steps"].graph_default) == ("joined_node", "No steps available")
