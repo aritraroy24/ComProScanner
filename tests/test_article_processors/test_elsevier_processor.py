@@ -23,6 +23,11 @@ from comproscanner.utils.error_handler import (
 from comproscanner.utils.configs import RAGConfig
 
 
+@pytest.fixture(autouse=True)
+def isolated_working_dir(tmp_path, monkeypatch):
+    """Run each test from a temporary folder so default results/ paths don't land in the repo"""
+    monkeypatch.chdir(tmp_path)
+
 @pytest.fixture
 def sample_xml_content():
     """Fixture to load sample XML content from a file"""
@@ -654,6 +659,8 @@ def test_load_preprocess_only_start_row(elsevier_processor, sample_df, monkeypat
 
 def test_csv_read_error_handling(elsevier_processor, sample_df, monkeypatch):
     """Test handling of CSV read errors."""
+    # The output folder is listed for real while os.path.exists is mocked
+    os.makedirs(os.path.join("results", "extracted_data", "piezoelectric"), exist_ok=True)
     read_csv_mock = MagicMock(side_effect=[sample_df, Exception("CSV read error")])
     monkeypatch.setattr(pd, "read_csv", read_csv_mock)
     monkeypatch.setattr(os.path, "exists", lambda path: True)

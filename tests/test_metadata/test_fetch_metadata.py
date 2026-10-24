@@ -138,6 +138,11 @@ SAMPLE_SCOPUS_RESPONSE = """<?xml version="1.0" encoding="UTF-8"?>
 </search-results>"""
 
 
+@pytest.fixture(autouse=True)
+def isolated_working_dir(tmp_path, monkeypatch):
+    """Run each test from a temporary folder so default results/ paths don't land in the repo"""
+    monkeypatch.chdir(tmp_path)
+
 @pytest.fixture
 def metadata_fetcher(monkeypatch, share_scopus_api_key):
     """Fixture to create a FetchMetadata instance with default test parameters"""
