@@ -10,7 +10,9 @@ Decision (user): nested values become nodes following the JSON structure, to any
 - [x] 2. Generic clustering for `node_cluster` fields (legacy threshold parameters keep precedence)
 - [x] 3. Recursive schema-driven graph writer replacing `create_paper_with_compositions`'s per-field Cypher
 - [x] 4. Regression: old vs new graph in a throwaway Neo4j (or mocked-driver fallback)
-- [ ] 5. Tests for nested / custom schemas; update `DYNAMIC_SCHEMA_PLAN.md`; review
+- [x] 5. Tests for nested / custom schemas; update `DYNAMIC_SCHEMA_PLAN.md`; review
+
+Review: c1fa32c. Old and new builders produce identical graphs in Neo4j for the ground truth (1870 nodes / 3625 relationships), a model output (2391 / 4186) and the clustered ground truth (1596 / 3451); a 4-level custom schema builds the expected structure. Full suite: 731 passed.
 
 # Phase 2 — evaluation and visualization
 
