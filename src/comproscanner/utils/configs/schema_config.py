@@ -1,9 +1,10 @@
 """
 schema_config.py
 
-Declarative extraction schema: which fields the composition and synthesis crews extract, their types, defaults and the prompt guidance shown to the LLM. The schema is defined in a YAML file (the bundled `default_extraction_schema.yaml` reproduces ComProScanner's historical output exactly), so a caller can change what gets extracted by pointing `schema_config_path` at their own YAML file without editing any Python source.
-
-A provided schema file replaces the default schema entirely, with one exception: if it does not declare an `abbreviations` field, the default one is attached automatically, since the format crew needs it to expand abbreviated compositions.
+Author: Aritra Roy
+Email: contact@aritraroy.live
+Website: https://aritraroy.live
+Date: 24-10-2026
 """
 
 import copy
@@ -18,7 +19,7 @@ DEFAULT_SCHEMA_PATH = Path(__file__).parent / "default_extraction_schema.yaml"
 SUPPORTED_SCHEMA_VERSIONS = {"1.0"}
 SCHEMA_DOMAINS = ("composition", "synthesis")
 
-# Field names end up as dict keys, Pydantic attribute names and (later) Cypher property names, so only plain snake_case identifiers are allowed.
+# Safe identifiers only (used as dict keys and model attributes)
 _SAFE_NAME = re.compile(r"^[a-z][a-z0-9_]*$")
 _SCALAR_TYPES = {"str", "int", "float", "bool", "None", "object"}
 _MISSING = object()
@@ -30,10 +31,7 @@ class SchemaValidationError(ValueError):
 
 @dataclass
 class ParsedType:
-    """Structured form of a schema type string such as "dict[str, int|float|None]".
-
-    `kind` is one of the scalar names in `_SCALAR_TYPES`, "list", "dict" or "union"; `args` holds the element type (list), value type (dict) or members (union).
-    """
+    """Parsed schema type string, e.g. "dict[str, int|float|None]"."""
 
     kind: str
     args: List["ParsedType"] = field(default_factory=list)
@@ -64,7 +62,7 @@ def _split_top_level(text: str, sep: str) -> List[str]:
 
 
 def parse_type(type_str: str) -> ParsedType:
-    """Parse a schema type string into a `ParsedType`, raising SchemaValidationError if unsupported."""
+    """Parse a schema type string into a ParsedType."""
     text = re.sub(r"\s+", "", str(type_str))
     members = _split_top_level(text, "|")
     if len(members) > 1:
@@ -87,21 +85,22 @@ def parse_type(type_str: str) -> ParsedType:
 
 @dataclass
 class SchemaField:
-    """One extracted field.
+    """
+    One extracted field of the schema.
 
-    Attributes:
-        name: Dict key used in the extracted record.
-        type: Type string, e.g. "str", "list[str]", "dict[str, int|float|None]", "object", "dict[str, object]".
-        description: Guidance shown to the LLM. "{main_extraction_keyword}" is substituted at prompt-build time.
-        required: Prompt-level only (rendered as required/optional). Every generated Pydantic field keeps a default, so a missing key never fails validation.
-        default: Value used when the field is absent. Derived from the type when not set.
-        allowed_values: Inline list of allowed values the formatter maps this field onto.
-        allowed_values_ref: Name of a runtime-supplied allowed-values list (e.g. "allowed_synthesis_methods").
-        value_fields: Sub-fields for "object" / "dict[str, object]" types.
-        extraction_only: Field exists only in the extraction crew's output and is consumed (dropped) by the format crew, like `abbreviations`.
-        format_note: Field-specific rule shown to the format crew.
-        example: Example value used to render `{schema_example_json}`.
-        variable_example: Example value for the variable-composition example; falls back to `example`.
+    Args:
+        name (str): Key in the extracted record.
+        type (str): Type string, e.g. "str", "list[str]", "dict[str, object]".
+        description (str, optional): Guidance shown to the LLM.
+        required (bool, optional): Shown as required/optional in the prompt (default: True).
+        default (Any, optional): Value used when the field is absent (default: derived from type).
+        allowed_values (list, optional): Inline allowed values for the formatter.
+        allowed_values_ref (str, optional): Name of a runtime allowed-values list.
+        value_fields (list, optional): Sub-fields for "object" / "dict[str, object]" types.
+        extraction_only (bool, optional): Dropped by the format crew (default: False).
+        format_note (str, optional): Field-specific rule for the format crew.
+        example (Any, optional): Example value for the prompt's example JSON.
+        variable_example (Any, optional): Example value for the variable-composition example.
     """
 
     name: str
@@ -145,11 +144,11 @@ class SchemaField:
             return {}
         if kind == "bool":
             return False
-        # Numbers and nested objects have no natural empty value, so they default to null.
+        # Numbers and objects default to null
         return None
 
     def get_default(self) -> Any:
-        """Return a fresh copy of the default so callers can't mutate the shared value."""
+        """Return a copy of the default value."""
         return copy.deepcopy(self.default)
 
 
@@ -219,9 +218,9 @@ def _parse_fields(raw_fields: Any, location: str) -> List[SchemaField]:
     return fields
 
 
-# Runtime allowed-values lists the extraction API supplies to the synthesis format crew.
+# Allowed-values lists supplied at runtime by the API
 ALLOWED_VALUES_REFS = {"allowed_synthesis_methods", "allowed_characterization_techniques"}
-# Placeholders a field's description/format_note may use. CrewAI fills {name} placeholders from each crew's kickoff inputs and fails on unknown ones; only the composition crews receive main_extraction_keyword.
+# Placeholders allowed in descriptions per domain (CrewAI fails on unknown ones)
 _PROMPT_PLACEHOLDERS = {
     "composition": {"main_extraction_keyword"},
     "synthesis": set(),
@@ -261,10 +260,7 @@ BUILTIN_ABBREVIATIONS_FIELD = "abbreviations"
 def _attach_builtin_abbreviations(
     composition_fields: List[SchemaField], primary: Optional[str]
 ) -> List[SchemaField]:
-    """Attach the default schema's `abbreviations` field to a schema that doesn't declare one.
-
-    A custom schema replaces every other field, but abbreviations are always kept: the format crew needs them to expand abbreviated compositions into full formulas, and without them those compositions would be lost in cleaning. A schema that declares its own `abbreviations` field keeps its own declaration. The attached field goes right after the primary composition field, matching the default schema's order.
-    """
+    """Attach the default abbreviations field if the schema doesn't declare its own."""
     if any(f.name == BUILTIN_ABBREVIATIONS_FIELD for f in composition_fields):
         return composition_fields
     with open(DEFAULT_SCHEMA_PATH, "r", encoding="utf-8") as f:
@@ -287,15 +283,16 @@ def _attach_builtin_abbreviations(
 
 @dataclass
 class ExtractionSchemaConfig:
-    """The loaded extraction schema.
+    """
+    Extraction schema loaded from a YAML file.
 
-    Attributes:
-        version: Schema format version.
-        composition_fields: Fields of the `composition_data` section.
-        synthesis_fields: Fields of the `synthesis_data` section.
-        primary_composition_field: The composition-keyed field that decides whether a paper has usable data and that the cleaning steps operate on.
-        extra_domains: Further field groups, parsed and validated but not yet extracted (the output envelope stays fixed for now).
-        source_path: File the schema was loaded from.
+    Args:
+        version (str): Schema format version.
+        composition_fields (list): Fields of the composition_data section.
+        synthesis_fields (list): Fields of the synthesis_data section.
+        primary_composition_field (str): Composition-keyed field used for cleaning and relevance checks.
+        extra_domains (dict, optional): Further field groups (parsed, not yet extracted).
+        source_path (Path, optional): File the schema was loaded from.
     """
 
     version: str
@@ -307,7 +304,7 @@ class ExtractionSchemaConfig:
 
     @classmethod
     def from_yaml(cls, path: Union[str, Path]) -> "ExtractionSchemaConfig":
-        """Load and validate a schema file. The file fully replaces the default schema."""
+        """Load and validate a schema file."""
         path = Path(path)
         if not path.is_file():
             raise SchemaValidationError(f"Schema file not found: {path}")
@@ -389,7 +386,7 @@ class ExtractionSchemaConfig:
         return cls.from_yaml(path if path is not None else DEFAULT_SCHEMA_PATH)
 
     def fields(self, domain: str, final_only: bool = False) -> List[SchemaField]:
-        """Fields of `domain` ("composition" or "synthesis"); `final_only` drops extraction-only fields."""
+        """Fields of a domain; final_only drops extraction-only fields."""
         if domain == "composition":
             domain_fields = self.composition_fields
         elif domain == "synthesis":
@@ -404,7 +401,7 @@ class ExtractionSchemaConfig:
         return [f.name for f in self.fields(domain, final_only=final_only)]
 
     def default_shape(self, domain: str, final_only: bool = True) -> Dict[str, Any]:
-        """Empty record for `domain`, used wherever a fallback or placeholder record is needed."""
+        """Empty record for a domain."""
         return {f.name: f.get_default() for f in self.fields(domain, final_only)}
 
 
@@ -414,7 +411,7 @@ DEFAULT_SCHEMA_CONFIG = ExtractionSchemaConfig.load()
 def load_schema_config(
     schema_config_path: Optional[Union[str, Path]] = None,
 ) -> ExtractionSchemaConfig:
-    """Return the schema at `schema_config_path`, or the shared default when it is None."""
+    """Load the schema at the given path, or the default schema if None."""
     if schema_config_path is None:
         return DEFAULT_SCHEMA_CONFIG
     return ExtractionSchemaConfig.from_yaml(schema_config_path)

@@ -150,7 +150,7 @@ class DataExtractionFlow(Flow[MaterialsState]):
         synthesis_formatting_task_notes (list: optional): Notes for synthesis formatting task. Default: [].
         allowed_synthesis_methods (list: optional): Allowed synthesis methods for knowledge-graph nodes. Default: [].
         allowed_characterization_techniques (list: optional): Allowed characterization techniques for knowledge-graph nodes. Default: [].
-        schema_config_path (str | Path: optional): Path to an extraction schema YAML file defining which fields are extracted. Default: None (the bundled default schema).
+        schema_config_path (str | Path: optional): Path to an extraction schema YAML file. Default: None (bundled default schema).
 
     Returns:
         result_json (dict): Final result in JSON format
@@ -191,7 +191,7 @@ class DataExtractionFlow(Flow[MaterialsState]):
     ):
         super().__init__()
         self.schema_config = load_schema_config(schema_config_path)
-        # Crews load the default schema themselves, so it is only passed on when a custom one is in use (same convention as llm below).
+        # Pass schema to crews only when custom (crews default to the bundled one)
         self._crew_schema_kwargs = (
             {}
             if self.schema_config is DEFAULT_SCHEMA_CONFIG
@@ -228,7 +228,7 @@ class DataExtractionFlow(Flow[MaterialsState]):
         self.state.composition_property_text_data = composition_property_text_data
         self.state.synthesis_text_data = synthesis_text_data
 
-        # Default few-shot examples are rendered from the schema, so they always show the fields the crews actually enforce.
+        # Default examples rendered from the schema
         final_composition_fields = self.schema_config.fields(
             "composition", final_only=True
         )
@@ -299,7 +299,7 @@ class DataExtractionFlow(Flow[MaterialsState]):
         self.state.synthesis_extraction_agent_note = _update_notes(
             synthesis_extraction_agent_notes
         )
-        # Field-specific synthesis guidance lives in each schema field's description and format_note.
+        # Field-specific guidance comes from the schema descriptions
         self.state.synthesis_extraction_task_note = _update_notes(
             synthesis_extraction_task_notes
         )
@@ -319,7 +319,7 @@ class DataExtractionFlow(Flow[MaterialsState]):
         )
 
     def _default_synthesis_data(self) -> Dict:
-        """Empty synthesis record, used when synthesis extraction is skipped or its output can't be parsed."""
+        """Empty synthesis record used as fallback"""
         return {"synthesis_data": self.schema_config.default_shape("synthesis")}
 
     def _parse_json_output(

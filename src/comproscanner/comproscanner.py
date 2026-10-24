@@ -63,13 +63,13 @@ class ComProScanner:
         """
         Args:
             main_property_keyword (str): The property to extract, e.g. "d33".
-            schema_config_path (str | Path, optional): Path to an extraction schema YAML file defining which fields are extracted. Defaults to None (the bundled default schema). A custom schema replaces the default entirely, except that the `abbreviations` field is always kept.
+            schema_config_path (str | Path, optional): Path to an extraction schema YAML file. Defaults to None (bundled default schema).
         """
         if main_property_keyword is None:
             raise ValueErrorHandler(
                 "Please provide a main property keyword to proceed."
             )
-        # Loaded once up front so an invalid schema file fails before any processing starts.
+        # Load schema early so an invalid file fails before processing
         self.schema_config_path = schema_config_path
         self.schema_config = load_schema_config(schema_config_path)
 

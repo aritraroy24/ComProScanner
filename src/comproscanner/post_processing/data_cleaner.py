@@ -62,7 +62,7 @@ class DataCleaner:
         """
         Args:
             results_file (str): Path to the JSON file containing raw extraction results.
-            schema_config_path (str | Path, optional): Extraction schema the results were produced with. Defaults to None (the bundled default schema).
+            schema_config_path (str | Path, optional): Path to the extraction schema YAML file. Defaults to None (bundled default schema).
         """
         self.results_file = results_file
         self.schema_config = load_schema_config(schema_config_path)

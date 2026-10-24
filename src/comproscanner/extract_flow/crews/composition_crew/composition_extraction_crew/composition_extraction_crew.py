@@ -58,7 +58,7 @@ class CompositionExtractionCrew:
         - related_figures_base_path (str, optional): Base path for saved figures. Defaults to "results/related_figures".
         - main_extraction_keyword (str, optional): Property keyword used to label axes in the VLM extraction prompt. Defaults to "".
         - equation_model (str, optional): Explicit litellm model name for EquationTool. Defaults to None (auto-select).
-        - schema_config (ExtractionSchemaConfig, optional): Extraction schema defining the output fields. Defaults to the bundled default schema.
+        - schema_config (ExtractionSchemaConfig, optional): Extraction schema. Defaults to the bundled default schema.
         """
         if doi is None:
             raise ValueError("DOI must be provided")

@@ -1648,7 +1648,7 @@ synthesis_fields:
 
 
 class TestDataExtractionFlowCustomSchema:
-    """A custom schema file changes the flow's fallbacks, expected keys and crews without any code change."""
+    """Test flow with a custom extraction schema"""
 
     @pytest.fixture
     def custom_schema_path(self, tmp_path):

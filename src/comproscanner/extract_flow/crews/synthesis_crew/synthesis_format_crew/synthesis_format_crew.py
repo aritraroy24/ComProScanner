@@ -46,7 +46,7 @@ class SynthesisFormatCrew:
         - task_output_folder (str, optional): Folder path for storing the task outputs as .txt files inside {provided foler}/{doi} folder. Defaults to None.
         - is_log_json (bool, optional): Flag to save logs in JSON format. Defaults to False.
         - verbose: Optional boolean for verbosity. Default is True.
-        - schema_config (ExtractionSchemaConfig, optional): Extraction schema defining the output fields. Defaults to the bundled default schema.
+        - schema_config (ExtractionSchemaConfig, optional): Extraction schema. Defaults to the bundled default schema.
         """
         if doi is None:
             raise ValueError("DOI must be provided")

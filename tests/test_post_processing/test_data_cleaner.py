@@ -1524,7 +1524,7 @@ class TestParametrizedScenarios:
 
 
 class TestDataCleanerCustomSchema:
-    """DataCleaner follows the schema's primary composition field and default record shape."""
+    """Test DataCleaner with a custom extraction schema"""
 
     @pytest.fixture
     def custom_schema_path(self, tmp_path):

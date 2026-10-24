@@ -1,7 +1,10 @@
 """
 test_schema_tools.py
 
-Regression tests for the schema-generated crew output models. The fixture snapshot was captured from the hand-written Pydantic models these replace, before they were removed, so matching it proves the default schema leaves the crews' enforced output shape (and the schema text CrewAI shows the LLM, which is built from these annotations) unchanged.
+Author: Aritra Roy
+Email: contact@aritraroy.live
+Website: https://aritraroy.live
+Date: 24-10-2026
 """
 
 import json
@@ -28,7 +31,7 @@ SNAPSHOT = json.loads(
     )
 )
 
-# Arguments each crew passes to build_output_model.
+# Arguments each crew passes to build_output_model
 CREW_MODELS = {
     "composition_extraction": dict(
         domain="composition",
@@ -146,7 +149,7 @@ class TestCustomSchemaModels:
         values = dumped["composition_formatted_data"]["compositions_property_values"]
         assert values["BaTiO3"]["d33_data"] == {"value": 190, "unit": "pC/N"}
         assert values["BaTiO3"]["sintering_temp"] == 1300
-        # An omitted optional nested block falls back to its default instead of failing validation.
+        # Missing optional block falls back to default
         assert values["Ba0.9Ca0.1TiO3"]["sintering_temp"] is None
 
     def test_abbreviations_kept_for_extraction_only(self, branched_schema):
@@ -184,7 +187,7 @@ class TestPromptRendering:
         )
         for name in DEFAULT_SCHEMA_CONFIG.field_names("composition", final_only=False):
             assert f"- {name} (" in text
-        # Formatting rules are only shown to the format crew.
+        # Formatting rules only in format stage
         assert "Formatting rule" not in text
 
     def test_format_description_shows_rules_and_allowed_values_placeholder(self):
@@ -192,7 +195,7 @@ class TestPromptRendering:
             DEFAULT_SCHEMA_CONFIG.fields("synthesis", final_only=True), stage="format"
         )
         assert "Formatting rule: Keep the steps unmodified." in text
-        # Runtime allowed-values lists are left for CrewAI to fill from the kickoff inputs.
+        # Left as CrewAI placeholders
         assert "{allowed_synthesis_methods}" in text
         assert "{allowed_characterization_techniques}" in text
 
@@ -252,7 +255,7 @@ class TestPromptRendering:
         )
         assert "{schema_fields_description}" not in filled["description"]
         assert "{extracted_synthesis_data}" in filled["description"]
-        # The crew's shared config dict is not mutated.
+        # Original config not mutated
         assert "{schema_fields_description}" in config["description"]
 
     def test_rendered_example_has_no_crewai_placeholders(self):

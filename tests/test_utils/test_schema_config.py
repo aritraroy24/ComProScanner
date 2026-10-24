@@ -1,7 +1,10 @@
 """
 test_schema_config.py
 
-Tests for the YAML-driven extraction schema loader.
+Author: Aritra Roy
+Email: contact@aritraroy.live
+Website: https://aritraroy.live
+Date: 24-10-2026
 """
 
 import textwrap

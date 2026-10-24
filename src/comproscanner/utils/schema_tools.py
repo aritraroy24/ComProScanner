@@ -1,7 +1,10 @@
 """
 schema_tools.py
 
-Builds runtime artefacts from a loaded ExtractionSchemaConfig: the Pydantic output models the crews enforce, and the prompt text that tells the LLM which fields to produce.
+Author: Aritra Roy
+Email: contact@aritraroy.live
+Website: https://aritraroy.live
+Date: 24-10-2026
 """
 
 import json
@@ -28,7 +31,7 @@ def _annotation(parsed: ParsedType, schema_field: SchemaField, owner: str) -> An
         return List[_annotation(parsed.args[0], schema_field, owner)]
     if parsed.kind == "dict":
         return Dict[str, _annotation(parsed.args[0], schema_field, owner)]
-    # "object": a nested model built from the field's own value_fields, to any depth.
+    # Nested model from value_fields
     return _build_fields_model(
         schema_field.value_fields, f"{owner}{_camel(schema_field.name)}"
     )
@@ -42,7 +45,7 @@ def _build_fields_model(
         annotation = _annotation(schema_field.parsed_type, schema_field, model_name)
         default = schema_field.get_default()
         if default is None and not schema_field.parsed_type.is_nullable():
-            # Numbers and nested objects default to null, so the type must accept it.
+            # Allow null default
             annotation = Optional[annotation]
         definitions[schema_field.name] = (annotation, default)
     return create_model(model_name, __doc__=doc, **definitions)
@@ -56,17 +59,16 @@ def build_output_model(
     model_doc: Optional[str] = None,
     inner_model_doc: Optional[str] = None,
 ) -> Type[BaseModel]:
-    """Build a crew's `output_pydantic` model: `{wrapper_key: {<one attribute per field>}}`.
-
-    Field descriptions are deliberately not attached to the Pydantic fields: CrewAI renders the model schema into its conversion prompt, so they would change that prompt. The LLM sees descriptions through the `{schema_fields_description}` placeholder instead.
+    """
+    Build a crew's output_pydantic model with a single wrapper key around the schema fields.
 
     Args:
-        fields: Schema fields to include, in output order.
-        wrapper_key: Name of the single top-level attribute, e.g. "composition_extracted_data".
-        model_name: Class name of the outer model (appears in CrewAI's schema prompt).
-        inner_model_name: Class name of the per-field model.
-        model_doc: Docstring of the outer model (appears in its JSON schema).
-        inner_model_doc: Docstring of the per-field model.
+        fields (list): Schema fields, in output order.
+        wrapper_key (str): Top-level key, e.g. "composition_extracted_data".
+        model_name (str): Class name of the outer model.
+        inner_model_name (str): Class name of the inner model.
+        model_doc (str, optional): Docstring of the outer model.
+        inner_model_doc (str, optional): Docstring of the inner model.
     """
     inner_model = _build_fields_model(fields, inner_model_name, inner_model_doc)
     return create_model(
@@ -80,10 +82,7 @@ Stage = Literal["extraction", "format"]
 def render_fields_description(
     fields: List[SchemaField], stage: Stage = "extraction", depth: int = 0
 ) -> str:
-    """Render fields as the bullet list substituted for `{schema_fields_description}`.
-
-    The format stage also shows each field's formatting rule and allowed values. A runtime allowed-values list (`allowed_values_ref`) is emitted as a `{<ref>}` placeholder, which CrewAI fills from the format crew's kickoff inputs.
-    """
+    """Render fields as a bullet list for the schema_fields_description placeholder."""
     pad = "  " * depth
     lines = []
     for schema_field in fields:
@@ -135,7 +134,7 @@ def _placeholder_value(parsed: ParsedType, schema_field: SchemaField, variant: s
 
 
 def build_example(fields: List[SchemaField], variant: str = "default") -> Dict[str, Any]:
-    """Example record for `fields`, from each field's `example` (or `variable_example` for the variable variant), falling back to a type-shaped placeholder."""
+    """Build an example record from the fields' example values."""
     example = {}
     for schema_field in fields:
         value = schema_field.example
@@ -152,7 +151,7 @@ def render_example_json(fields: List[SchemaField], variant: str = "default") -> 
 
 
 def schema_prompt_values(fields: List[SchemaField], stage: Stage) -> Dict[str, str]:
-    """Values for the schema placeholders in a crew's agent/task YAML."""
+    """Values for the schema placeholders in agent/task YAML."""
     return {
         "schema_fields_description": render_fields_description(fields, stage),
         "schema_example_json": render_example_json(fields),
@@ -161,10 +160,7 @@ def schema_prompt_values(fields: List[SchemaField], stage: Stage) -> Dict[str, s
 
 
 def fill_schema_placeholders(config: Dict[str, Any], values: Dict[str, str]) -> Dict[str, Any]:
-    """Return a copy of an agent/task config with the schema placeholders substituted.
-
-    The crew does this itself, before CrewAI interpolates its kickoff inputs, so the flow's kickoff inputs stay unchanged. Other placeholders (e.g. `{extracted_synthesis_data}`) are left for CrewAI.
-    """
+    """Return a copy of an agent/task config with the schema placeholders filled in."""
     filled = dict(config)
     for key, text in filled.items():
         if isinstance(text, str):
