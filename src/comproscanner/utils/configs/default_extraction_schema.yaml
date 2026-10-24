@@ -1,6 +1,5 @@
-# ComProScanner's bundled extraction schema.
-#
-# It reproduces the historical output exactly: field names, field order, types and defaults all match the hand-written Pydantic models this file replaced. To extract something different, copy this file into your own project, edit it, and pass its path as `schema_config_path`; your file replaces this one entirely, except that the `abbreviations` field below is always attached to a custom schema that does not declare its own (the format crew needs it to expand abbreviated compositions).
+# Default extraction schema, used when no schema_config_path is given.
+# A custom schema replaces this file entirely; `abbreviations` is always kept.
 #
 # Per-field keys:
 #   name                 dict key in the extracted record (snake_case)
@@ -45,8 +44,6 @@ composition_fields:
     description: >-
       Only if a composition is referred to by an abbreviation: map each abbreviation to its full composition. Abbreviations written in all CAPITAL letters MUST be included. Don't treat Greek letters as abbreviations (α is not 'alpha'), don't treat English chemical names as abbreviations (ZnO is not 'zinc oxide'), and don't include abbreviations that only refer to other papers' materials.
     required: false
-    # Historical quirk kept for byte-identical output: the hand-written model declared this dict field with a list default.
-    default: []
     extraction_only: true
     example:
       g-CN: g-C3N4
