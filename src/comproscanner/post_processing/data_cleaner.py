@@ -9,13 +9,17 @@ Date: 08-04-2025
 
 # Standard library imports
 import json
-from typing import List, Dict, Any, Union, Set
+from pathlib import Path
+from typing import List, Dict, Any, Optional, Union, Set
 import re
 from enum import Enum
 import copy
 
 # Third-party imports
 from pymatgen.core.periodic_table import Element
+
+# Custom imports
+from ..utils.configs.schema_config import load_schema_config
 
 
 @staticmethod
@@ -50,12 +54,19 @@ class CleaningStep(str, Enum):
 class DataCleaner:
     """Cleans and normalises composition-property data extracted from research articles."""
 
-    def __init__(self, results_file: str):
+    def __init__(
+        self,
+        results_file: str,
+        schema_config_path: Optional[Union[str, Path]] = None,
+    ):
         """
         Args:
             results_file (str): Path to the JSON file containing raw extraction results.
+            schema_config_path (str | Path, optional): Extraction schema the results were produced with. Defaults to None (the bundled default schema).
         """
         self.results_file = results_file
+        self.schema_config = load_schema_config(schema_config_path)
+        self.primary_field = self.schema_config.primary_composition_field
         self.all_data = self._load_results()
         self.all_elements = get_all_elements()
         self.filtered_compositions: Dict[str, List[Dict[str, str]]] = {}
@@ -71,7 +82,7 @@ class DataCleaner:
 
     def _get_comp_prop_data(self, extracted_data: Dict[str, Any]) -> Dict[str, Any]:
         """Extract composition property data from all results."""
-        return extracted_data["composition_data"]["compositions_property_values"]
+        return extracted_data["composition_data"][self.primary_field]
 
     def _get_comp_prop_pairs(self, comp_data: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Get all composition-property pairs."""
@@ -1627,17 +1638,8 @@ class DataCleaner:
 
         # Define the expected structure with default empty values
         expected_structure = {
-            "composition_data": {
-                "compositions_property_values": {},
-                "property_unit": "",
-                "family": "",
-            },
-            "synthesis_data": {
-                "method": "",
-                "precursors": [],
-                "steps": [],
-                "characterization_techniques": [],
-            },
+            "composition_data": self.schema_config.default_shape("composition"),
+            "synthesis_data": self.schema_config.default_shape("synthesis"),
             "article_metadata": {
                 "doi": "",
                 "title": "",
@@ -1745,9 +1747,7 @@ class DataCleaner:
                 comp_prop_dict = self._restore_percent_annotations_in_dict(
                     comp_prop_dict
                 )
-                result[key]["composition_data"][
-                    "compositions_property_values"
-                ] = comp_prop_dict
+                result[key]["composition_data"][self.primary_field] = comp_prop_dict
         return result
 
     def clean_data_with_relevant_compositions(
@@ -1817,7 +1817,7 @@ class DataCleaner:
             for doi, article_data in cleaned_data.items():
                 if "composition_data" in article_data:
                     comp_prop_values = article_data["composition_data"].get(
-                        "compositions_property_values", {}
+                        self.primary_field, {}
                     )
 
                     # Filter out null values
@@ -1840,7 +1840,7 @@ class DataCleaner:
             for doi, article_data in cleaned_data.items():
                 if "composition_data" in article_data:
                     comp_prop_values = article_data["composition_data"].get(
-                        "compositions_property_values", {}
+                        self.primary_field, {}
                     )
 
                     for composition, property_value in comp_prop_values.items():

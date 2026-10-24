@@ -1521,3 +1521,94 @@ class TestParametrizedScenarios:
             assert expected_pattern in result_key
         finally:
             os.unlink(temp_file_path)
+
+
+class TestDataCleanerCustomSchema:
+    """DataCleaner follows the schema's primary composition field and default record shape."""
+
+    @pytest.fixture
+    def custom_schema_path(self, tmp_path):
+        path = tmp_path / "schema.yaml"
+        path.write_text(
+            'version: "1.0"\n'
+            "primary_composition_field: comp_values\n"
+            "composition_fields:\n"
+            '  - {name: comp_values, type: "dict[str, float|None]"}\n'
+            "  - {name: property_unit, type: str}\n"
+            "synthesis_fields:\n"
+            "  - {name: method, type: str}\n"
+            "  - {name: sintering_atmosphere, type: str}\n",
+            encoding="utf-8",
+        )
+        return path
+
+    @pytest.fixture
+    def results_file(self, tmp_path):
+        path = tmp_path / "results.json"
+        path.write_text(
+            json.dumps(
+                {
+                    "10.1/a": {
+                        "composition_data": {
+                            "comp_values": {"BaTiO3": 190.0, "KNbO3": None},
+                            "property_unit": "pC/N",
+                            "stray_key": "dropped by get_useful_data",
+                        },
+                        "synthesis_data": {"method": "sol-gel"},
+                        "article_metadata": {"doi": "10.1/a"},
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+        return path
+
+    def test_get_useful_data_uses_custom_shape(self, results_file, custom_schema_path):
+        cleaner = DataCleaner(results_file, schema_config_path=custom_schema_path)
+        record = cleaner.get_useful_data()["10.1/a"]
+        assert record["composition_data"] == {
+            "comp_values": {"BaTiO3": 190.0, "KNbO3": None},
+            "property_unit": "pC/N",
+        }
+        assert record["synthesis_data"] == {
+            "method": "sol-gel",
+            "sintering_atmosphere": "",
+        }
+
+    def test_cleaning_reads_custom_primary_field(self, results_file, custom_schema_path):
+        cleaner = DataCleaner(results_file, schema_config_path=custom_schema_path)
+        pairs = cleaner.get_all_composition_property_pairs(cleaning_steps=[])
+        assert pairs == {"BaTiO3": 190.0}
+
+    def test_object_values_survive_cleaning(self, tmp_path):
+        schema_path = tmp_path / "schema.yaml"
+        schema_path.write_text(
+            'version: "1.0"\n'
+            "composition_fields:\n"
+            "  - name: compositions_property_values\n"
+            '    type: "dict[str, object]"\n'
+            "    value_fields:\n"
+            '      - {name: d33_value, type: "float|None"}\n'
+            '      - {name: sintering_temp, type: "float|None"}\n'
+            "synthesis_fields:\n"
+            "  - {name: method, type: str}\n",
+            encoding="utf-8",
+        )
+        results_path = tmp_path / "results.json"
+        value = {"d33_value": 190.0, "sintering_temp": 1300.0}
+        results_path.write_text(
+            json.dumps(
+                {
+                    "10.1/a": {
+                        "composition_data": {
+                            "compositions_property_values": {"BaTiO3": value}
+                        }
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+        cleaner = DataCleaner(results_path, schema_config_path=schema_path)
+        assert cleaner.get_all_composition_property_pairs(cleaning_steps=[]) == {
+            "BaTiO3": value
+        }

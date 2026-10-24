@@ -11,6 +11,7 @@ Date: 02-04-2025
 import time
 import json
 import os
+from pathlib import Path
 from typing import Optional, Tuple, List, Dict, Union, Any
 
 # Third-party imports
@@ -47,17 +48,30 @@ from .utils.logger import setup_logger
 from .utils.configs.paths_config import DefaultPaths
 from .utils.configs.rag_config import RAGConfig
 from .utils.configs.llm_config import LLMConfig
+from .utils.configs.schema_config import load_schema_config
 
 # configure logger
 logger = setup_logger("comproscanner.log")
 
 
 class ComProScanner:
-    def __init__(self, main_property_keyword: str = None):
+    def __init__(
+        self,
+        main_property_keyword: str = None,
+        schema_config_path: Optional[Union[str, Path]] = None,
+    ):
+        """
+        Args:
+            main_property_keyword (str): The property to extract, e.g. "d33".
+            schema_config_path (str | Path, optional): Path to an extraction schema YAML file defining which fields are extracted. Defaults to None (the bundled default schema). A custom schema replaces the default entirely, except that the `abbreviations` field is always kept.
+        """
         if main_property_keyword is None:
             raise ValueErrorHandler(
                 "Please provide a main property keyword to proceed."
             )
+        # Loaded once up front so an invalid schema file fails before any processing starts.
+        self.schema_config_path = schema_config_path
+        self.schema_config = load_schema_config(schema_config_path)
 
         self.main_property_keyword = main_property_keyword.replace(" ", "_")
         self.main_property_search_keyword = self.main_property_keyword.replace("_", " ")
@@ -526,7 +540,7 @@ class ComProScanner:
             if not comp_data or not isinstance(comp_data, dict):
                 return False
 
-            comp_values = comp_data.get("compositions_property_values", {})
+            comp_values = comp_data.get(self.schema_config.primary_composition_field, {})
             return bool(
                 comp_values and isinstance(comp_values, dict) and len(comp_values) > 0
             )
@@ -594,6 +608,7 @@ class ComProScanner:
                         task_output_folder=task_output_folder,
                         is_log_json=is_log_json,
                         verbose=verbose,
+                        schema_config_path=self.schema_config_path,
                         **flow_optional_args,
                     )
                     result_dict = flow.kickoff()
@@ -708,7 +723,9 @@ class ComProScanner:
             with open(json_results_file, "w", encoding="utf-8") as file:
                 json.dump({}, file, indent=2, default=str)
 
-        data_cleaner = DataCleaner(results_file=json_results_file)
+        data_cleaner = DataCleaner(
+            results_file=json_results_file, schema_config_path=self.schema_config_path
+        )
         final_data = data_cleaner.get_useful_data()
         # Save back to the JSON file
         with open(json_results_file, "w", encoding="utf-8") as file:
@@ -794,13 +811,14 @@ class ComProScanner:
                     message=f"Invalid cleaning step(s): {sorted(unknown_steps)}. "
                     f"Valid options are {CleaningStep.all()}."
                 )
-        data_cleaner = DataCleaner(results_file=json_results_file)
+        data_cleaner = DataCleaner(
+            results_file=json_results_file, schema_config_path=self.schema_config_path
+        )
+        primary_field = self.schema_config.primary_composition_field
         if is_store_unresolved_compositions and is_save_composition_property_file:
             source_composition_count = sum(
                 len(
-                    article_data.get("composition_data", {}).get(
-                        "compositions_property_values", {}
-                    )
+                    article_data.get("composition_data", {}).get(primary_field, {})
                 )
                 for article_data in data_cleaner.all_data.values()
                 if isinstance(article_data, dict)
@@ -824,7 +842,7 @@ class ComProScanner:
             for _, article_data in final_data.items():
                 if "composition_data" in article_data:
                     compositions_property_values = article_data["composition_data"].get(
-                        "compositions_property_values", {}
+                        primary_field, {}
                     )
                     all_composition_property_values.update(compositions_property_values)
             if is_store_unresolved_compositions:

@@ -8,7 +8,8 @@ Date: 19-03-2025
 """
 
 # Standard library imports
-from typing import Dict, Optional
+from pathlib import Path
+from typing import Dict, Optional, Union
 import base64
 import json
 import os
@@ -25,6 +26,7 @@ from crewai.flow.flow import Flow, listen, start, router
 from ..utils.error_handler import ValueErrorHandler
 from ..utils.logger import setup_logger
 from ..utils.configs.rag_config import RAGConfig
+from ..utils.configs.schema_config import DEFAULT_SCHEMA_CONFIG, load_schema_config
 from .crews.materials_data_identifier_crew.materials_data_identifier_crew import (
     MaterialsDataIdentifierCrew,
 )
@@ -147,6 +149,7 @@ class DataExtractionFlow(Flow[MaterialsState]):
         synthesis_formatting_task_notes (list: optional): Notes for synthesis formatting task. Default: [].
         allowed_synthesis_methods (list: optional): Allowed synthesis methods for knowledge-graph nodes. Default: [].
         allowed_characterization_techniques (list: optional): Allowed characterization techniques for knowledge-graph nodes. Default: [].
+        schema_config_path (str | Path: optional): Path to an extraction schema YAML file defining which fields are extracted. Default: None (the bundled default schema).
 
     Returns:
         result_json (dict): Final result in JSON format
@@ -183,8 +186,16 @@ class DataExtractionFlow(Flow[MaterialsState]):
         synthesis_formatting_task_notes: list = [],
         allowed_synthesis_methods: list = [],
         allowed_characterization_techniques: list = [],
+        schema_config_path: Optional[Union[str, Path]] = None,
     ):
         super().__init__()
+        self.schema_config = load_schema_config(schema_config_path)
+        # Crews load the default schema themselves, so it is only passed on when a custom one is in use (same convention as llm below).
+        self._crew_schema_kwargs = (
+            {}
+            if self.schema_config is DEFAULT_SCHEMA_CONFIG
+            else {"schema_config": self.schema_config}
+        )
         if not doi:
             raise ValueErrorHandler("DOI is required")
         if not main_extraction_keyword:
@@ -331,6 +342,10 @@ class DataExtractionFlow(Flow[MaterialsState]):
         self.state.allowed_characterization_techniques = _update_methods_techniques(
             allowed_characterization_techniques
         )
+
+    def _default_synthesis_data(self) -> Dict:
+        """Empty synthesis record, used when synthesis extraction is skipped or its output can't be parsed."""
+        return {"synthesis_data": self.schema_config.default_shape("synthesis")}
 
     def _parse_json_output(
         self, raw_output, default_value=None, log_prefix="", expected_keys=None
@@ -758,6 +773,7 @@ class DataExtractionFlow(Flow[MaterialsState]):
                 main_extraction_keyword=self.state.main_extraction_keyword,
                 formula_instruction=self.state.formula_instruction,
                 equation_model=self.state.equation_model,
+                **self._crew_schema_kwargs,
             ).crew()
         else:
             composition_property_crew = CompositionExtractionCrew(
@@ -771,6 +787,7 @@ class DataExtractionFlow(Flow[MaterialsState]):
                 main_extraction_keyword=self.state.main_extraction_keyword,
                 formula_instruction=self.state.formula_instruction,
                 equation_model=self.state.equation_model,
+                **self._crew_schema_kwargs,
             ).crew()
 
         result = composition_property_crew.kickoff(
@@ -802,6 +819,7 @@ class DataExtractionFlow(Flow[MaterialsState]):
                 task_output_folder=self.state.task_output_folder,
                 is_log_json=self.state.is_log_json,
                 verbose=self.state.verbose,
+                **self._crew_schema_kwargs,
             ).crew()
         else:
             composition_format_crew = CompositionFormatCrew(
@@ -810,6 +828,7 @@ class DataExtractionFlow(Flow[MaterialsState]):
                 task_output_folder=self.state.task_output_folder,
                 is_log_json=self.state.is_log_json,
                 verbose=self.state.verbose,
+                **self._crew_schema_kwargs,
             ).crew()
 
         result = composition_format_crew.kickoff(
@@ -821,15 +840,10 @@ class DataExtractionFlow(Flow[MaterialsState]):
                 "expected_composition_property_example": self.state.expected_composition_property_example,
             }
         )
-        composition_expected_keys = [
-            "compositions_property_values",
-            "property_unit",
-            "family",
-        ]
         parsed_composition_data = self._parse_json_output(
             result.raw,
             log_prefix="Composition formatting",
-            expected_keys=composition_expected_keys,
+            expected_keys=self.schema_config.field_names("composition"),
         )
         self.state.composition_formatted_data = parsed_composition_data
 
@@ -844,14 +858,7 @@ class DataExtractionFlow(Flow[MaterialsState]):
             logger.warning(
                 "Synthesis text data is empty or extraction skipped, not performing synthesis extraction"
             )
-            self.state.synthesis_extracted_data = {
-                "synthesis_data": {
-                    "method": "",
-                    "precursors": [],
-                    "steps": [],
-                    "characterization_techniques": [],
-                }
-            }
+            self.state.synthesis_extracted_data = self._default_synthesis_data()
             return self.state.synthesis_extracted_data
 
         logger.debug("Extracting synthesis data...")
@@ -863,6 +870,7 @@ class DataExtractionFlow(Flow[MaterialsState]):
                 task_output_folder=self.state.task_output_folder,
                 is_log_json=self.state.is_log_json,
                 verbose=self.state.verbose,
+                **self._crew_schema_kwargs,
             ).crew()
         else:
             synthesis_extraction_crew = SynthesisExtractionCrew(
@@ -871,6 +879,7 @@ class DataExtractionFlow(Flow[MaterialsState]):
                 task_output_folder=self.state.task_output_folder,
                 is_log_json=self.state.is_log_json,
                 verbose=self.state.verbose,
+                **self._crew_schema_kwargs,
             ).crew()
 
         result = synthesis_extraction_crew.kickoff(
@@ -882,18 +891,9 @@ class DataExtractionFlow(Flow[MaterialsState]):
             }
         )
 
-        default_synthesis_data = {
-            "synthesis_data": {
-                "method": "",
-                "precursors": [],
-                "steps": [],
-                "characterization_techniques": [],
-            }
-        }
-
         self.state.synthesis_extracted_data = self._parse_json_output(
             result.raw,
-            default_value=default_synthesis_data,
+            default_value=self._default_synthesis_data(),
             log_prefix="Synthesis extraction",
         )
         return self.state.synthesis_extracted_data
@@ -908,10 +908,9 @@ class DataExtractionFlow(Flow[MaterialsState]):
             extracted_data = self.state.synthesis_extracted_data.get(
                 "synthesis_data", {}
             )
-            if (
-                not extracted_data.get("method")
-                and not extracted_data.get("precursors")
-                and not extracted_data.get("steps")
+            if not any(
+                extracted_data.get(name)
+                for name in self.schema_config.field_names("synthesis")
             ):
                 self.state.synthesis_formatted_data = (
                     self.state.synthesis_extracted_data.get("synthesis_data", {})
@@ -927,6 +926,7 @@ class DataExtractionFlow(Flow[MaterialsState]):
                 task_output_folder=self.state.task_output_folder,
                 is_log_json=self.state.is_log_json,
                 verbose=self.state.verbose,
+                **self._crew_schema_kwargs,
             ).crew()
         else:
             synthesis_format_crew = SynthesisFormatCrew(
@@ -935,6 +935,7 @@ class DataExtractionFlow(Flow[MaterialsState]):
                 task_output_folder=self.state.task_output_folder,
                 is_log_json=self.state.is_log_json,
                 verbose=self.state.verbose,
+                **self._crew_schema_kwargs,
             ).crew()
 
         result = synthesis_format_crew.kickoff(
@@ -950,12 +951,7 @@ class DataExtractionFlow(Flow[MaterialsState]):
         parsed_synthesis_data = self._parse_json_output(
             result.raw,
             log_prefix="Synthesis formatting",
-            expected_keys=[
-                "method",
-                "precursors",
-                "steps",
-                "characterization_techniques",
-            ],
+            expected_keys=self.schema_config.field_names("synthesis"),
         )
         self.state.synthesis_formatted_data = parsed_synthesis_data
 

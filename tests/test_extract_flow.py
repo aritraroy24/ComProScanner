@@ -1630,3 +1630,109 @@ class TestDataExtractionFlowComplexScenarios:
         result2 = flow2.extract_synthesis_data()
         assert "synthesis_data" in result2
         assert result2["synthesis_data"]["method"] == ""
+
+
+CUSTOM_SCHEMA_YAML = """
+version: "1.0"
+composition_fields:
+  - name: compositions_property_values
+    type: "dict[str, object]"
+    value_fields:
+      - {name: d33_value, type: "float|int|None"}
+      - {name: sintering_temp, type: "float|None", required: false}
+  - {name: property_unit, type: str}
+synthesis_fields:
+  - {name: method, type: str}
+  - {name: sintering_atmosphere, type: "str|None", required: false}
+"""
+
+
+class TestDataExtractionFlowCustomSchema:
+    """A custom schema file changes the flow's fallbacks, expected keys and crews without any code change."""
+
+    @pytest.fixture
+    def custom_schema_path(self, tmp_path):
+        path = tmp_path / "schema.yaml"
+        path.write_text(CUSTOM_SCHEMA_YAML, encoding="utf-8")
+        return path
+
+    @pytest.fixture
+    def flow(
+        self,
+        custom_schema_path,
+        sample_doi,
+        sample_main_extraction_keyword,
+        sample_composition_property_text,
+    ):
+        return DataExtractionFlow(
+            doi=sample_doi,
+            main_extraction_keyword=sample_main_extraction_keyword,
+            composition_property_text_data=sample_composition_property_text,
+            synthesis_text_data="",
+            schema_config_path=custom_schema_path,
+        )
+
+    def test_skipped_synthesis_uses_custom_default_shape(self, flow):
+        assert flow.extract_synthesis_data() == {
+            "synthesis_data": {"method": "", "sintering_atmosphere": None}
+        }
+
+    @patch("comproscanner.extract_flow.main_extraction_flow.CompositionFormatCrew")
+    def test_composition_formatting_uses_custom_expected_keys(
+        self, mock_crew_class, flow
+    ):
+        formatted = {
+            "compositions_property_values": {
+                "BaTiO3": {"d33_value": 190, "sintering_temp": 1300}
+            },
+            "property_unit": "pC/N",
+        }
+        mock_result = MagicMock()
+        mock_result.raw = json.dumps({"composition_formatted_data": formatted})
+        mock_crew_class.return_value.crew.return_value.kickoff.return_value = (
+            mock_result
+        )
+
+        flow.extract_final_composition_property_data()
+
+        assert flow.state.composition_formatted_data == formatted
+        assert mock_crew_class.call_args.kwargs["schema_config"] is flow.schema_config
+
+    def test_empty_custom_synthesis_skips_formatting(self, flow):
+        flow.state.synthesis_extracted_data = {
+            "synthesis_data": {"method": "", "sintering_atmosphere": None}
+        }
+        with patch(
+            "comproscanner.extract_flow.main_extraction_flow.SynthesisFormatCrew"
+        ) as mock_crew_class:
+            flow.extract_final_synthesis_data()
+        mock_crew_class.assert_not_called()
+        assert flow.state.synthesis_formatted_data == {
+            "method": "",
+            "sintering_atmosphere": None,
+        }
+
+    def test_custom_only_field_with_value_triggers_formatting(self, flow):
+        flow.state.synthesis_extracted_data = {
+            "synthesis_data": {"method": "", "sintering_atmosphere": "air"}
+        }
+        with patch(
+            "comproscanner.extract_flow.main_extraction_flow.SynthesisFormatCrew"
+        ) as mock_crew_class:
+            mock_result = MagicMock()
+            mock_result.raw = json.dumps({"method": "", "sintering_atmosphere": "air"})
+            mock_crew_class.return_value.crew.return_value.kickoff.return_value = (
+                mock_result
+            )
+            flow.extract_final_synthesis_data()
+        mock_crew_class.assert_called_once()
+
+    def test_default_schema_not_passed_to_crews(
+        self, sample_doi, sample_main_extraction_keyword, sample_composition_property_text
+    ):
+        flow = DataExtractionFlow(
+            doi=sample_doi,
+            main_extraction_keyword=sample_main_extraction_keyword,
+            composition_property_text_data=sample_composition_property_text,
+        )
+        assert flow._crew_schema_kwargs == {}
