@@ -923,3 +923,68 @@ class TestSwapCorrection:
             )
             outputs.append(out.read_text(encoding="utf-8"))
         assert outputs[0] == outputs[1]
+
+
+NESTED_DICT_SCHEMA_YAML = """
+version: "1.0"
+composition_fields:
+  - name: compositions_property_values
+    type: "dict[str, object]"
+    value_fields:
+      - name: grain
+        type: object
+        value_fields:
+          - {name: unit, type: str, match_mode: exact}
+          - name: measurements
+            type: "dict[str, object]"
+            value_fields:
+              - {name: mean, type: "float|None", similarity_threshold: 0.1}
+synthesis_fields:
+  - {name: method, type: str}
+"""
+
+
+class TestNestedKeyedDictionaryLeaves:
+    """Test leaf-level evaluation of keyed dictionaries nested inside a block"""
+
+    @pytest.fixture
+    def evaluator(self, tmp_path):
+        schema_path = tmp_path / "schema.yaml"
+        schema_path.write_text(NESTED_DICT_SCHEMA_YAML, encoding="utf-8")
+        return MaterialsDataSemanticEvaluator(
+            use_semantic_model=False, schema_config_path=schema_path
+        )
+
+    @staticmethod
+    def evaluate(evaluator, ref_measurements, test_measurements):
+        def record(measurements):
+            return {
+                "compositions_property_values": {
+                    "BaTiO3": {"grain": {"unit": "um", "measurements": measurements}}
+                }
+            }
+
+        _, details, metrics, _ = evaluator._evaluate_composition_data(
+            record(ref_measurements), record(test_measurements)
+        )
+        leaves = details["compositions_property_values"]["details"]["leaf_matches"]["BaTiO3"]
+        return leaves, metrics
+
+    def test_each_entry_leaf_is_one_item(self, evaluator):
+        leaves, metrics = self.evaluate(
+            evaluator,
+            {"SEM": {"mean": 18.5}, "EBSD": {"mean": 16.9}},
+            {"SEM": {"mean": 21.0}, "EBSD": {"mean": 16.9}},
+        )
+        assert leaves["grain.measurements.SEM.mean"]["match"] is False
+        assert leaves["grain.measurements.EBSD.mean"]["match"] is True
+        # Key + unit + EBSD mean
+        assert metrics == {"true_positives": 3, "false_positives": 1, "false_negatives": 1}
+
+    def test_entry_only_in_test_counts_as_extra(self, evaluator):
+        leaves, metrics = self.evaluate(
+            evaluator, {"SEM": {"mean": 18.5}}, {"SEM": {"mean": 18.5}, "TEM": {"mean": 9.0}}
+        )
+        assert leaves["grain.measurements.TEM.mean"]["match"] is False
+        assert metrics["false_positives"] == 1
+        assert metrics["false_negatives"] == 0

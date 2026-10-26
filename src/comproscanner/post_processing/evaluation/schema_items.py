@@ -26,12 +26,18 @@ def leaf_values(
 
     Returns:
         Iterator[Tuple[SchemaField, Tuple[str, ...], Any]]: One tuple per leaf field, giving the leaf's
-        schema field, its full path, and its value.
+        schema field, its full path (including the entry key for nested keyed dictionaries), and its value.
     """
     for field in fields:
         sub_value = value.get(field.name) if isinstance(value, dict) else None
         if field.value_fields and field.is_object:
             yield from leaf_values(field.value_fields, sub_value, path + (field.name,))
+        elif field.value_fields and isinstance(sub_value, dict):
+            # Nested keyed dictionary: each entry's leaves are separate items
+            for key in sorted(sub_value):
+                yield from leaf_values(
+                    field.value_fields, sub_value[key], path + (field.name, key)
+                )
         else:
             yield field, path + (field.name,), sub_value
 

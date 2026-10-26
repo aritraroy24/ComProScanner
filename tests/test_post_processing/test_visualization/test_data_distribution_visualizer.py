@@ -806,3 +806,44 @@ class TestLegacyWrappers:
         visualizer._load_data([{"10.1/a": {"composition_data": {"family": ""}}}])
         with pytest.raises(ValueError, match="No family data found"):
             visualizer.plot_family_pie_chart(is_semantic_clustering_enabled=False)
+
+
+class TestNestedKeyedDictionaryPaths:
+    """Test value collection through keyed dictionaries nested inside blocks"""
+
+    def test_path_through_nested_dictionary(self, tmp_path):
+        schema_path = tmp_path / "schema.yaml"
+        schema_path.write_text(
+            'version: "1.0"\n'
+            "composition_fields:\n"
+            '  - {name: compositions_property_values, type: "dict[str, float|None]"}\n'
+            "synthesis_fields:\n"
+            "  - name: sintering\n"
+            "    type: object\n"
+            "    value_fields:\n"
+            "      - name: segments\n"
+            '        type: "dict[str, object]"\n'
+            "        value_fields:\n"
+            '          - {name: temperature_c, type: "float|None"}\n',
+            encoding="utf-8",
+        )
+        visualizer = DataDistributionVisualizer(schema_config_path=schema_path)
+        visualizer._load_data(
+            [
+                {
+                    "10.1/a": {
+                        "synthesis_data": {
+                            "sintering": {
+                                "segments": {
+                                    "first_step": {"temperature_c": 1500},
+                                    "second_step": {"temperature_c": 1400},
+                                }
+                            }
+                        }
+                    }
+                }
+            ]
+        )
+        assert sorted(
+            visualizer._numeric_values("sintering.segments.temperature_c")
+        ) == [1400.0, 1500.0]

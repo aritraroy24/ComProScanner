@@ -328,9 +328,19 @@ class DataDistributionVisualizer:
                 candidates = list(value.values())
             else:
                 candidates = [value]
+            # Walk the remaining path, expanding nested keyed dictionaries into their entries
+            current = field
+            for part in rest:
+                current = {f.name: f for f in current.value_fields}[part]
+                next_candidates = []
+                for candidate in candidates:
+                    value = candidate.get(part) if isinstance(candidate, dict) else None
+                    if current.parsed_type.kind == "dict" and current.value_fields:
+                        next_candidates.extend((value or {}).values())
+                    else:
+                        next_candidates.append(value)
+                candidates = next_candidates
             for candidate in candidates:
-                for part in rest:
-                    candidate = candidate.get(part) if isinstance(candidate, dict) else None
                 if (not candidate) if skip_falsy else (candidate is None):
                     continue
                 if isinstance(candidate, list):

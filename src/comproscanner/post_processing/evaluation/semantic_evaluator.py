@@ -535,13 +535,19 @@ class MaterialsDataSemanticEvaluator:
         leaves = {}
         matched_weight = 0.0
         total_weight = 0.0
-        ref_leaves = list(leaf_values(field.value_fields, ref_val))
-        test_leaves = {
-            path: value
-            for _, path, value in leaf_values(field.value_fields, test_val)
+        ref_leaves = {
+            path: (leaf, value)
+            for leaf, path, value in leaf_values(field.value_fields, ref_val)
         }
-        for leaf, path, ref_leaf in ref_leaves:
-            test_leaf = test_leaves.get(path)
+        test_leaves = {
+            path: (leaf, value)
+            for leaf, path, value in leaf_values(field.value_fields, test_val)
+        }
+        # Union of paths, so entries only present in the test data count as extra
+        paths = list(ref_leaves) + [p for p in test_leaves if p not in ref_leaves]
+        for path in paths:
+            leaf, ref_leaf = ref_leaves.get(path, (test_leaves[path][0], None))
+            test_leaf = test_leaves.get(path, (leaf, None))[1]
             # Skip leaves absent from both
             if ref_leaf is None and test_leaf is None:
                 continue
