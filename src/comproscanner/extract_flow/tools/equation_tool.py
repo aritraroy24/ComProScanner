@@ -4,7 +4,7 @@ equation_tool.py
 Author: Aritra Roy
 Email: contact@aritraroy.live
 Website: https://aritraroy.live
-Date: 17-04-2025
+GitHub: aritraroy24
 """
 
 # Standard library imports
@@ -246,7 +246,7 @@ class EquationTool(BaseTool):
         """Return base64-encoded crystal structure images (XRD/SEM/TEM) for the DOI.
 
         Args:
-            doi (str): Article DOI used to locate the figure directory.
+            doi (str, required): Article DOI used to locate the figure directory.
 
         Returns:
             list: List of dicts with keys `"caption"` (str) and `"b64"` (str, base64 JPEG).
@@ -290,7 +290,16 @@ class EquationTool(BaseTool):
         return images
 
     def _run(self, doi: str, paper_text: str) -> str:
-        """Analyse the paper and return the derived formula or the not-single-phase string."""
+        """Analyse the paper (and any saved crystal structure figures) and derive the doped formula.
+
+        Args:
+            doi (str, required): DOI of the article to analyse.
+            paper_text (str, required): Paper text used to determine phase formation and derive the formula.
+
+        Returns:
+            str: the derived chemical formula, the literal "single compound is not being synthesized",
+                or an error/status message if litellm is missing, no model is configured, or the LLM call fails.
+        """
         try:
             import litellm
         except ImportError:

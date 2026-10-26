@@ -1,7 +1,12 @@
 """
-Visualization module for ComProScanner evaluation results.
+eval_visualizer.py
 
-This module provides functions for creating various visualizations of evaluation results, including bar charts, radar charts, heatmaps, histograms, and violin plots.
+Author: Aritra Roy
+Email: contact@aritraroy.live
+Website: https://aritraroy.live
+GitHub: aritraroy24
+
+Visualization module for ComProScanner evaluation results. This module provides functions for creating various visualizations of evaluation results, including bar charts, radar charts, heatmaps, histograms, and violin plots.
 """
 
 from typing import Optional, List, Dict, Tuple, Union, TYPE_CHECKING

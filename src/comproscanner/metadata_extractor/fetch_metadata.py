@@ -4,7 +4,7 @@ fetch_metadata.py - Contains the class to fetch metadata from Scopus database us
 Author: Aritra Roy
 Email: contact@aritraroy.live
 Website: https://aritraroy.live
-Date: 21-02-2025
+GitHub: aritraroy24
 """
 
 # Standard library imports
@@ -37,22 +37,21 @@ load_dotenv()
 logger = setup_logger("comproscanner.log", module_name="fetch_metadata")
 
 
-######## Class to fetch metadata from Scopus ########
+# Class to fetch metadata from Scopus
 class FetchMetadata:
     """
-    Fetch metadata from Scopus using the Scopus API. Can be called from different scripts to fetch metadata for a given set of queries and years
+    Fetch metadata from Scopus using the Scopus API. Can be called from different scripts to fetch metadata for a given set of queries and years.
 
     Args:
-        main_property_keyword (str: required): The main keyword for the search and filenames
-        base_queries (list: optional): The base queries for the search. If None, the main_property_keyword will be used as the base query. The list will be sorted alphabetically before processing.
-        extra_queries (list: optional): The extra queries for the search which will be combined with the base queries. The list will be sorted alphabetically before processing. Defaults to an empty list when None.
-        start_year (int: optional): The start year for the search (default: current year)
-        end_year (int: optional): The end year for the search (default: current year  - 2)
+        main_property_keyword (str, required): The main keyword for the search and filenames.
+        base_queries (list, optional): The base queries for the search. If None, the main_property_keyword will be used as the base query. The list will be sorted alphabetically before processing. Defaults to None.
+        extra_queries (list, optional): The extra queries for the search which will be combined with the base queries. The list will be sorted alphabetically before processing. Defaults to an empty list when None.
+        start_year (int, optional): The start year for the search. Defaults to the current year.
+        end_year (int, optional): The end year for the search. Defaults to the current year minus 2.
 
     Raises:
-
-        ValueError: If the base queries are None
-        ValueError: If the Scopus API key is not set in the environment variables as SCOPUS_API_KEY
+        ValueError: If main_property_keyword is None.
+        ValueError: If the Scopus API key is not set in the environment variables as SCOPUS_API_KEY.
     """
 
     def __init__(
@@ -104,16 +103,16 @@ class FetchMetadata:
 
     def _construct_url(self, cursor, year, query, special_query):
         """
-        Construct the URL for the request with cursor-based pagination
+        Construct the URL for the request with cursor-based pagination.
 
         Args:
-            cursor (str): The cursor value ('*' for first request, or next cursor from previous response)
-            year (int): The year for the request
-            query (str): The query for the request
-            special_query (str): The special query for the request
+            cursor (str, required): The cursor value ('*' for first request, or next cursor from previous response).
+            year (int, required): The year for the request.
+            query (str, required): The query for the request.
+            special_query (str, required): The special query for the request.
 
         Returns:
-            str: The constructed URL
+            str: The constructed URL.
         """
         search_query = query.replace("_", " ")
         encoded_query = urllib.parse.quote(search_query.replace(" ", " AND "))
@@ -130,16 +129,16 @@ class FetchMetadata:
 
     def _send_request(self, url):
         """
-        Send a request to the Scopus API and return the response with infinite retry logic
+        Send a request to the Scopus API, retrying indefinitely on connection failure until it succeeds or the user interrupts.
 
         Args:
-            url (str): The URL for the request
+            url (str, required): The URL for the request.
 
         Returns:
-            requests.models.Response: The response from the request
+            requests.models.Response: The response from the request.
 
-        Note:
-            This method will retry indefinitely until successful connection or KeyboardInterrupt
+        Raises:
+            KeyboardInterruptHandler: If the user interrupts the connection or retry wait.
         """
         retry_count = 0
         retry_delay = 60  # seconds
@@ -195,13 +194,16 @@ class FetchMetadata:
 
     def parse_xml_data(self, response_text):
         """
-        Parse the XML data from the response and return the root, entry elements, and namespaces
+        Parse the XML data from the response and return the root, entry elements, and namespaces.
 
         Args:
-            response_text (str): The response text from the request
+            response_text (str, required): The response text from the request.
 
         Returns:
-            tuple: The root, entry elements, and namespaces
+            tuple:
+                - root: The XML root element.
+                - entry_elements (list): The list of entry elements found under the root.
+                - namespaces (dict): The XML namespaces used to parse the response.
         """
         namespaces = {
             "default": "http://www.w3.org/2005/Atom",
@@ -215,16 +217,15 @@ class FetchMetadata:
 
     def _get_next_cursor(self, root, namespaces):
         """
-        Extract the next cursor from the 'next' link in the XML response
+        Extract the next cursor from the 'next' link in the XML response.
 
         Args:
-            root: The XML root element
-            namespaces (dict): The XML namespaces
+            root (Element, required): The XML root element.
+            namespaces (dict, required): The XML namespaces.
 
         Returns:
-            str or None: The next cursor value (URL-encoded), or None if no more pages
+            str or None: The next cursor value (URL-encoded), or None if no more pages.
         """
-        # Find the 'next' link
         links = root.findall("default:link", namespaces)
         for link in links:
             if link.get("ref") == "next":
@@ -238,14 +239,14 @@ class FetchMetadata:
 
     def _get_total_results(self, root, namespaces):
         """
-        Extract the total number of results from the response
+        Extract the total number of results from the response.
 
         Args:
-            root: The XML root element
-            namespaces (dict): The XML namespaces
+            root (Element, required): The XML root element.
+            namespaces (dict, required): The XML namespaces.
 
         Returns:
-            int: Total number of results
+            int: Total number of results.
         """
         total_elem = root.find("opensearch:totalResults", namespaces)
         if total_elem is not None:
@@ -254,15 +255,15 @@ class FetchMetadata:
 
     def _process_entry_elements(self, entry_elements, namespaces, data):
         """
-        Process all the entry elements using _process_single_entry() function
+        Process all the entry elements using _process_single_entry().
 
         Args:
-            entry_elements (list): The list of entry elements
-            namespaces (dict): The dictionary of namespaces
-            data (dict): The dictionary to store the data
+            entry_elements (list, required): The list of entry elements.
+            namespaces (dict, required): The dictionary of namespaces.
+            data (dict, required): The dictionary to store the data.
 
         Returns:
-            dict: The dictionary with the processed data
+            dict: The dictionary with the processed data.
         """
         for entry in entry_elements:
             data = self._process_single_entry(entry, namespaces, data)
@@ -270,30 +271,30 @@ class FetchMetadata:
 
     def get_element_text(self, entry, tag, namespaces):
         """
-        Get the text of an element from the entry
+        Get the text of an element from the entry.
 
         Args:
-            entry (Element): The entry element
-            tag (str): The tag to search for
-            namespaces (dict): The dictionary of namespaces
+            entry (Element, required): The entry element.
+            tag (str, required): The tag to search for.
+            namespaces (dict, required): The dictionary of namespaces.
 
         Returns:
-            str: The text of the element
+            str or None: The text of the matched element, or None if the tag was not found.
         """
         element = entry.find(tag, namespaces)
         return element.text if element is not None else None
 
     def _process_single_entry(self, entry, namespaces, data):
         """
-        Process a single entry and add the data to the dictionary
+        Process a single entry and add the data to the dictionary.
 
         Args:
-            entry (Element): The entry element
-            namespaces (dict): The dictionary of namespaces
-            data (dict): The dictionary to store the data
+            entry (Element, required): The entry element.
+            namespaces (dict, required): The dictionary of namespaces.
+            data (dict, required): The dictionary to store the data.
 
         Returns:
-            dict: The dictionary with the processed data
+            dict: The dictionary with the processed data.
         """
         doi_data = self.get_element_text(entry, "prism:doi", namespaces)
         if doi_data is not None and doi_data in data["doi"]:
@@ -325,15 +326,15 @@ class FetchMetadata:
         exception=None,
     ):
         """
-        Write the error logs to the log file
+        Write the error logs to the log file.
 
         Args:
-            year (int): The year for the request (Optional)
-            query (str): The query for the request (Optional)
-            special_query (str): The special query for the request (Optional)
-            page_number (int): The page number for the request (Optional)
-            status_code (int): The status code for the request (Optional)
-            exception (Exception): The exception for the request (Optional)
+            year (int, optional): The year for the request. Defaults to None.
+            query (str, optional): The query for the request. Defaults to None.
+            special_query (str, optional): The special query for the request. Defaults to None.
+            page_number (int, optional): The page number for the request. Defaults to None.
+            status_code (int, optional): The status code for the request. Defaults to None.
+            exception (Exception, optional): The exception for the request. Defaults to None.
         """
         if year and query and special_query and page_number:
             logger.error(
@@ -355,22 +356,22 @@ class FetchMetadata:
         page_number: int,
     ):
         """
-        Fetch and process the data for a given cursor
+        Fetch and process the data for a given cursor.
 
         Args:
-            cursor (str): The cursor for the request
-            year (int): The year for the request
-            query (str): The query for the request
-            data (dict): The dictionary to store the data
-            total_results (int): The total number of results for the request
-            special_query (str): The special query for the request
-            page_number (int): The current page number
+            cursor (str, required): The cursor for the request.
+            year (int, required): The year for the request.
+            query (str, required): The query for the request.
+            data (dict, required): The dictionary to store the data.
+            total_results (int, required): The total number of results for the request.
+            special_query (str, required): The special query for the request.
+            page_number (int, required): The current page number.
 
         Returns:
-            tuple: The data, total_results, next_cursor
-
-        Raises:
-            CustomErrorHandler: If an error occurs during the request
+            tuple:
+                - data (dict): The dictionary with the processed data.
+                - total_results (int): The total number of results, set from the first page's response.
+                - next_cursor (str or None): The next cursor to continue pagination, or None if there are no more pages or an error occurred.
         """
         url = self._construct_url(cursor, year, query, special_query)
         next_cursor = None
@@ -429,16 +430,16 @@ class FetchMetadata:
 
     def _fetch_paginated_data(self, year, query, special_query, data):
         """
-        Handle the cursor-based pagination of the data for a given year, query, and special query
+        Handle the cursor-based pagination of the data for a given year, query, and special query.
 
         Args:
-            year (int): The year for the request
-            query (str): The query for the request
-            special_query (str): The special query for the request
-            data (dict): The dictionary to store the data
+            year (int, required): The year for the request.
+            query (str, required): The query for the request.
+            special_query (str, required): The special query for the request.
+            data (dict, required): The dictionary to store the data.
 
         Returns:
-            dict: The dictionary with the processed data
+            dict: The dictionary with the processed data.
         """
         cursor = "*"  # Start with asterisk for first request
         total_results = 0
@@ -487,10 +488,10 @@ class FetchMetadata:
 
     def _write_to_csv(self, data):
         """
-        Write the data to a CSV file
+        Write the data to a CSV file.
 
         Args:
-            data (dict): The dictionary with the processed data
+            data (dict, required): The dictionary with the processed data.
         """
         logger.debug(f"Writing data to CSV file...")
         directory = os.path.dirname(self.metadata_csv_filename)
@@ -505,15 +506,14 @@ class FetchMetadata:
         logger.info("Done...!!!\n")
 
     def main_fetch(self):
-        """Main function to fetch metadata from Scopus using the Scopus API with cursor-based pagination
+        """Main function to fetch metadata from Scopus using the Scopus API with cursor-based pagination.
 
         Raises:
-            CustomErrorHandler: If an error occurs during the request
+            KeyboardInterruptHandler: If the user interrupts the fetch process.
         """
         for query in self.keywords:
             try:
                 for year in range(self.start_year, self.end_year, -1):
-                    # Define a dictionary to store the data
                     keys = [
                         "doi",
                         "publication_name",
@@ -528,7 +528,6 @@ class FetchMetadata:
                     logger.verbose(f"Processing year {year} with query '{query}'...")
                     data = self._fetch_paginated_data(year, query, "", data)
 
-                    # Fetch the data with special queries
                     for special_query in self.extra_queries:
                         logger.verbose(
                             f"Processing query {query} with special query '{special_query}'..."
@@ -537,7 +536,6 @@ class FetchMetadata:
                             year, query, special_query, data
                         )
 
-                    # Write the data to a CSV file
                     self._write_to_csv(data)
 
             except ValueError as ve:

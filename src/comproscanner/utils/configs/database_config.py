@@ -1,3 +1,12 @@
+"""
+database_config.py
+
+Author: Aritra Roy
+Email: contact@aritraroy.live
+Website: https://aritraroy.live
+GitHub: aritraroy24
+"""
+
 import os
 from ..error_handler import ValueErrorHandler
 

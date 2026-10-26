@@ -4,7 +4,7 @@ pdfs_processor.py
 Author: Aritra Roy
 Email: contact@aritraroy.live
 Website: https://aritraroy.live
-Date: 21-03-2025
+GitHub: aritraroy24
 """
 
 # Importing required libraries
@@ -42,7 +42,7 @@ from ..utils.common_functions import (
 logger = setup_logger("comproscanner.log", module_name="pdfs_processor")
 
 
-######## Class to process PDFs in a folder ########
+# Class to process PDFs in a folder
 class PDFsProcessor:
     def __init__(
         self,
@@ -64,18 +64,22 @@ class PDFsProcessor:
 
         Args:
             folder_path (str, required): Path to the folder containing PDFs.
-            main_property_keyword (str: Required): The main keyword to process the articles for and file naming.
-            property_keywords (dict: Required): A dictionary of property keywords which will be used for filtering sentences and should look like the following:
+            main_property_keyword (str, required): The main keyword to process the articles for and file naming.
+            property_keywords (dict, required): A dictionary of property keywords used for filtering sentences, shaped like:
             {
                 "exact_keywords": ["example1", "example2"],
                 "substring_keywords": [" example 1 ", " example 2 "],
             }
-            sql_batch_size (int): The number of rows to write to the database at once (Applicable only if is_sql_db is True) (default: 500)
-            csv_batch_size (int): The number of rows to write to the CSV file at once (default: 1)
-            is_sql_db (bool): A flag to indicate if the data should be written to the database (default: False)
-            rag_config (RAGConfig): An instance of the RAGConfig class (default: RAGConfig())
-            is_track_pdfs (bool): Track processed DOIs in a txt file so re-runs skip already-processed PDFs (default: True)
-            track_pdfs_report_path (str): Path to the DOI tracking txt file; defaults to <csv_path>/pdf_<keyword>_processed_dois.txt
+            sql_batch_size (int, optional): The number of rows to write to the database at once (applicable only if is_sql_db is True). Defaults to 500.
+            csv_batch_size (int, optional): The number of rows to write to the CSV file at once. Defaults to 1.
+            is_sql_db (bool, optional): A flag to indicate if the data should be written to the database. Defaults to False.
+            rag_config (RAGConfig, optional): An instance of the RAGConfig class. Defaults to RAGConfig().
+            main_figure_keywords (dict, optional): Keywords used to match figure captions for extraction. Defaults to property_keywords.
+            additional_figure_keywords (dict, optional): Extra keywords that also qualify a figure for extraction without counting as a property match. Defaults to None.
+            save_failed_pdf_report (bool, optional): Whether to persist a report of PDFs that could not be processed. Defaults to True.
+            failed_pdf_report_path (str, optional): Path to write the failed-PDFs report to. Defaults to <folder_path>/failed_pdf_filenames.txt.
+            is_track_pdfs (bool, optional): Track processed DOIs in a txt file so re-runs skip already-processed PDFs. Defaults to True.
+            track_pdfs_report_path (str, optional): Path to the DOI tracking txt file. Defaults to <csv_path>/pdf_<keyword>_processed_dois.txt.
 
         Raises:
             ValueErrorHandler: If the folder_path, main_property_keyword, or property_keywords is not provided.
@@ -150,20 +154,39 @@ class PDFsProcessor:
 
     @staticmethod
     def _is_valid_doi(doi: str) -> bool:
-        """Check whether a string is a valid DOI format."""
+        """Check whether a string is a valid DOI format.
+
+        Args:
+            doi (str, required): String to validate as a DOI.
+
+        Returns:
+            bool: True if the string matches the DOI pattern, False otherwise.
+        """
         if not doi:
             return False
         doi_pattern = r"^10\.\d{4,9}/[-._;()/:a-zA-Z0-9]+$"
         return bool(re.match(doi_pattern, doi.strip()))
 
     def _filename_to_valid_doi(self, pdf_file: str) -> str:
-        """Convert filename to DOI candidate and validate it."""
+        """Convert filename to DOI candidate and validate it.
+
+        Args:
+            pdf_file (str, required): Path to the PDF file.
+
+        Returns:
+            str: The DOI candidate derived from the filename if valid, otherwise an empty string.
+        """
         filename = os.path.basename(pdf_file)
         candidate = filename.replace(".pdf", "").replace("_", "/").strip()
         return candidate if self._is_valid_doi(candidate) else ""
 
     def _record_failed_pdf(self, pdf_file: str, reason: str) -> None:
-        """Record failed PDF filename cases and optionally write to report file."""
+        """Record failed PDF filename cases and optionally write to report file.
+
+        Args:
+            pdf_file (str, required): Path to the PDF file that failed processing.
+            reason (str, required): Short code describing why the PDF failed.
+        """
         filename = os.path.basename(pdf_file)
         entry = f"{filename}\t{reason}"
         self.failed_pdf_records.append(entry)
@@ -179,7 +202,7 @@ class PDFsProcessor:
         """Extract DOI from text using regex pattern matching.
 
         Args:
-            text (str): The text to extract DOI from.
+            text (str, required): The text to extract DOI from.
 
         Returns:
             str: The extracted DOI or empty string if not found.
@@ -207,10 +230,10 @@ class PDFsProcessor:
         """Create a row with empty values for PDFs with no text detection.
 
         Args:
-            doi (str): The DOI of the article (may be empty string).
-            title (str): The title of the article.
-            journal_name (str): The name of the publication.
-            publisher (str): The name of the publisher.
+            doi (str, required): The DOI of the article (may be an empty string).
+            title (str, optional): The title of the article. Defaults to "".
+            journal_name (str, optional): The name of the publication. Defaults to "".
+            publisher (str, optional): The name of the publisher. Defaults to "".
 
         Returns:
             pd.DataFrame: DataFrame with metadata and empty section values and is_property_mentioned=0.
@@ -237,7 +260,7 @@ class PDFsProcessor:
         """Check if the text contains corrupted GLYPH patterns from failed OCR.
 
         Args:
-            text (str): The text to check.
+            text (str, required): The text to check.
 
         Returns:
             bool: True if text is corrupted (high ratio of GLYPH patterns), False otherwise.
@@ -302,7 +325,12 @@ class PDFsProcessor:
         return filenames, dois
 
     def _mark_pdf_processed(self, pdf_file: str, doi: str) -> None:
-        """Append a ``basename<TAB>doi`` entry to the tracking file."""
+        """Append a ``basename<TAB>doi`` entry to the tracking file.
+
+        Args:
+            pdf_file (str, required): Path to the processed PDF file.
+            doi (str, required): DOI resolved for the PDF (may be an empty string).
+        """
         if not self.is_track_pdfs:
             return
         try:
@@ -318,7 +346,7 @@ class PDFsProcessor:
         """Try to get metadata from the local metadata CSV file.
 
         Args:
-            doi (str): The DOI to search for.
+            doi (str, required): The DOI to search for.
 
         Returns:
             tuple: (title, journal_name, publisher) or ("", "", "") if not found.

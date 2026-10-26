@@ -4,7 +4,7 @@ data_cleaner.py
 Author: Aritra Roy
 Email: contact@aritraroy.live
 Website: https://aritraroy.live
-Date: 08-04-2025
+GitHub: aritraroy24
 """
 
 # Standard library imports
@@ -24,7 +24,11 @@ from ..utils.configs.schema_config import load_schema_config
 
 @staticmethod
 def get_all_elements() -> List[str]:
-    """Get list of all element symbols."""
+    """Get list of all element symbols.
+
+    Returns:
+        List[str]: Symbols for elements 1 through 118.
+    """
     return [Element.from_Z(i).symbol for i in range(1, 119)]
 
 
@@ -32,7 +36,7 @@ class CleaningStep(str, Enum):
     """Individually selectable optional data-cleaning steps.
 
     Unicode subscript conversion and arithmetic/fraction resolution are not
-    part of this enum — they always run, since coefficient_expansion_strict/
+    part of this enum: they always run, since coefficient_expansion_strict/
     _lenient, miller_indices, and element_validation_strict/_lenient all
     assume their output.
     """
@@ -47,7 +51,11 @@ class CleaningStep(str, Enum):
 
     @classmethod
     def all(cls) -> List[str]:
-        """Return every valid step name."""
+        """Return every valid step name.
+
+        Returns:
+            List[str]: Values of every CleaningStep member.
+        """
         return [step.value for step in cls]
 
 
@@ -61,7 +69,7 @@ class DataCleaner:
     ):
         """
         Args:
-            results_file (str): Path to the JSON file containing raw extraction results.
+            results_file (str, required): Path to the JSON file containing raw extraction results.
             schema_config_path (str | Path, optional): Path to the extraction schema YAML file. Defaults to None (bundled default schema).
         """
         self.results_file = results_file
@@ -76,20 +84,47 @@ class DataCleaner:
         self._pct_annotation_map: Dict[str, str] = {}
 
     def _load_results(self) -> Dict[str, Any]:
-        """Load results from JSON file."""
+        """Load results from JSON file.
+
+        Returns:
+            Dict[str, Any]: Parsed JSON contents of `self.results_file`.
+        """
         with open(self.results_file, "r", encoding="utf-8") as f:
             return json.load(f)
 
     def _get_comp_prop_data(self, extracted_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Extract composition property data from all results."""
+        """Extract composition property data from all results.
+
+        Args:
+            extracted_data (Dict[str, Any], required): One article's extracted data entry.
+
+        Returns:
+            Dict[str, Any]: The primary composition field's composition -> property-value mapping.
+        """
         return extracted_data["composition_data"][self.primary_field]
 
     def _get_comp_prop_pairs(self, comp_data: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """Get all composition-property pairs."""
+        """Get all composition-property pairs.
+
+        Args:
+            comp_data (Dict[str, Any], required): Composition -> property-value mapping.
+
+        Returns:
+            List[Dict[str, Any]]: One single-key {composition: value} dict per entry.
+        """
         return [{comp: prop} for comp, prop in comp_data.items()]
 
     def _filter_invalid_keys(self, dict_list, doi: str = ""):
-        """Filter dictionaries with invalid keys (more than 2 consecutive capital letters)."""
+        """Filter dictionaries with invalid keys (more than 2 consecutive capital letters).
+
+        Args:
+            dict_list (list, required): List of single-key composition-property dicts to filter.
+            doi (str, optional): DOI used to record filtered compositions in
+                `self.filtered_compositions`. Defaults to "".
+
+        Returns:
+            list: Dicts whose keys did not match the abbreviation pattern.
+        """
         pattern = r"(?<![a-z0-9])[A-Z]{2,}(?![a-z0-9])"
         valid = []
         for d in dict_list:
@@ -107,10 +142,15 @@ class DataCleaner:
         return valid
 
     def _can_parse_as_elements(self, s: str) -> bool:
-        """
-        Check if a purely-alphabetic string can be completely parsed as a sequence
+        """Check if a purely-alphabetic string can be completely parsed as a sequence
         of valid element symbols. Uses greedy matching, preferring 2-letter
         elements over 1-letter (e.g. "Pb", "Sr" before falling back to "P", "O").
+
+        Args:
+            s (str, required): Purely-alphabetic string to parse.
+
+        Returns:
+            bool: True if `s` can be fully parsed as a sequence of element symbols.
         """
         if not s:
             return True
@@ -151,12 +191,12 @@ class DataCleaner:
 
         The target being annotated (what follows the "%") may be a plain
         token (e.g. "NiO") or a bracketed multi-term expression (e.g.
-        "(0.78PbO-0.22CuO)") — the latter's length is variable, so it can't
+        "(0.78PbO-0.22CuO)"), the latter's length is variable, so it can't
         be captured by _PERCENT_ANNOTATION_PATTERN itself; it's located here
         via _find_matching_close_bracket instead.
 
         Args:
-            text (str): Raw composition key, before arithmetic/coefficient processing.
+            text (str, required): Raw composition key, before arithmetic/coefficient processing.
 
         Returns:
             str: Same text with each percent annotation replaced by a placeholder.
@@ -171,7 +211,7 @@ class DataCleaner:
             if end < len(text) and text[end] in "([":
                 close_pos = self._find_matching_close_bracket(text, end)
                 if close_pos == -1:
-                    continue  # unbalanced bracket — leave unprotected
+                    continue  # unbalanced bracket, leave unprotected
                 end = close_pos + 1
             else:
                 token_match = self._PERCENT_ANNOTATION_TARGET_TOKEN.match(text, end)
@@ -196,7 +236,8 @@ class DataCleaner:
         """Restore any protected percent annotations in composition keys.
 
         Args:
-            comp_prop_dict (Dict[str, Any]): Composition -> property-value mapping, potentially still containing placeholders from `_protect_percent_annotations`.
+            comp_prop_dict (Dict[str, Any], required): Composition -> property-value mapping,
+                potentially still containing placeholders from `_protect_percent_annotations`.
 
         Returns:
             Dict[str, Any]: Same mapping with placeholders replaced by their original percent-annotation text.
@@ -216,14 +257,21 @@ class DataCleaner:
         """Check whether the composition key in a pair can be fully parsed as a sequence of valid element symbols.
 
         Args:
-            comp_pro_pair (Dict[str, Any]): A single {composition: value} dictionary.
+            comp_pro_pair (Dict[str, Any], required): A single {composition: value} dictionary.
 
         Returns:
             bool: True if the key resolves to a valid chemical composition, False otherwise.
         """
 
         def _convert_subscript_unicode(string: str) -> str:
-            """Convert Unicode subscript digits to regular digits."""
+            """Convert Unicode subscript digits to regular digits.
+
+            Args:
+                string (str, required): Text that may contain Unicode subscript digits.
+
+            Returns:
+                str: Same text with subscript digits replaced by regular digits.
+            """
             subscript_unicode = {
                 0: "\u2080",
                 1: "\u2081",
@@ -246,6 +294,14 @@ class DataCleaner:
             return string
 
         def _remove_special_chars(string: str) -> str:
+            """Strip everything but letters, after normalizing subscript digits.
+
+            Args:
+                string (str, required): Text to strip down to alphabetic characters.
+
+            Returns:
+                str: Letters-only version of `string`.
+            """
             # First convert Unicode subscripts to regular digits
             string = _convert_subscript_unicode(string)
             # Then remove all non-alphabetic characters
@@ -269,7 +325,7 @@ class DataCleaner:
         """Check whether the composition key contains at least one embedded formula fragment, even if the key as a whole is not purely elements.
 
         Args:
-            comp_pro_pair (Dict[str, Any]): A single {composition: value} dictionary.
+            comp_pro_pair (Dict[str, Any], required): A single {composition: value} dictionary.
 
         Returns:
             bool: True if any letter-run in the key parses as element symbols.
@@ -296,11 +352,11 @@ class DataCleaner:
         cleaning failures.
 
         Args:
-            comp (str): Composition key to check.
+            comp (str, required): Composition key to check.
 
         Returns:
             bool: True if brackets are balanced and at least one bracketed
-                span contains non-arithmetic content.
+            span contains non-arithmetic content.
         """
         if "*" in comp:
             return False
@@ -318,9 +374,16 @@ class DataCleaner:
         return False
 
     def _find_matching_close_bracket(self, text: str, open_pos: int) -> int:
-        """Given text[open_pos] is '(' or '[', return the index of its
-        depth-aware matching close bracket (handles mixed ()/[] nesting), or
-        -1 if unbalanced."""
+        """Given text[open_pos] is '(' or '[', return the index of its depth-aware matching
+        close bracket (handles mixed ()/[] nesting), or -1 if unbalanced.
+
+        Args:
+            text (str, required): Text containing the bracket to match.
+            open_pos (int, required): Index of the opening bracket in `text`.
+
+        Returns:
+            int: Index of the matching closing bracket, or -1 if unbalanced.
+        """
         depth = 0
         for i in range(open_pos, len(text)):
             if text[i] in "([":
@@ -335,7 +398,14 @@ class DataCleaner:
         """Split text on +/-/– that occur at bracket depth 0, keeping each
         sign attached to the term that follows it. Unlike a plain regex
         split, this does not split on a +/- hidden inside a bracket's own
-        multi-term content (e.g. the "-" inside "(0.89A-0.11B)")."""
+        multi-term content (e.g. the "-" inside "(0.89A-0.11B)").
+
+        Args:
+            text (str, required): Text to split into top-level +/- terms.
+
+        Returns:
+            List[str]: Terms, each still prefixed by its own sign if it had one.
+        """
         parts: List[str] = []
         depth = 0
         start = 0
@@ -355,14 +425,20 @@ class DataCleaner:
         formula content (Element[coefficient] tokens, +/-/– joins, and
         brackets whose content is itself fully valid by this same rule).
 
-        Everything from the first point that breaks this — a non-element
+        Everything from the first point that breaks this (a non-element
         token, an element that's actually the start of a longer descriptive
-        word, a bracket containing free text, plain whitespace, etc. — is
+        word, a bracket containing free text, plain whitespace, etc.) is
         not formula content and must never be scaled by a coefficient that
         appeared earlier in the string. This is the single shared rule
         behind why e.g. "Bottom", "Reoxidized", and "PbTiO3 (calcined at
         660C)" must each stop being touched at a specific point rather than
         needing a bespoke check for every new shape of non-formula text.
+
+        Args:
+            text (str, required): Candidate composition string to scan from its start.
+
+        Returns:
+            int: Index into `text` marking the end of the longest valid formula-content prefix.
         """
         element_pattern = re.compile(r"[A-Z][a-z]?")
         number_pattern = re.compile(r"[0-9]+(?:\.[0-9]+)?")
@@ -404,7 +480,7 @@ class DataCleaner:
         (e.g. "0.75*(0.89(Bi0.5Na0.5)TiO3-0.11BaTiO3)") by distributing the
         outer coefficient into each of the bracket's own top-level +/-
         separated sub-terms, multiplying it into that sub-term's own leading
-        coefficient. Only the numeric coefficients are combined here —
+        coefficient. Only the numeric coefficients are combined here,
         element-level scaling (e.g. expanding "Bi0.5Na0.5") is left to the
         existing coefficient_expansion pipeline, which already scales
         elements correctly through a bracket wrapper regardless of what's
@@ -422,7 +498,7 @@ class DataCleaner:
 
         # Anchored to term-start (start-of-string or right after a top-level
         # +/-/–), mirroring the leading-coefficient-before-bracket pattern in
-        # _expand_leading_and_trailing_coefficients — not just "any digit run
+        # _expand_leading_and_trailing_coefficients, not just "any digit run
         # before a bracket", which would false-positive-match an element's
         # own trailing coefficient sitting next to an unrelated bracket (e.g.
         # the "0.15" in "Ca0.15(Zr0.1-Ti0.9)O3" belongs to Ca, not a
@@ -442,7 +518,7 @@ class DataCleaner:
                 inner = formula[open_pos + 1 : close_pos]
 
                 # Defer pure-numeric arithmetic parens (e.g. "0.5*(0.2+0.3)")
-                # to the existing arithmetic-evaluation machinery — this
+                # to the existing arithmetic-evaluation machinery. This
                 # function only handles brackets containing actual
                 # composition text.
                 if re.match(r"^[0-9.\s+\-*/]+$", inner):
@@ -450,7 +526,7 @@ class DataCleaner:
 
                 sub_terms = self._split_top_level_terms(inner)
                 if len(sub_terms) <= 1:
-                    # Single-term bracket — leave to the existing
+                    # Single-term bracket, leave to the existing
                     # coefficient_expansion pipeline.
                     continue
 
@@ -511,7 +587,7 @@ class DataCleaner:
         """Normalize whitespace and title-case descriptive word tokens in composition keys.
 
         Args:
-            dict_list (list): List of single-entry dicts mapping composition strings to values.
+            dict_list (list, required): List of single-entry dicts mapping composition strings to values.
 
         Returns:
             list: Same structure with whitespace normalized and descriptive
@@ -519,6 +595,14 @@ class DataCleaner:
         """
 
         def format_key(key: str) -> str:
+            """Normalize whitespace and title-case the descriptive word tokens in one key.
+
+            Args:
+                key (str, required): Composition key to normalize.
+
+            Returns:
+                str: Normalized key.
+            """
             tokens = key.strip().split()
             formatted = []
             for i, tok in enumerate(tokens):
@@ -551,9 +635,9 @@ class DataCleaner:
         """Clean composition-property pairs according to the selected optional steps.
 
         Args:
-            comp_prop_data (Dict[str, Any]): Raw composition -> property-value mapping.
-            steps (Set[str]): Selected optional CleaningStep values.
-            doi (str, optional): DOI used to track filtered compositions.
+            comp_prop_data (Dict[str, Any], required): Raw composition -> property-value mapping.
+            steps (Set[str], required): Selected optional CleaningStep values.
+            doi (str, optional): DOI used to track filtered compositions. Defaults to "".
 
         Returns:
             List[Dict[str, Any]]: List of single-entry {composition: value} dicts after
@@ -586,7 +670,7 @@ class DataCleaner:
             # "Cellulose nanofibers/BaTiO3@TiO2/..."), instead of requiring the
             # entire key to be pure elements. Applied as an additional sequential
             # filter, so if element_validation_strict is also selected, its stricter
-            # result already excludes everything this step alone would allow —
+            # result already excludes everything this step alone would allow,
             # this step gives no extra ground back when both are selected.
             valid_pairs = []
             for pair in comp_prop_pairs:
@@ -609,7 +693,7 @@ class DataCleaner:
             # Drop (not transform) compositions carrying a crystal-plane notation.
             # Stripping "(002)"/"(110)" and keeping the bare formula would collapse
             # distinct surface-orientation entries for the same material down to
-            # the same dict key — e.g. "AlN (002)" and "AlN (110)" would both
+            # the same dict key, e.g. "AlN (002)" and "AlN (110)" would both
             # become "AlN", silently overwriting one another when merged. Must
             # run before arithmetic/bracket resolution below: the mandatory
             # bracket resolver would otherwise treat the bare, purely-numeric
@@ -629,7 +713,7 @@ class DataCleaner:
                     kept_pairs.append(d)
             comp_prop_pairs = kept_pairs
 
-        # Mandatory, always runs regardless of `steps` — later steps depend on this output.
+        # Mandatory, always runs regardless of `steps`. Later steps depend on this output.
         comp_prop_pairs = self._convert_fractions_and_resolve_compositions(
             comp_prop_pairs
         )
@@ -637,12 +721,27 @@ class DataCleaner:
         return comp_prop_pairs
 
     def _convert_fractions_and_resolve_compositions(self, dict_list):
-        """
-        Convert fractions to decimal format and resolve composition formulas by handling mathematical operations and normalizing bracket notation.
+        """Convert fractions to decimal format and resolve composition formulas by handling
+        mathematical operations and normalizing bracket notation.
+
+        Args:
+            dict_list (list, required): List of single-key composition-property dicts to resolve.
+
+        Returns:
+            list: Same dicts with each composition key resolved to a fully-evaluated formula.
         """
 
         def _replace_fraction(match):
-            """Convert fraction to decimal format."""
+            """Convert fraction to decimal format.
+
+            Args:
+                match (re.Match, required): Regex match with numerator in group 1 and denominator
+                    in group 2.
+
+            Returns:
+                str: Decimal string for the fraction, or the original matched text if the
+                denominator is zero.
+            """
             numerator = float(match.group(1))
             denominator = float(match.group(2))
             if denominator == 0:
@@ -650,9 +749,15 @@ class DataCleaner:
             return f"{numerator/denominator:.8f}".rstrip("0").rstrip(".")
 
         def _evaluate_all_parenthetical_expressions(formula):
-            """
-            - Evaluate ALL arithmetic operations within parentheses following BODMAS rules.
-            - Process from innermost to outermost parentheses.
+            """Evaluate all arithmetic operations within parentheses following BODMAS rules,
+            processing from innermost to outermost parentheses.
+
+            Args:
+                formula (str, required): Composition formula that may contain arithmetic
+                    expressions in parentheses.
+
+            Returns:
+                str: Formula with resolvable parenthetical arithmetic evaluated and folded in.
             """
             max_iterations = 100
             iteration_count = 0
@@ -694,17 +799,17 @@ class DataCleaner:
                                 # If evaluation fails, skip this match
                                 continue
                         else:
-                            # Bare number in brackets — strip brackets without evaluating.
+                            # Bare number in brackets: strip brackets without evaluating.
                             # e.g. Gd(0) → Gd0, (0.00) blocking (0.972-(0.00)) → unblocks outer.
                             # Skip if preceded by * so _multiply_pure_number_coefficients can handle it.
                             if match.start() > 0 and formula[match.start() - 1] == "*":
                                 continue
-                            # Skip bare 3-digit integers (no decimal point) — these are
+                            # Skip bare 3-digit integers (no decimal point): these are
                             # Miller-index-shaped, e.g. "(002)". If the miller_indices
                             # step is selected it already removed these earlier in the
                             # pipeline; if not, silently merging the digits into the
                             # preceding element (AlN (002) -> AlN2) would be wrong
-                            # regardless, so leave the bracket untouched here — it then
+                            # regardless, so leave the bracket untouched here. It then
                             # gets caught as "unresolved" downstream.
                             if re.match(r"^[0-9]{3}$", expression):
                                 continue
@@ -721,9 +826,15 @@ class DataCleaner:
             return formula
 
         def _multiply_pure_number_coefficients(formula):
-            """
-            Handle patterns like: 0.03*(0.2) -> 0.006
-            Only when the content in parentheses is a pure number.
+            """Handle patterns like 0.03*(0.2) -> 0.006, only when the content in parentheses
+            is a pure number.
+
+            Args:
+                formula (str, required): Composition formula to scan for coefficient*(number)
+                    patterns.
+
+            Returns:
+                str: Formula with those patterns replaced by their multiplied result.
             """
             max_iterations = 50
             iteration_count = 0
@@ -763,13 +874,18 @@ class DataCleaner:
             return formula
 
         def _resolve_coefficient_multiplication(formula):
-            """
-            Resolve patterns like:
+            """Resolve patterns like:
             - (0.04-0.03)*CaZrO3 -> 0.01*CaZrO3 -> 0.01CaZrO3
             - 0.03*(Bi0.5Ag0.5)ZrO3 -> 0.03(Bi0.5Ag0.5)ZrO3
             - (0.03)*(0.2)ZrO3 -> 0.006*ZrO3 -> 0.006ZrO3
 
-            Note: By the time this runs, pure arithmetic parentheses should already be evaluated.
+            By the time this runs, pure arithmetic parentheses should already be evaluated.
+
+            Args:
+                formula (str, required): Composition formula to resolve coefficient multiplication in.
+
+            Returns:
+                str: Formula with coefficient*(...) multiplications resolved.
             """
             max_iterations = 50
             iteration_count = 0
@@ -813,16 +929,31 @@ class DataCleaner:
             return formula
 
         def _remove_redundant_multiply_signs(formula):
-            """
-            Remove * signs between:
+            """Remove * signs between:
             - digit*letter: 2*Ca -> 2Ca
             - digit*(non-pure-number): 0.03*(Bi0.5Ag0.5) -> 0.03(Bi0.5Ag0.5)
+
+            Args:
+                formula (str, required): Composition formula to strip redundant * signs from.
+
+            Returns:
+                str: Formula with those * signs removed.
             """
             # Remove * between digit and letter
             formula = re.sub(r"(\d)\s*\*\s*([A-Z])", r"\1\2", formula)
 
             # Remove * between digit and opening parenthesis (if parenthesis contains letters)
             def _replace_multiply_before_paren(match):
+                """Drop the * between a digit and a non-numeric parenthesis.
+
+                Args:
+                    match (re.Match, required): Match with the digit in group 1 and the
+                        parenthesis content in group 2.
+
+                Returns:
+                    str: Digit directly joined to the opening parenthesis, or the original
+                    matched text unchanged if the content is purely numeric.
+                """
                 digit = match.group(1)
                 paren_content = match.group(2)
 
@@ -842,14 +973,30 @@ class DataCleaner:
             return formula
 
         def _resolve_element_coefficient_multiplications(formula):
-            """
-            Resolve ElementCoeff*Multiplier patterns such as Zr0.1*1, Ti0.9*0.999, Ta*0.
+            """Resolve ElementCoeff*Multiplier patterns such as Zr0.1*1, Ti0.9*0.999, Ta*0.
             Each match is replaced by the element with its base coefficient multiplied by
             the trailing multiplier. Elements whose result is zero are removed entirely.
+
+            Args:
+                formula (str, required): Composition formula to resolve element-coefficient
+                    multiplications in.
+
+            Returns:
+                str: Formula with each ElementCoeff*Multiplier pattern replaced.
             """
             element_mult_pattern = r"([A-Z][a-z]?)(\d+(?:\.\d+)?)?\*(\d+(?:\.\d+)?)"
 
             def _replace_element_mult(match):
+                """Compute one element's multiplied coefficient and format it back into the formula.
+
+                Args:
+                    match (re.Match, required): Match with element symbol in group 1, optional
+                        base coefficient in group 2, and multiplier in group 3.
+
+                Returns:
+                    str: Element with its multiplied coefficient formatted in, or "" if the
+                    result is zero.
+                """
                 element = match.group(1)
                 base_coeff_str = match.group(2)
                 multiplier_str = match.group(3)
@@ -870,9 +1017,14 @@ class DataCleaner:
             return re.sub(element_mult_pattern, _replace_element_mult, formula)
 
         def _resolve_arithmetic_and_multiply(formula):
-            """
-            Resolve arithmetic expressions and handle multiplication operations.
-            This must be done BEFORE adding composition brackets.
+            """Resolve arithmetic expressions and handle multiplication operations.
+            This must be done before adding composition brackets.
+
+            Args:
+                formula (str, required): Composition formula to resolve.
+
+            Returns:
+                str: Formula with arithmetic and multiplication operations resolved.
             """
             if not formula or not isinstance(formula, str):
                 return str(formula) if formula is not None else ""
@@ -896,19 +1048,24 @@ class DataCleaner:
             return formula
 
         def _add_composition_brackets(formula):
-            """
-            Add brackets around composition parts after numerical coefficients.
+            """Add brackets around composition parts after numerical coefficients.
             Uses () if no parentheses exist in the composition part.
             Uses [] if parentheses already exist in the composition part.
 
             Rules:
-            - Only add brackets if there's a digit coefficient before the composition
-            - Don't add brackets at the very beginning if no coefficient
-            - Don't add brackets after - if no coefficient follows the -
+            - Only add brackets if there's a digit coefficient before the composition.
+            - Don't add brackets at the very beginning if no coefficient.
+            - Don't add brackets after - if no coefficient follows the -.
+
+            Args:
+                formula (str, required): Composition formula to add brackets to.
+
+            Returns:
+                str: Formula with brackets added around each coefficient's composition part.
             """
             # Split formula by +/- operators while preserving them, without
             # splitting on a +/- hidden inside a bracket's own multi-term
-            # content (depth-aware — see _split_top_level_terms).
+            # content (depth-aware, see _split_top_level_terms).
             parts = self._split_top_level_terms(formula)
 
             processed_parts = []
@@ -940,7 +1097,7 @@ class DataCleaner:
 
                     # Split off any trailing content that isn't valid formula
                     # text (per _formula_prefix_end), e.g. a descriptive
-                    # annotation like "PbTiO3 (calcined at 660C)" — the
+                    # annotation like "PbTiO3 (calcined at 660C)", the
                     # annotation must never share the composition's
                     # coefficient/bracket scope, since it can incidentally
                     # contain single-letter unit symbols that are also valid
@@ -953,7 +1110,7 @@ class DataCleaner:
 
                     if not formula_part:
                         # Nothing formula-shaped follows the coefficient at
-                        # all — leave everything untouched.
+                        # all, leave everything untouched.
                         processed_parts.append(
                             sign + coefficient + " " + composition_part
                         )
@@ -997,10 +1154,14 @@ class DataCleaner:
             return "".join(processed_parts)
 
         def _resolve_composition(formula):
-            """
-            Process chemical formulas with the following operations:
-            1. Evaluate arithmetic operations and multiplications FIRST
-            2. Add brackets around composition parts after coefficients
+            """Process a chemical formula by first evaluating arithmetic operations and
+            multiplications, then adding brackets around composition parts after coefficients.
+
+            Args:
+                formula (str, required): Composition formula to resolve.
+
+            Returns:
+                str: Fully resolved formula.
             """
             if not formula or not isinstance(formula, str):
                 return str(formula) if formula is not None else ""
@@ -1014,7 +1175,14 @@ class DataCleaner:
             return formula
 
         def _convert_subscript_unicode_to_digits(string: str) -> str:
-            """Convert Unicode subscript digits to regular digits."""
+            """Convert Unicode subscript digits to regular digits.
+
+            Args:
+                string (str, required): Text that may contain Unicode subscript digits.
+
+            Returns:
+                str: Same text with subscript digits replaced by regular digits.
+            """
             subscript_unicode = {
                 0: "\u2080",
                 1: "\u2081",
@@ -1059,8 +1227,7 @@ class DataCleaner:
         return result
 
     def _remove_miller_indices(self, formula: str) -> str:
-        """
-        Remove Miller indices (crystal plane notations) from chemical formulas.
+        """Remove Miller indices (crystal plane notations) from chemical formulas.
         Miller indices are represented as three integers in parentheses.
 
         Examples:
@@ -1069,9 +1236,15 @@ class DataCleaner:
         - BaTiO3 (100) -> BaTiO3
 
         Does NOT remove:
-        - (0.02) - contains decimal point
-        - (12) - only two digits
-        - (K0.5Na0.5) - contains letters
+        - (0.02): contains decimal point
+        - (12): only two digits
+        - (K0.5Na0.5): contains letters
+
+        Args:
+            formula (str, required): Chemical formula to strip Miller indices from.
+
+        Returns:
+            str: Formula with Miller-index parentheticals removed.
         """
         if not formula or not isinstance(formula, str):
             return formula
@@ -1083,13 +1256,18 @@ class DataCleaner:
         return re.sub(pattern, "", formula).strip()
 
     def _remove_zero_coefficient_elements(self, formula: str) -> str:
-        """
-        Remove elements with coefficient 0 or 0.0 from chemical formulas.
+        """Remove elements with coefficient 0 or 0.0 from chemical formulas.
 
         Examples:
         - BaTiZr0O3 -> BaTiO3
         - Na0.5K0.5Nb0O3 -> Na0.5K0.5O3
         - Pb0La0.1ZrTiO3 -> La0.1ZrTiO3
+
+        Args:
+            formula (str, required): Chemical formula to strip zero-coefficient elements from.
+
+        Returns:
+            str: Formula with each zero-coefficient element removed.
         """
         if not formula or not isinstance(formula, str):
             return formula
@@ -1098,6 +1276,15 @@ class DataCleaner:
         pattern = r"([A-Z][a-z]?)([0-9]+(?:\.[0-9]+)?)?"
 
         def keep_element(match):
+            """Keep an element token unless its coefficient is zero.
+
+            Args:
+                match (re.Match, required): Match with element symbol in group 1 and optional
+                    coefficient in group 2.
+
+            Returns:
+                str: Original matched text, or "" if the coefficient is zero.
+            """
             element = match.group(1)
             coeff_str = match.group(2)
 
@@ -1119,19 +1306,33 @@ class DataCleaner:
         return re.sub(pattern, keep_element, formula)
 
     def _normalize_coefficients(self, formula: str) -> str:
-        """
-        Normalize element coefficients by removing trailing zeros.
+        """Normalize element coefficients by removing trailing zeros.
 
         Examples:
         - Pb0.90 -> Pb0.9
         - La0.10 -> La0.1
         - Ti2.00 -> Ti2
         - O3 -> O3 (unchanged)
+
+        Args:
+            formula (str, required): Chemical formula whose coefficients are normalized.
+
+        Returns:
+            str: Formula with trailing-zero coefficients trimmed.
         """
         if not formula or not isinstance(formula, str):
             return formula
 
         def format_coefficient(match):
+            """Format one element's coefficient with trailing zeros removed.
+
+            Args:
+                match (re.Match, required): Match with element symbol in group 1 and optional
+                    coefficient in group 2.
+
+            Returns:
+                str: Element with its normalized coefficient appended.
+            """
             element = match.group(1)
             coeff_str = match.group(2)
 
@@ -1161,8 +1362,7 @@ class DataCleaner:
         return re.sub(pattern, format_coefficient, formula)
 
     def _expand_leading_and_trailing_coefficients(self, formula: str) -> str:
-        """
-        Expand leading and trailing coefficient patterns before bracket expansion.
+        """Expand leading and trailing coefficient patterns before bracket expansion.
 
         Handles:
         1. Leading coefficients: 0.7(composition) or (0.15)composition
@@ -1172,21 +1372,43 @@ class DataCleaner:
         - 0.7(K0.48Na0.52NbO2.7SnO2) -> (K0.336Na0.364Nb1.89Sn0.49O1.4)
         - (0.15)Dy2O3 -> (Dy0.15O0.45)
         - (K0.5Na0.5)(0.97)Ag0.03NbO3 -> (K0.485Na0.485)Ag0.03NbO3
+
+        Args:
+            formula (str, required): Chemical formula to expand leading/trailing coefficients in.
+
+        Returns:
+            str: Formula with those coefficients distributed into the bracketed composition.
         """
         if not formula or not isinstance(formula, str):
             return formula
 
         def multiply_element_coefficients(composition: str, multiplier: float) -> str:
-            """Multiply all element coefficients within composition's valid
-            formula prefix by multiplier; everything from the first
-            non-formula point onward (e.g. a trailing descriptive
-            annotation like " (calcined at 660C)") is left completely
-            untouched, per _formula_prefix_end."""
+            """Multiply all element coefficients within composition's valid formula prefix by
+            multiplier. Everything from the first non-formula point onward (e.g. a trailing
+            descriptive annotation like " (calcined at 660C)") is left completely untouched,
+            per _formula_prefix_end.
+
+            Args:
+                composition (str, required): Composition text whose element coefficients are scaled.
+                multiplier (float, required): Factor to multiply each element's coefficient by.
+
+            Returns:
+                str: Composition with scaled coefficients, with any trailing annotation unchanged.
+            """
             element_pattern = r"([A-Z][a-z]?)([0-9]+(?:\.[0-9]+)?)?"
             boundary = self._formula_prefix_end(composition)
             scannable, trailing = composition[:boundary], composition[boundary:]
 
             def replace_coeff(match):
+                """Scale one element's coefficient by the enclosing multiplier.
+
+                Args:
+                    match (re.Match, required): Match with element symbol in group 1 and optional
+                        coefficient in group 2.
+
+                Returns:
+                    str: Element with its scaled coefficient, or "" if the result is zero.
+                """
                 element = match.group(1)
                 coeff_str = match.group(2)
                 coeff = float(coeff_str) if coeff_str else 1.0
@@ -1422,22 +1644,24 @@ class DataCleaner:
     def _expand_parenthetical_coefficients(
         self, formula: str, total_expansion: int = 0
     ) -> tuple:
-        """
-        Expand parenthetical expressions in chemical formulas by multiplying
-        the coefficients inside with the coefficient outside.
+        """Expand parenthetical expressions in chemical formulas by multiplying the
+        coefficients inside with the coefficient outside.
 
         Handles:
         1. Nested brackets: [(Na0.84K0.16)0.5Bi0.5]0.99 -> Na0.4158K0.0792Bi0.495
-        2. Removes elements with coefficient 0
+        2. Removes elements with coefficient 0.
         3. Removes brackets without coefficients: (Na0.5K0.5) -> Na0.5K0.5
-        4. Supports both () and [] brackets
+        4. Supports both () and [] brackets.
 
         Args:
-            formula: Chemical formula string
-            total_expansion: Counter for expansions
+            formula (str, required): Chemical formula to expand.
+            total_expansion (int, optional): Running counter of expansions performed across
+                recursive calls. Defaults to 0.
 
         Returns:
-            Tuple of (expanded formula, updated expansion counter)
+            tuple:
+                - str: Expanded formula.
+                - int: Updated expansion counter.
         """
         if not formula or not isinstance(formula, str):
             return formula, total_expansion
@@ -1463,7 +1687,7 @@ class DataCleaner:
                     element_pattern = r"([A-Z][a-z]?)([\d.]*)"
 
                     # Only scale within the bracket content's valid formula
-                    # prefix (per _formula_prefix_end) — anything from the
+                    # prefix (per _formula_prefix_end). Anything from the
                     # first non-formula point onward is appended untouched
                     # rather than scanned for element-like matches at all.
                     boundary = self._formula_prefix_end(inner_content)
@@ -1509,8 +1733,8 @@ class DataCleaner:
 
                 # Step 2: Remove brackets without coefficients
                 # Make sure we don't match if there's a * followed by a number
-                # Skip bare 3-digit integers (Miller-index-shaped, e.g. "(002)")
-                # — those must be handled by the miller_indices step, not
+                # Skip bare 3-digit integers (Miller-index-shaped, e.g. "(002)").
+                # Those must be handled by the miller_indices step, not
                 # silently stripped here.
                 no_coeff_match = None
                 for candidate in re.finditer(
@@ -1550,16 +1774,22 @@ class DataCleaner:
     def _apply_advanced_composition_cleaning(
         self, comp_prop_dict: Dict[str, Any], steps: Set[str]
     ) -> Dict[str, Any]:
-        """
-        Apply coefficient expansion, gated by `steps`.
+        """Apply coefficient expansion, gated by `steps`.
 
-        Miller indices removal is handled earlier in `_clean_comp_prop_pairs`,
-        before the mandatory arithmetic/bracket resolution — see the comment
-        there for why the ordering matters.
+        Miller indices removal is handled earlier in `_clean_comp_prop_pairs`, before the
+        mandatory arithmetic/bracket resolution, since ordering matters there.
 
         Coefficient expansion internally normalizes trailing zeros and removes
         zero-coefficient elements as part of expanding leading/trailing/nested
-        bracket coefficients — there are no separate steps for those.
+        bracket coefficients, so there are no separate steps for those.
+
+        Args:
+            comp_prop_dict (Dict[str, Any], required): Composition -> property-value mapping to clean.
+            steps (Set[str], required): Selected CleaningStep values gating whether coefficient
+                expansion runs.
+
+        Returns:
+            Dict[str, Any]: New mapping with cleaned composition keys.
         """
         cleaned_dict = {}
         for composition, property_value in comp_prop_dict.items():
@@ -1588,13 +1818,19 @@ class DataCleaner:
         If coefficient_expansion_lenient is selected without
         coefficient_expansion_strict, compositions with balanced
         brackets/braces containing genuine text (not a stray "*" or leftover
-        arithmetic) are spared instead of being dropped — see
+        arithmetic) are spared instead of being dropped, per
         `_has_balanced_annotated_brackets`. Selecting both steps together
         reverts to the strict behavior below.
 
         Args:
+            comp_prop_dict (Dict[str, Any], required): Composition -> property-value mapping to filter.
+            doi (str, optional): DOI used to record dropped compositions in
+                `self.unresolved_compositions`. Defaults to "".
             steps (Set[str], optional): Resolved set of selected CleaningStep
-                values, used to decide whether the lenient carve-out applies.
+                values, used to decide whether the lenient carve-out applies. Defaults to None.
+
+        Returns:
+            Dict[str, Any]: New mapping containing only the compositions that are fully resolved.
         """
         steps = steps or set()
         lenient_active = (
@@ -1622,7 +1858,7 @@ class DataCleaner:
         """Merge a list of single-entry dicts into one flat dict.
 
         Args:
-            dict_list (list): List of {composition: value} dicts.
+            dict_list (list, required): List of {composition: value} dicts.
 
         Returns:
             dict: Single merged dictionary of all composition-value pairs.
@@ -1633,7 +1869,13 @@ class DataCleaner:
         return final_dict
 
     def get_useful_data(self) -> Dict[str, Any]:
-        """Get only the useful information from all the data passed by the extraction agents based on key searching."""
+        """Get only the useful information from all the data passed by the extraction agents
+        based on key searching.
+
+        Returns:
+            Dict[str, Any]: Mapping from DOI to a dict with composition_data, synthesis_data,
+            and article_metadata, filled in from `self.all_data` or with schema-defined defaults.
+        """
         result = {}
 
         # Define the expected structure with default empty values
@@ -1686,7 +1928,8 @@ class DataCleaner:
         """Validate and resolve the public `cleaning_steps` argument into a concrete set.
 
         Args:
-            cleaning_steps: Either the string "all" or a list of CleaningStep values.
+            cleaning_steps (Union[str, List[str]], required): Either the string "all" or a
+                list of CleaningStep values.
 
         Returns:
             Set[str]: The resolved set of selected optional step names.
@@ -1711,14 +1954,17 @@ class DataCleaner:
         return set(cleaning_steps)
 
     def clean_data_with_selected_steps(self, steps: Set[str]) -> Dict[str, Any]:
-        """
-        Run composition cleaning using exactly the given set of optional steps.
+        """Run composition cleaning using exactly the given set of optional steps.
 
         Unicode conversion and arithmetic/fraction resolution always run
         regardless of `steps`, since later steps depend on their output.
 
         Args:
-            steps: Resolved set of CleaningStep values to apply.
+            steps (Set[str], required): Resolved set of CleaningStep values to apply.
+
+        Returns:
+            Dict[str, Any]: Same shape as `self.all_data`, with each entry's composition data
+            cleaned and restored percent annotations.
         """
         self._pct_annotation_map = {}
         result = {}
@@ -1738,7 +1984,7 @@ class DataCleaner:
                     # Only filter out unresolved brackets/operators when coefficient
                     # expansion was actually attempted. Without it selected, the
                     # brackets the mandatory arithmetic step adds around coefficient
-                    # segments are expected and unexpanded on purpose — they are not
+                    # segments are expected and unexpanded on purpose. They are not
                     # "failures", so the composition should pass through untouched
                     # rather than being dropped.
                     comp_prop_dict = self._filter_unresolved_compositions(
@@ -1754,20 +2000,19 @@ class DataCleaner:
         self,
         cleaning_steps: Union[str, List[str]] = "all",
     ) -> Dict[str, Any]:
-        """
-        Clean data using the given set of optional cleaning steps.
+        """Clean data using the given set of optional cleaning steps.
 
         Args:
-            cleaning_steps: Either "all" (default, every optional step enabled) or a
-                list of step names selecting exactly which optional steps run:
-                abbreviation_filtering, element_validation_strict, element_validation_lenient,
+            cleaning_steps (Union[str, List[str]], optional): Either "all" (every optional
+                step enabled) or a list of step names selecting exactly which optional steps
+                run: abbreviation_filtering, element_validation_strict, element_validation_lenient,
                 text_normalization, miller_indices, coefficient_expansion_strict,
                 coefficient_expansion_lenient. Unicode conversion and
                 arithmetic/fraction resolution always run regardless of this
                 parameter. element_validation_lenient/coefficient_expansion_lenient
-                are weaker companions of element_validation_strict/coefficient_expansion_strict —
+                are weaker companions of element_validation_strict/coefficient_expansion_strict:
                 selecting both a step and its lenient companion together yields the
-                stricter step's result.
+                stricter step's result. Defaults to "all".
 
         Returns:
             Dict[str, Any]: Cleaned data based on selected steps.
@@ -1781,16 +2026,16 @@ class DataCleaner:
         cleaning_steps: Union[str, List[str]] = "all",
         is_return_doi: bool = False,
     ) -> Dict[str, Any]:
-        """
-        Get all composition-property pairs from cleaned data after applying the
+        """Get all composition-property pairs from cleaned data after applying the
         selected cleaning steps and resolving composition calculations.
 
         Args:
-            cleaning_steps: Either "all" (default, every optional step enabled) or a
-                list of step names selecting exactly which optional steps run.
-                See `clean_data_with_relevant_compositions` for the full list.
-            is_return_doi: If True, returns nested dictionary with DOI as keys.
-                If False (default), returns flat composition-property dictionary.
+            cleaning_steps (Union[str, List[str]], optional): Either "all" (every optional
+                step enabled) or a list of step names selecting exactly which optional steps
+                run. See `clean_data_with_relevant_compositions` for the full list. Defaults
+                to "all".
+            is_return_doi (bool, optional): If True, returns nested dictionary with DOI as keys.
+                If False, returns flat composition-property dictionary. Defaults to False.
 
         Returns:
             Dict[str, Any]: If is_return_doi is False (default):

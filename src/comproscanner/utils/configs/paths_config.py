@@ -4,7 +4,7 @@ paths_config.py - Contains the default paths for the project.
 Author: Aritra Roy
 Email: contact@aritraroy.live
 Website: https://aritraroy.live
-Date: 21-02-2025
+GitHub: aritraroy24
 """
 
 import os

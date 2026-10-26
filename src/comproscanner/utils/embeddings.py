@@ -4,7 +4,7 @@ embeddings.py
 Author: Aritra Roy
 Email: contact@aritraroy.live
 Website: https://aritraroy.live
-Date: 23-02-2025
+GitHub: aritraroy24
 """
 
 # Standard library imports

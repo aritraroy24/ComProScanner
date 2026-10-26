@@ -4,7 +4,7 @@ get_paper_data.py
 Author: Aritra Roy
 Email: contact@aritraroy.live
 Website: https://aritraroy.live
-Date: 29-03-2025
+GitHub: aritraroy24
 """
 
 import requests

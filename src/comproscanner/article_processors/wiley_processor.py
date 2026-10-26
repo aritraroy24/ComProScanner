@@ -4,7 +4,7 @@ wiley_processor.py
 Author: Aritra Roy
 Email: contact@aritraroy.live
 Website: https://aritraroy.live
-Date: 28-03-2025
+GitHub: aritraroy24
 """
 
 # Standard library imports
@@ -52,25 +52,25 @@ load_dotenv()
 logger = setup_logger("comproscanner.log", module_name="wiley_processor")
 
 
-######## Class to process Wiley articles ########
 class WileyArticleProcessor:
     """
     Get the article as PDF using Wiley API and process it to extract the required sections of the article and save it to the MySQL database and CSV files and create a vector store if the relevant data is present in the article.
 
     Args:
-        main_property_keyword (str: Required): The main keyword to process the articles for and file naming
-        property_keywords (dict: Required): A dictionary of property keywords which will be used for filtering sentences and should look like the following:
-        {
-            "exact_keywords": ["example1", "example2"],
-            "substring_keywords": [" example 1 ", " example 2 "],
-        }
-        sql_batch_size (int): The number of rows to write to the database at once (Applicable only if is_sql_db is True) (default: 500)
-        csv_batch_size (int): The number of rows to write to the CSV file at once (default: 1)
-        start_row (int): The row number to start processing from (default: None)
-        end_row (int): The row number to end processing at (default: None)
-        doi_list (list): A list of DOIs to process (default: None)
-        is_sql_db (bool): A flag to indicate if the data should be written to the database (default: False)
-        rag_config (RAGConfig): An instance of the RAGConfig class (default: RAGConfig())
+        main_property_keyword (str, required): The main keyword to process the articles for and file naming.
+        property_keywords (dict, required): A dictionary of property keywords used for filtering sentences, e.g. {"exact_keywords": ["example1", "example2"], "substring_keywords": [" example 1 ", " example 2 "]}.
+        sql_batch_size (int, optional): The number of rows to write to the database at once (applicable only if is_sql_db is True). Defaults to 500.
+        csv_batch_size (int, optional): The number of rows to write to the CSV file at once. Defaults to 1.
+        start_row (int, optional): The row number to start processing from. Defaults to None.
+        end_row (int, optional): The row number to end processing at. Defaults to None.
+        doi_list (list, optional): A list of DOIs to process. Defaults to None.
+        is_sql_db (bool, optional): A flag to indicate if the data should be written to the database. Defaults to False.
+        is_save_pdf (bool, optional): A flag to indicate if the downloaded PDF should be kept. Defaults to False.
+        rag_config (RAGConfig, optional): An instance of the RAGConfig class. Defaults to RAGConfig().
+        main_figure_keywords (dict, optional): Keywords used to match figure captions; falls back to property_keywords. Defaults to None.
+        additional_figure_keywords (dict, optional): Extra keywords used to match figure captions. Defaults to None.
+        save_failed_automated_report (bool, optional): Whether to save a report of articles that failed download/parse. Defaults to True.
+        failed_automated_report_path (str, optional): Path for the failed-articles report. Defaults to None.
     """
 
     def __init__(
@@ -168,7 +168,12 @@ class WileyArticleProcessor:
         self.is_exceeded = False
 
     def _record_failed_article(self, doi: str, reason: str) -> None:
-        """Record a failed article to the automated failure report."""
+        """Record a failed article to the automated failure report.
+
+        Args:
+            doi (str, required): DOI of the article that failed.
+            reason (str, required): Short code describing why the article failed.
+        """
         self.failed_automated_count += 1
         record_failed_article(
             doi,
@@ -182,7 +187,7 @@ class WileyArticleProcessor:
         """Check if the text contains corrupted GLYPH patterns from failed OCR.
 
         Args:
-            text (str): The text to check.
+            text (str, required): The text to check.
 
         Returns:
             bool: True if text is corrupted (high ratio of GLYPH patterns), False otherwise.
@@ -261,19 +266,16 @@ class WileyArticleProcessor:
 
     def _send_request(self, doi):
         """
-        Send a GET request to the Wiley API to get the article as PDF.
+        Send a GET request to the Wiley API to get the article as PDF. Retries indefinitely on connection errors until it succeeds or the user interrupts.
 
         Args:
-            doi (str: Required): The DOI of the article.
+            doi (str, required): The DOI of the article.
 
         Returns:
-            tmp_path (str): The path of the temporary PDF file, or "Not Found" if the article is not found, or None if there was an error.
+            str: The path of the saved or temporary PDF file, or "Not Found" if the article is not found, or None if there was an error.
 
         Raises:
-            KeyboardInterruptHandler: If user interrupts the retry process
-
-        Note:
-            This method will retry indefinitely for connection errors until successful connection or KeyboardInterrupt
+            KeyboardInterruptHandler: If the user interrupts the retry process.
         """
         retry_delay = 60  # seconds
         retry_count = 0
@@ -421,8 +423,11 @@ class WileyArticleProcessor:
         Save the PDF file to the local disk.
 
         Args:
-            doi (str: Required): The DOI of the article.
-            response (requests.Response: Required): The response object from the GET request.
+            doi (str, required): The DOI of the article.
+            response (requests.Response, required): The response object from the GET request.
+
+        Returns:
+            str: The path of the saved PDF file.
         """
         pdf_folderpath = f"downloaded_files/pdfs/wiley"
         if not os.path.exists(pdf_folderpath):

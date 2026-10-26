@@ -4,7 +4,7 @@ synthesis_evaluation_crew.py
 Author: Aritra Roy
 Email: contact@aritraroy.live
 Website: https://aritraroy.live
-Date: 20-04-2025
+GitHub: aritraroy24
 """
 
 # Standard library imports
@@ -39,8 +39,9 @@ class SynthesisEvaluationCrew:
     ):
         """
         Args:
-            llm: LLM instance for the agent.
-            schema_config: Extraction schema defining the evaluated fields. Defaults to the bundled default schema.
+            llm (Optional[LLM], optional): LLM instance for the agent. Defaults to LLM(model="o3-mini").
+            schema_config (Optional[ExtractionSchemaConfig], optional): Extraction schema defining the evaluated
+                fields. Defaults to the bundled default schema.
         """
         self.llm = llm or LLM(model="o3-mini")
         self.schema_config = schema_config or load_schema_config()
@@ -50,7 +51,11 @@ class SynthesisEvaluationCrew:
 
     @agent
     def synthesis_evaluator_agent(self) -> Agent:
-        """Agent that evaluates synthesis data with binary decisions."""
+        """Agent that evaluates synthesis data with binary decisions.
+
+        Returns:
+            Agent: Configured CrewAI agent using the synthesis evaluator prompt config.
+        """
         return Agent(
             config=fill_schema_placeholders(
                 self.agents_config["synthesis_evaluator_agent"],
@@ -61,7 +66,11 @@ class SynthesisEvaluationCrew:
 
     @task
     def evaluate_synthesis_data_task(self) -> Task:
-        """Task for evaluating synthesis data with binary decisions."""
+        """Task for evaluating synthesis data with binary decisions.
+
+        Returns:
+            Task: Configured CrewAI task that outputs the synthesis evaluation pydantic model.
+        """
         return Task(
             config=fill_schema_placeholders(
                 self.tasks_config["evaluate_synthesis_data_task"],
@@ -72,7 +81,11 @@ class SynthesisEvaluationCrew:
 
     @crew
     def crew(self) -> Crew:
-        """Create and configure the synthesis evaluation crew."""
+        """Create and configure the synthesis evaluation crew.
+
+        Returns:
+            Crew: Sequential-process crew wiring the synthesis evaluator agent to its task.
+        """
         return Crew(
             agents=[self.synthesis_evaluator_agent()],
             tasks=[self.evaluate_synthesis_data_task()],

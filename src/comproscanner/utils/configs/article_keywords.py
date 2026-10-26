@@ -1,3 +1,13 @@
+"""
+article_keywords.py
+
+Author: Aritra Roy
+Email: contact@aritraroy.live
+Website: https://aritraroy.live
+GitHub: aritraroy24
+"""
+
+
 class ArticleRelatedKeywords:
     SECTION_TITLE_WORDS = {
         "abstract": ["abstract"],

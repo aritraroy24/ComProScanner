@@ -4,7 +4,7 @@ material_parser_tool.py
 Author: Aritra Roy
 Email: contact@aritraroy.live
 Website: https://aritraroy.live
-Date: 23-03-2025
+GitHub: aritraroy24
 """
 
 from crewai.tools import BaseTool
@@ -37,14 +37,14 @@ class MaterialParserTool(BaseTool):
     args_schema: Type[BaseModel] = MaterialParserInput
 
     def _run(self, data: Union[Dict[str, Any], str]) -> Dict[str, Any]:
-        """
-        Sends chemical formulas from the compositions dictionary to the Material Parser API and returns resolved versions.
+        """Send chemical formulas from the compositions dictionary to the Material Parser API and return resolved versions.
 
         Args:
-            data: JSON data containing compositions and their associated values, either as a dictionary or string
+            data (dict | str, required): JSON data containing compositions and their associated values, either as a dictionary or a string representation of one.
 
         Returns:
-            Dictionary with the same structure as input but with resolved formulas as keys
+            dict: same structure as input but with resolved formulas as keys, or an "error" key
+                describing what went wrong if parsing or extraction failed.
         """
         try:
             # Handle string input by parsing it to a dictionary

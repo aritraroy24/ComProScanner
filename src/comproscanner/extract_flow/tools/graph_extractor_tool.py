@@ -4,7 +4,7 @@ graph_extractor_tool.py - VLM-based graph data extraction tool for CrewAI agents
 Author: Aritra Roy
 Email: contact@aritraroy.live
 Website: https://aritraroy.live
-Date: 26-02-2025
+GitHub: aritraroy24
 """
 
 # Standard library imports
@@ -59,15 +59,14 @@ class GraphExtractorTool(BaseTool):
     vlm_property_name: str = "the target property"
 
     def _run(self, doi: str) -> str:
-        """
-        Scan saved figures for the given DOI, call the vision LLM for each image,
-        and return aggregated extracted data as a JSON string.
+        """Scan saved figures for the given DOI, call the vision LLM for each image, and aggregate the results.
 
         Args:
-            doi (str): Article DOI.
+            doi (str, required): Article DOI.
 
         Returns:
-            str: JSON string with extracted data per figure, or an error message.
+            str: JSON string with extracted data per figure, or a plain error/status message
+                if no figures are found or litellm is missing.
         """
         doi_folder = doi.replace("/", "_").replace(":", "_")
         fig_dir = os.path.join(self.related_figures_base_path, doi_folder)

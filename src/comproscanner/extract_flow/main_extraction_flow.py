@@ -4,7 +4,7 @@ main_extraction_flow.py
 Author: Aritra Roy
 Email: contact@aritraroy.live
 Website: https://aritraroy.live
-Date: 19-03-2025
+GitHub: aritraroy24
 """
 
 # Standard library imports
@@ -122,39 +122,46 @@ class MaterialsState(BaseModel):
 
 
 class DataExtractionFlow(Flow[MaterialsState]):
-    """CrewAI Flow for extracting composition, property value and synthesis data from text
+    """CrewAI Flow for extracting composition, property value and synthesis data from text.
 
     Args:
-        doi (str: required): DOI of the research paper
-        main_extraction_keyword (str: required): Main property keyword to extract from the text
-        composition_property_text_data (str: required): Text data to extract composition and property data
-        synthesis_text_data (str: required): Text data to extract synthesis data
-        llm (LLM: optional): LLM instance for the agents. Default: None
-        materials_data_identifier_query (str: optional): Query to identify if materials data is present in the text. Must be an 'yes/no' answer. Default: "Is there any material chemical composition (not abbreviations) and corresponding {main_extraction_keyword} value mentioned in the paper? GIVE ONE WORD ANSWER. Either yes or no."
-        is_extract_synthesis_data (bool: optional): Flag to extract synthesis data. Default: True
-        equation_model (str: optional): Explicit litellm model name for EquationTool.
-        rag_config (RAGConfig: optional): RAG configuration. Default: None
+        doi (str, required): DOI of the research paper.
+        main_extraction_keyword (str, required): Main property keyword to extract from the text.
+        composition_property_text_data (str, required): Text data to extract composition and property data.
+        synthesis_text_data (str, required): Text data to extract synthesis data.
+        llm (LLM, optional): LLM instance for the agents. Defaults to None.
+        materials_data_identifier_query (str, optional): Query to identify if materials data is present in the text. Must be a 'yes/no' answer. Defaults to "Is there any material chemical composition (not abbreviations) and corresponding {main_extraction_keyword} value mentioned in the paper? GIVE ONE WORD ANSWER. Either yes or no."
+        is_extract_synthesis_data (bool, optional): Flag to extract synthesis data. Defaults to True.
+        vlm_model (str, optional): Vision LLM model for graph extraction. Defaults to "gemini/gemini-3-flash-preview".
+        related_figures_base_path (str, optional): Base path for saved figures. Defaults to "results/related_figures".
+        formula_instruction (str, optional): Custom formula instruction passed to the equation tool. Defaults to None.
+        equation_model (str, optional): Explicit litellm model name for EquationTool. Defaults to None.
+        rag_config (RAGConfig, optional): RAG configuration. Defaults to None.
         output_log_folder (str, optional): Base folder path to save logs. Logs will be saved in {output_log_folder}/{doi}/ subdirectory. Logs will be in JSON format if is_log_json is True, otherwise plain text. Defaults to None (no logging).
         task_output_folder (str, optional): Base folder path to save task outputs. Task outputs will be saved as .txt files in {task_output_folder}/{doi}/ subdirectory. Defaults to None (no task output saving).
         is_log_json (bool, optional): Flag to save logs in JSON format. Defaults to False.
-        verbose (bool: optional): Flag to enable verbose logging. Default: True
-        expected_composition_property_example (str: optional): Expected example of composition and property data.
-        expected_variable_composition_property_example (str: optional): Expected example of variable composition and property data.
-        composition_property_extraction_agent_notes (list: optional): Notes for composition extraction agent. Default: [].
-        composition_property_extraction_task_notes (list: optional): Notes for composition extraction task. Default: [].
-        composition_property_formatting_agent_notes (list: optional): Notes for composition formatting agent. Default: [].
-        composition_property_formatting_task_notes (list: optional): Notes for composition formatting task. Default: [].
-        synthesis_extraction_agent_notes (list: optional): Notes for synthesis extraction agent. Default: [].
-        synthesis_extraction_task_notes (list: optional): Notes for synthesis extraction task. Default: [].
-        synthesis_formatting_agent_notes (list: optional): Notes for synthesis formatting agent. Default: [].
-        synthesis_formatting_task_notes (list: optional): Notes for synthesis formatting task. Default: [].
-        allowed_synthesis_methods (list: optional): Allowed synthesis methods for knowledge-graph nodes. Default: [].
-        allowed_characterization_techniques (list: optional): Allowed characterization techniques for knowledge-graph nodes. Default: [].
-        schema_config_path (str | Path: optional): Path to an extraction schema YAML file. Default: None (bundled default schema).
+        verbose (bool, optional): Flag to enable verbose logging. Defaults to True.
+        expected_composition_property_example (str, optional): Expected example of composition and property data. Defaults to "" (rendered from the schema).
+        expected_variable_composition_property_example (str, optional): Expected example of variable composition and property data. Defaults to "" (rendered from the schema).
+        composition_property_extraction_agent_notes (list, optional): Notes for composition extraction agent. Defaults to [].
+        composition_property_extraction_task_notes (list, optional): Notes for composition extraction task. Defaults to [].
+        composition_property_formatting_agent_notes (list, optional): Notes for composition formatting agent. Defaults to [].
+        composition_property_formatting_task_notes (list, optional): Notes for composition formatting task. Defaults to [].
+        synthesis_extraction_agent_notes (list, optional): Notes for synthesis extraction agent. Defaults to [].
+        synthesis_extraction_task_notes (list, optional): Notes for synthesis extraction task. Defaults to [].
+        synthesis_formatting_agent_notes (list, optional): Notes for synthesis formatting agent. Defaults to [].
+        synthesis_formatting_task_notes (list, optional): Notes for synthesis formatting task. Defaults to [].
+        allowed_synthesis_methods (list, optional): Allowed synthesis methods for knowledge-graph nodes. Defaults to [].
+        allowed_characterization_techniques (list, optional): Allowed characterization techniques for knowledge-graph nodes. Defaults to [].
+        schema_config_path (str | Path, optional): Path to an extraction schema YAML file. Defaults to None (bundled default schema).
 
     Returns:
-        result_json (dict): Final result in JSON format
-        result_dict (dict): Final result in dictionary format
+        dict: final result of kickoff(), with keys:
+            - composition_data (dict): formatted composition and property data.
+            - synthesis_data (dict): formatted synthesis data.
+
+    Raises:
+        ValueErrorHandler: If doi, main_extraction_keyword, or composition_property_text_data is not provided.
     """
 
     def __init__(
@@ -248,6 +255,15 @@ class DataExtractionFlow(Flow[MaterialsState]):
             )
 
         def _update_notes(note: list, default_note: list = None):
+            """Combine default and custom notes into a single bulleted block for the prompt.
+
+            Args:
+                note (list, required): Custom notes supplied by the caller.
+                default_note (list, optional): Built-in default notes to prepend. Defaults to None.
+
+            Returns:
+                str: a "**Notes**:" block with bullet points, or "" if there are no notes.
+            """
             if not note and not default_note:
                 return ""
 
@@ -274,6 +290,14 @@ class DataExtractionFlow(Flow[MaterialsState]):
             return dedent(f"""**Notes**:\n{all_notes}""")
 
         def _update_methods_techniques(item_list: list):
+            """Render a list of allowed methods or techniques as bullet points.
+
+            Args:
+                item_list (list, required): Items to render.
+
+            Returns:
+                str: the items as a bulleted list, one per line.
+            """
             return dedent("""{}""".format("\n".join(f"- {n}" for n in item_list)))
 
         # optional notes to pass to the agents and tasks
@@ -319,36 +343,45 @@ class DataExtractionFlow(Flow[MaterialsState]):
         )
 
     def _default_synthesis_data(self) -> Dict:
-        """Empty synthesis record used as fallback"""
+        """Build an empty synthesis record used as a fallback when extraction is skipped or fails.
+
+        Returns:
+            Dict: a dict with a single "synthesis_data" key holding the schema's default shape.
+        """
         return {"synthesis_data": self.schema_config.default_shape("synthesis")}
 
     def _parse_json_output(
         self, raw_output, default_value=None, log_prefix="", expected_keys=None
     ):
-        """
-        Parses JSON output from LLM responses, handling different output formats and nested schemas.
+        """Parse JSON output from LLM responses, handling different output formats and nested schemas.
 
-        Handles:
-        - Already parsed dictionaries/lists (returns as-is)
-        - JSON strings with markdown code blocks (```json...```)
-        - Standard JSON strings
-        - Python-style literals with escape sequences
-        - Nested JSON schemas (crawls to find actual data)
+        Handles already-parsed dicts/lists, JSON strings wrapped in markdown code blocks, standard
+        JSON strings, Python-style literals with escape sequences, and nested JSON schemas (crawls to
+        find the actual data).
 
         Args:
-            raw_output: The raw output from the LLM (can be dict, list, or string)
-            default_value: The default value to return if parsing fails
-            log_prefix: Prefix for log messages
-            expected_keys: List of keys expected in the final data (for schema extraction)
+            raw_output (dict | list | str, required): The raw output from the LLM.
+            default_value (Any, optional): The value to return if parsing fails. Defaults to None (treated as {}).
+            log_prefix (str, optional): Prefix for log messages. Defaults to "".
+            expected_keys (list, optional): Keys expected in the final data, used to locate it inside a nested schema. Defaults to None.
 
         Returns:
-            Parsed data or default_value if parsing fails
+            The parsed data (dict or list), or default_value if parsing fails.
         """
         if default_value is None:
             default_value = {}
 
         def crawl_and_extract(data, depth=0, max_depth=10):
-            """Recursively search for actual data in nested structures."""
+            """Recursively search nested dicts for the keys named in expected_keys.
+
+            Args:
+                data (dict, required): The structure to search.
+                depth (int, optional): Current recursion depth. Defaults to 0.
+                max_depth (int, optional): Maximum recursion depth before giving up. Defaults to 10.
+
+            Returns:
+                dict | None: the matched data (full or partial), or None if nothing was found.
+            """
             if depth > max_depth or not isinstance(data, dict):
                 return None
 
@@ -555,9 +588,11 @@ class DataExtractionFlow(Flow[MaterialsState]):
     def _check_figures_for_data(self) -> bool:
         """Check saved figures for the DOI using VLM to identify if relevant property data is present.
 
-        In graphs, relevant data may appear as doping concentrations (x values, mol%, at%) on one
-        axis with property values on the other, rather than full chemical compositions.
-        Returns True if any figure contains relevant data, False otherwise.
+        In graphs, relevant data may appear as doping concentrations (x values, mol%, at%) on one axis
+        with property values on the other, rather than full chemical compositions.
+
+        Returns:
+            bool: True if any figure contains relevant data, False otherwise.
         """
         doi = self.state.doi
         doi_folder = doi.replace("/", "_").replace(":", "_")
@@ -647,7 +682,13 @@ class DataExtractionFlow(Flow[MaterialsState]):
 
     @start()
     def identify_materials_data_presence(self):
-        """Identify if threre is any material and corresponding property present in the text"""
+        """Identify if there is any material and corresponding property present in the text.
+
+        Falls back to a VLM check of saved figures if the text-based RAG check returns 'no'.
+
+        Returns:
+            str: "yes" or "no", also stored on self.state.is_materials_mentioned.
+        """
         logger.debug("Starting material identification process...")
         if self.state.llm:
             rag_crew = MaterialsDataIdentifierCrew(
@@ -725,7 +766,11 @@ class DataExtractionFlow(Flow[MaterialsState]):
 
     @router(identify_materials_data_presence)
     def route_process(self):
-        """Routes based on material type in state"""
+        """Route to composition extraction, or end the flow, based on materials data presence.
+
+        Returns:
+            str: "extract_compositions" if materials data was found, otherwise "end_flow".
+        """
         if "yes" in self.state.is_materials_mentioned.lower():
             return "extract_compositions"
         else:
@@ -733,7 +778,11 @@ class DataExtractionFlow(Flow[MaterialsState]):
 
     @listen("extract_compositions")
     def extract_composition_property_data(self):
-        """Extract composition and property data"""
+        """Run the composition extraction crew and parse its raw output.
+
+        Returns:
+            dict: the parsed composition data, also stored on self.state.composition_extracted_data.
+        """
         logger.debug("Extracting composition and property data...")
         if self.state.llm:
             composition_property_crew = CompositionExtractionCrew(
@@ -784,7 +833,10 @@ class DataExtractionFlow(Flow[MaterialsState]):
 
     @listen(extract_composition_property_data)
     def extract_final_composition_property_data(self):
-        """Extract final composition and property data"""
+        """Run the composition format crew to normalize the extracted composition data.
+
+        Stores the parsed result on self.state.composition_formatted_data; returns nothing.
+        """
         logger.debug("Extracting final composition and property data...")
         if self.state.llm:
             composition_format_crew = CompositionFormatCrew(
@@ -824,7 +876,11 @@ class DataExtractionFlow(Flow[MaterialsState]):
 
     @listen(extract_final_composition_property_data)
     def extract_synthesis_data(self):
-        """Extract synthesis data"""
+        """Run the synthesis extraction crew, unless synthesis text is empty or disabled.
+
+        Returns:
+            dict: the parsed (or default) synthesis data, also stored on self.state.synthesis_extracted_data.
+        """
         if (
             not self.state.synthesis_text_data
             or self.state.synthesis_text_data.strip() == ""
@@ -875,7 +931,11 @@ class DataExtractionFlow(Flow[MaterialsState]):
 
     @listen(extract_synthesis_data)
     def extract_final_synthesis_data(self):
-        """Extract final synthesis data"""
+        """Run the synthesis format crew to normalize the extracted synthesis data.
+
+        Skips the format crew (reusing the extracted data as-is) if none of the schema's synthesis
+        fields were populated. Stores the result on self.state.synthesis_formatted_data; returns nothing.
+        """
         if (
             isinstance(self.state.synthesis_extracted_data, dict)
             and "synthesis_data" in self.state.synthesis_extracted_data
@@ -932,7 +992,11 @@ class DataExtractionFlow(Flow[MaterialsState]):
 
     @listen(extract_final_synthesis_data)
     def finalize_results(self):
-        """Combine and return final results"""
+        """Combine the formatted composition and synthesis data into the flow's final result.
+
+        Returns:
+            dict: with keys "composition_data" and "synthesis_data".
+        """
         logger.debug("Finalizing results...")
         return {
             "composition_data": self.state.composition_formatted_data,
@@ -941,6 +1005,11 @@ class DataExtractionFlow(Flow[MaterialsState]):
 
     @listen("end_flow")
     def terminate_process(self):
+        """End the flow early when no materials data was found, returning empty results.
+
+        Returns:
+            dict: with keys "composition_data" and "synthesis_data", both empty.
+        """
         logger.warning("Terminating process...")
         return {
             "composition_data": {},

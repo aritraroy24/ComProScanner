@@ -1,4 +1,11 @@
 """
+__init__.py
+
+Author: Aritra Roy
+Email: contact@aritraroy.live
+Website: https://aritraroy.live
+GitHub: aritraroy24
+
 ComProScanner - A package for extracting composition-property data from scientific articles.
 
 This package provides tools to collect metadata, process articles from various sources,

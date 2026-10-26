@@ -4,7 +4,7 @@ eval_flow.py
 Author: Aritra Roy
 Email: contact@aritraroy.live
 Website: https://aritraroy.live
-Date: 20-04-2025
+GitHub: aritraroy24
 """
 
 # Standard library imports
@@ -79,23 +79,11 @@ class AgentEvaluationState(BaseModel):
 
 
 class MaterialsDataAgenticEvaluatorFlow(Flow[AgentEvaluationState]):
-    """
-    CrewAI Flow for evaluating materials data extraction using AI agents that make
+    """CrewAI Flow for evaluating materials data extraction using AI agents that make
     binary (yes/no) decisions about whether items match, rather than using semantic
     similarity or exact matching.
 
-    Args:
-        ground_truth_file (str): Path to the ground truth JSON file
-        test_data_file (str): Path to the test data JSON file
-        output_file (str, optional): Path to save the evaluation results. Default: "agentic_evaluation_result.json"
-        extraction_agent_model_name (str, optional): Name of the agent model used in data extraction (default: "gpt-4o-mini")
-        is_synthesis_evaluation (bool, optional): Whether to evaluate synthesis data. Default: True
-        weights (Dict[str, float], optional): Custom weights for different components. Default: None
-        llm (LLM, optional): LLM instance for the agents. Default: None
-        schema_config_path (str | Path, optional): Path to the extraction schema YAML file. Default: None (bundled default schema)
-
-    Returns:
-        Dict: Detailed evaluation results with binary match decisions and metrics
+    See `__init__` for constructor arguments.
     """
 
     def __init__(
@@ -110,7 +98,30 @@ class MaterialsDataAgenticEvaluatorFlow(Flow[AgentEvaluationState]):
         value_error_thresholds: Dict = None,
         schema_config_path: Optional[str] = None,
     ):
+        """Initialize the flow's state from the given evaluation parameters.
 
+        Args:
+            ground_truth_file (str, required): Path to the ground truth JSON file.
+            test_data_file (str, required): Path to the test data JSON file.
+            extraction_agent_model_name (str, required): Name of the agent model used in
+                data extraction.
+            output_file (str, optional): Path to save the evaluation results. Defaults to
+                `DefaultPaths.AGENTIC_EVALUATION_RESULT_FILENAME`.
+            is_synthesis_evaluation (bool, optional): Whether to evaluate synthesis data.
+                Defaults to True.
+            weights (Dict[str, float], optional): Custom weights for different components.
+                Defaults to None.
+            llm (Optional[LLM], optional): LLM instance for the agents. Defaults to None.
+            value_error_thresholds (Dict, optional): Per-range absolute error tolerances for
+                numeric property values. Defaults to None.
+            schema_config_path (Optional[str], optional): Path to the extraction schema YAML
+                file. Defaults to None (bundled default schema).
+
+        Raises:
+            ValueErrorHandler: If `ground_truth_file`, `test_data_file`, or
+                `extraction_agent_model_name` is not provided, or if `ground_truth_file` or
+                `test_data_file` does not exist.
+        """
         # Validate required inputs
         if not ground_truth_file:
             raise ValueErrorHandler("Ground truth file path is required")
@@ -156,11 +167,26 @@ class MaterialsDataAgenticEvaluatorFlow(Flow[AgentEvaluationState]):
         self.state.value_error_thresholds = value_error_thresholds or {}
 
     def _section_fields(self, section):
-        """Evaluated schema fields of a section ("composition_data" or "synthesis_data")."""
+        """Evaluated schema fields of a section ("composition_data" or "synthesis_data").
+
+        Args:
+            section (str, required): Section name, "composition_data" or "synthesis_data".
+
+        Returns:
+            list: Schema fields for that section's domain.
+        """
         return self.schema_config.fields(section.replace("_data", ""), final_only=True)
 
     def _leaf_fraction(self, field, entries):
-        """Weighted fraction of matched leaves in a list of leaf match entries."""
+        """Weighted fraction of matched leaves in a list of leaf match entries.
+
+        Args:
+            field (SchemaField, required): Keyed field providing leaf weights.
+            entries (list, required): Leaf match entries, each with "leaf" and "match_value".
+
+        Returns:
+            float: Weighted fraction of leaves that matched, or 0.0 if there is no leaf weight.
+        """
         weights = leaf_weights(field)
         total = sum(weights.get(entry.get("leaf"), 0.0) for entry in entries)
         if total <= 0:
@@ -173,7 +199,16 @@ class MaterialsDataAgenticEvaluatorFlow(Flow[AgentEvaluationState]):
         return matched / total
 
     def _nested_total_match(self, field, field_data):
-        """Matched keys of a nested keyed field, each credited with its matched leaf fraction."""
+        """Matched keys of a nested keyed field, each credited with its matched leaf fraction.
+
+        Args:
+            field (SchemaField, required): Keyed field providing leaf weights.
+            field_data (dict, required): Evaluation result for this field, with "key_matches"
+                and "value_matches" entries.
+
+        Returns:
+            float: Sum of matched-leaf fractions across every matched key.
+        """
         matched_keys = {
             key_match.get("reference_key")
             for key_match in field_data.get("key_matches", [])
@@ -190,15 +225,15 @@ class MaterialsDataAgenticEvaluatorFlow(Flow[AgentEvaluationState]):
         return total
 
     def _calculate_tp_fp_fn(self, details, section):
-        """
-        Calculate true positives, false positives, and false negatives for a given section.
+        """Calculate true positives, false positives, and false negatives for a given section.
 
         Args:
-            details (dict): The details section of evaluation results
-            section (str): The section to calculate metrics for (composition_data or synthesis_data)
+            details (dict, required): The details section of evaluation results.
+            section (str, required): The section to calculate metrics for (composition_data
+                or synthesis_data).
 
         Returns:
-            dict: Dictionary with true_positives, false_positives, and false_negatives
+            dict: true_positives, false_positives, and false_negatives counts.
         """
         metrics = {"true_positives": 0, "false_positives": 0, "false_negatives": 0}
 
@@ -319,14 +354,11 @@ class MaterialsDataAgenticEvaluatorFlow(Flow[AgentEvaluationState]):
         return metrics
 
     def _calculate_classification_metrics(self, metrics_dict):
-        """
-        Calculate precision, recall, and F1 score from classification metrics.
+        """Calculate precision, recall, and F1 score from classification metrics.
 
         Args:
-            metrics_dict (dict): Dictionary containing true_positives, false_positives, and false_negatives
-
-        Returns:
-            None: Updates the metrics_dict in place with precision, recall, and f1_score
+            metrics_dict (dict, required): Dictionary containing true_positives, false_positives,
+                and false_negatives. Updated in place with precision, recall, and f1_score.
         """
         tp = metrics_dict.get("true_positives", 0)
         fp = metrics_dict.get("false_positives", 0)
@@ -354,16 +386,15 @@ class MaterialsDataAgenticEvaluatorFlow(Flow[AgentEvaluationState]):
             metrics_dict["f1_score"] = 0.0
 
     def _calculate_score(self, details, section, weights):
-        """
-        Calculate a weighted score for a section based on matches.
+        """Calculate a weighted score for a section based on matches.
 
         Args:
-            details (dict): The details section of evaluation results
-            section (str): The section to calculate score for
-            weights (dict): Weights for different components
+            details (dict, required): The details section of evaluation results.
+            section (str, required): The section to calculate score for.
+            weights (dict, required): Weights for different components.
 
         Returns:
-            float: Score between 0.0 and 1.0
+            float: Score between 0.0 and 1.0.
         """
         score = 1.0
 
@@ -422,11 +453,11 @@ class MaterialsDataAgenticEvaluatorFlow(Flow[AgentEvaluationState]):
         return max(0.0, score)
 
     def _load_existing_results(self):
-        """
-        Load existing results from the output file if it exists.
+        """Load existing results from the output file if it exists.
 
         Returns:
-            Dict: Existing evaluation results or empty dict if file doesn't exist
+            Dict: Existing evaluation results, or an empty dict if the file doesn't exist
+            or fails to load.
         """
         if os.path.exists(self.state.output_file):
             try:
@@ -440,14 +471,13 @@ class MaterialsDataAgenticEvaluatorFlow(Flow[AgentEvaluationState]):
         return {}
 
     def _update_results_file(self, combined_results):
-        """
-        Update the results file with the latest evaluation results.
+        """Update the results file with the latest evaluation results.
 
         Args:
-            combined_results (dict): The current combined results to write
+            combined_results (dict, required): The current combined results to write.
 
         Returns:
-            bool: True if successful, False otherwise
+            bool: True if successful, False otherwise.
         """
         output_path = Path(self.state.output_file)
         output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -461,9 +491,11 @@ class MaterialsDataAgenticEvaluatorFlow(Flow[AgentEvaluationState]):
             return False
 
     def _normalize_weights(self):
-        """
-        Normalize weights for each category (composition and synthesis) to sum to 0.5.
+        """Normalize weights for each category (composition and synthesis) to sum to 0.5.
         This ensures that the weights are balanced while calculating normalized classification scores.
+
+        Returns:
+            dict: Field name -> normalized weight, each category's weights summing to 0.5.
         """
         normalized_weights = {}
         for domain in ("composition", "synthesis"):

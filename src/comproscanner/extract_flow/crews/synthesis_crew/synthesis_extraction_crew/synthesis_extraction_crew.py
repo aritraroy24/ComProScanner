@@ -4,7 +4,7 @@ synthesis_extraction_crew.py
 Author: Aritra Roy
 Email: contact@aritraroy.live
 Website: https://aritraroy.live
-Date: 26-03-2025
+GitHub: aritraroy24
 """
 
 import os
@@ -37,17 +37,19 @@ class SynthesisExtractionCrew:
         verbose: Optional[bool] = True,
         schema_config: Optional[ExtractionSchemaConfig] = None,
     ):
-        """
-        Initialize the MaterialsDataIdentifierCrew.
+        """Initialize the synthesis extraction crew for a given article.
 
-        Parameters:
-        - doi (str): DOI of the article to be processed. This is a required parameter.
-        - llm: Optional LLM instance. If not provided, will use default configuration
-        - output_log_folder (str, optional): Set to True to save logs inside {provided folder}/{doi} folder as .txt files. Logs will be in JSON format if the is_log_json is True, otherwise .txt. Defaults to None.
-        - task_output_folder (str, optional): Folder path for storing the task outputs as .txt files inside {provided foler}/{doi} folder. Defaults to None.
-        - is_log_json (bool, optional): Flag to save logs in JSON format. Defaults to False.
-        - verbose: Optional boolean for verbosity. Default is True.
-        - schema_config (ExtractionSchemaConfig, optional): Extraction schema. Defaults to the bundled default schema.
+        Args:
+            doi (str, required): DOI of the article to be processed.
+            llm (LLM, optional): LLM instance to use. Defaults to None, which builds one from LLMConfig.
+            output_log_folder (str, optional): Base folder for saving crew logs under {folder}/{doi}. Logs are JSON if is_log_json is True, otherwise .txt. Defaults to None.
+            task_output_folder (str, optional): Base folder for saving task outputs under {folder}/{doi} as .txt files. Defaults to None.
+            is_log_json (bool, optional): Whether to save logs in JSON format. Defaults to False.
+            verbose (bool, optional): Verbosity flag passed to the agent and crew. Defaults to True.
+            schema_config (ExtractionSchemaConfig, optional): Extraction schema. Defaults to the bundled default schema.
+
+        Raises:
+            ValueError: If doi is not provided.
         """
         if doi is None:
             raise ValueError("DOI must be provided")
@@ -101,6 +103,11 @@ class SynthesisExtractionCrew:
     # Agents
     @agent
     def synthesis_extractor(self) -> Agent:
+        """Build the synthesis extraction agent.
+
+        Returns:
+            Agent: configured agent for extracting synthesis data.
+        """
         return Agent(
             config=fill_schema_placeholders(
                 self.agents_config["synthesis_extractor"], self.schema_prompt_values
@@ -112,6 +119,11 @@ class SynthesisExtractionCrew:
     # Tasks
     @task
     def extract_synthesis_data(self) -> Task:
+        """Build the synthesis data extraction task, writing to a file if configured.
+
+        Returns:
+            Task: configured task producing output_model, with output_file set when task_output_file is set.
+        """
         if self.task_output_file:
             return Task(
                 config=fill_schema_placeholders(
@@ -131,6 +143,11 @@ class SynthesisExtractionCrew:
     # Crew
     @crew
     def crew(self) -> Crew:
+        """Build the sequential crew, logging to a file if configured.
+
+        Returns:
+            Crew: configured crew running the agents and tasks sequentially.
+        """
         if self.output_log_file:
             return Crew(
                 agents=self.agents,

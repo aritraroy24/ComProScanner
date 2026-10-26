@@ -1,3 +1,12 @@
+"""
+__init__.py
+
+Author: Aritra Roy
+Email: contact@aritraroy.live
+Website: https://aritraroy.live
+GitHub: aritraroy24
+"""
+
 from .base_urls import BaseUrls
 from .paths_config import DefaultPaths
 from .rag_config import RAGConfig

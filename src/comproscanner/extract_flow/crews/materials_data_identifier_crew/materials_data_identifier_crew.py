@@ -4,7 +4,7 @@ materials_data_identifier_crew.py
 Author: Aritra Roy
 Email: contact@aritraroy.live
 Website: https://aritraroy.live
-Date: 21-03-2025
+GitHub: aritraroy24
 """
 
 import os
@@ -23,6 +23,17 @@ class YesNoResponse(BaseModel):
     @field_validator("answer")
     @classmethod
     def validate_yes_no(cls, v: str) -> str:
+        """Normalize and validate that the answer field is "yes" or "no".
+
+        Args:
+            v (str, required): Raw value provided for the answer field.
+
+        Returns:
+            str: the normalized value in title case ("Yes" or "No").
+
+        Raises:
+            ValueError: If v is not "yes" or "no" (case insensitive).
+        """
         normalized = v.lower().strip()
         if normalized not in ("yes", "no"):
             raise ValueError('Value must be either "yes" or "no" (case insensitive)')
@@ -47,17 +58,19 @@ class MaterialsDataIdentifierCrew:
         is_log_json: bool = False,
         verbose: Optional[bool] = True,
     ):
-        """
-        Initialize the MaterialsDataIdentifierCrew.
+        """Initialize the materials data identifier crew for a given article.
 
-        Parameters:
-        - doi (str): DOI of the article to be processed. This is a required parameter.
-        - llm: Optional LLM instance. If not provided, will use default configuration
-        - rag_config: Optional RAGConfig instance. If not provided, will use default configuration
-        - output_log_folder (str, optional): Set to True to save logs inside {provided folder}/{doi} folder as .txt files. Logs will be in JSON format if the is_log_json is True, otherwise .txt. Defaults to None.
-        - task_output_folder (str, optional): Folder path for storing the task outputs as .txt files inside {provided foler}/{doi} folder. Defaults to None.
-        - is_log_json (bool, optional): Flag to save logs in JSON format. Defaults to False.
-        - verbose: Optional boolean for verbosity. Default is True.
+        Args:
+            doi (str, required): DOI of the article to be processed.
+            llm (LLM, optional): LLM instance to use. Defaults to None, which builds one from LLMConfig.
+            rag_config (RAGConfig, optional): RAG configuration for the RAGTool. Defaults to None, which builds a default RAGConfig.
+            output_log_folder (str, optional): Base folder for saving crew logs under {folder}/{doi}. Logs are JSON if is_log_json is True, otherwise .txt. Defaults to None.
+            task_output_folder (str, optional): Base folder for saving task outputs under {folder}/{doi} as .txt files. Defaults to None.
+            is_log_json (bool, optional): Whether to save logs in JSON format. Defaults to False.
+            verbose (bool, optional): Verbosity flag passed to the agent and crew. Defaults to True.
+
+        Raises:
+            ValueError: If doi is not provided.
         """
         if doi is None:
             raise ValueError("DOI must be provided")
@@ -101,6 +114,11 @@ class MaterialsDataIdentifierCrew:
     # Agents
     @agent
     def materials_data_identifier(self) -> Agent:
+        """Build the materials data identifier agent with the RAG tool.
+
+        Returns:
+            Agent: configured agent equipped with RAGTool.
+        """
         rag_tool = RAGTool(rag_config=self.rag_config)
         return Agent(
             config=self.agents_config["materials_data_identifier"],
@@ -112,6 +130,11 @@ class MaterialsDataIdentifierCrew:
     # Tasks
     @task
     def identify_materials_data(self) -> Task:
+        """Build the yes/no materials data identification task.
+
+        Returns:
+            Task: configured task producing a YesNoResponse, with output_file set when task_output_folder is set.
+        """
         if self.task_output_folder:
             return Task(
                 expected_output='A JSON object in this exact format: {{"answer": "yes"}} or {{"answer": "no"}}',
@@ -128,7 +151,11 @@ class MaterialsDataIdentifierCrew:
     # Crew
     @crew
     def crew(self) -> Crew:
-        """Creates the RAG Crew"""
+        """Build the sequential crew, logging to a file if configured.
+
+        Returns:
+            Crew: configured crew running the agents and tasks sequentially.
+        """
         if self.output_log_folder:
             return Crew(
                 agents=self.agents,

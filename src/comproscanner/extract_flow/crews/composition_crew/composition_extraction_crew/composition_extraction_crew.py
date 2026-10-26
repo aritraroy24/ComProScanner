@@ -4,7 +4,7 @@ composition_extraction_crew.py
 Author: Aritra Roy
 Email: contact@aritraroy.live
 Website: https://aritraroy.live
-Date: 23-03-2025
+GitHub: aritraroy24
 """
 
 import os
@@ -44,21 +44,24 @@ class CompositionExtractionCrew:
         equation_model: str = None,
         schema_config: Optional[ExtractionSchemaConfig] = None,
     ):
-        """
-        Initialize the MaterialsDataIdentifierCrew.
+        """Initialize the composition extraction crew for a given article.
 
-        Parameters:
-        - doi (str): DOI of the article to be processed. This is a required parameter.
-        - llm: Optional LLM instance. If not provided, will use default configuration
-        - output_log_folder (str, optional): Set to True to save logs inside {provided folder}/{doi} folder as .txt files. Logs will be in JSON format if the is_log_json is True, otherwise .txt. Defaults to None.
-        - task_output_folder (str, optional): Folder path for storing the task outputs as .txt files inside {provided foler}/{doi} folder. Defaults to None.
-        - is_log_json (bool, optional): Flag to save logs in JSON format. Defaults to False.
-        - verbose: Optional boolean for verbosity. Default is True.
-        - vlm_model (str, optional): Vision LLM model for graph extraction. Defaults to "gemini/gemini-3-flash-preview".
-        - related_figures_base_path (str, optional): Base path for saved figures. Defaults to "results/related_figures".
-        - main_extraction_keyword (str, optional): Property keyword used to label axes in the VLM extraction prompt. Defaults to "".
-        - equation_model (str, optional): Explicit litellm model name for EquationTool. Defaults to None (auto-select).
-        - schema_config (ExtractionSchemaConfig, optional): Extraction schema. Defaults to the bundled default schema.
+        Args:
+            doi (str, required): DOI of the article to be processed.
+            llm (LLM, optional): LLM instance to use. Defaults to None, which builds one from LLMConfig.
+            output_log_folder (str, optional): Base folder for saving crew logs under {folder}/{doi}. Logs are JSON if is_log_json is True, otherwise .txt. Defaults to None.
+            task_output_folder (str, optional): Base folder for saving task outputs under {folder}/{doi} as .txt files. Defaults to None.
+            is_log_json (bool, optional): Whether to save logs in JSON format. Defaults to False.
+            verbose (bool, optional): Verbosity flag passed to the agent and crew. Defaults to True.
+            vlm_model (str, optional): Vision LLM model for graph extraction. Defaults to "gemini/gemini-3-flash-preview".
+            related_figures_base_path (str, optional): Base path for saved figures. Defaults to "results/related_figures".
+            main_extraction_keyword (str, optional): Property keyword used to label axes in the VLM extraction prompt. Defaults to "".
+            formula_instruction (str, optional): Custom formula instruction passed to EquationTool. Defaults to None.
+            equation_model (str, optional): Explicit litellm model name for EquationTool. Defaults to None (auto-select).
+            schema_config (ExtractionSchemaConfig, optional): Extraction schema. Defaults to the bundled default schema.
+
+        Raises:
+            ValueError: If doi is not provided.
         """
         if doi is None:
             raise ValueError("DOI must be provided")
@@ -116,6 +119,11 @@ class CompositionExtractionCrew:
     # Agents
     @agent
     def composition_property_extractor(self) -> Agent:
+        """Build the composition extraction agent with its equation and graph tools.
+
+        Returns:
+            Agent: configured agent equipped with EquationTool and GraphExtractorTool.
+        """
         equation_tool_kwargs = {
             "related_figures_base_path": self.related_figures_base_path,
         }
@@ -141,6 +149,11 @@ class CompositionExtractionCrew:
     # Tasks
     @task
     def extract_composition_property(self) -> Task:
+        """Build the composition extraction task, writing to a file if configured.
+
+        Returns:
+            Task: configured task producing output_model, with output_file set when task_output_file is set.
+        """
         if self.task_output_file:
             return Task(
                 config=fill_schema_placeholders(
@@ -160,6 +173,11 @@ class CompositionExtractionCrew:
     # Crew
     @crew
     def crew(self) -> Crew:
+        """Build the sequential crew, logging to a file if configured.
+
+        Returns:
+            Crew: configured crew running the agents and tasks sequentially.
+        """
         if self.output_log_file:
             return Crew(
                 agents=self.agents,

@@ -4,7 +4,7 @@ figure_extractor.py - Shared utility for figure/caption extraction and saving.
 Author: Aritra Roy
 Email: contact@aritraroy.live
 Website: https://aritraroy.live
-Date: 26-02-2025
+GitHub: aritraroy24
 """
 
 # Standard library imports

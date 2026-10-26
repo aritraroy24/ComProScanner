@@ -4,7 +4,7 @@ semantic_evaluator.py
 Author: Aritra Roy
 Email: contact@aritraroy.live
 Website: https://aritraroy.live
-Date: 16-04-2025
+GitHub: aritraroy24
 """
 
 # Standard library imports
@@ -24,15 +24,10 @@ from .schema_items import count_record_items, count_value_items, leaf_values
 from ...utils.error_handler import ValueErrorHandler
 
 class MaterialsDataSemanticEvaluator:
-    """
-    A class to evaluate materials science data against reference data using semantic matching and exact matching (for specific items).
+    """A class to evaluate materials science data against reference data using semantic
+    matching and exact matching (for specific items).
 
-    Args:
-        use_semantic_model (bool, optional): Whether to attempt to use semantic models for similarity (default: True)
-        primary_model_name (str, optional): Name of the primary model to use (default: "thellert/physbert_cased")
-        fallback_model_name (str, optional): Name of the fallback sentence transformer model (default: "all-mpnet-base-v2")
-        similarity_thresholds (dict, optional): Custom thresholds for similarity scoring
-        schema_config_path (str | Path, optional): Path to the extraction schema YAML file (default: bundled default schema)
+    See `__init__` for constructor arguments.
     """
 
     def __init__(
@@ -44,19 +39,22 @@ class MaterialsDataSemanticEvaluator:
         value_error_thresholds=None,
         schema_config_path=None,
     ):
-        """
-        Initialize the evaluator with optional semantic models.
+        """Initialize the evaluator with optional semantic models.
 
         Args:
             use_semantic_model (bool, optional): Whether to attempt to use semantic models
-            primary_model_name (str, optional): Name of the primary model to use
-            fallback_model_name (str, optional): Name of the fallback sentence transformer model
-            similarity_thresholds (dict, optional): Custom thresholds for similarity scoring
+                for similarity. Defaults to True.
+            primary_model_name (str, optional): Name of the primary model to use.
+                Defaults to "thellert/physbert_cased".
+            fallback_model_name (str, optional): Name of the fallback sentence transformer
+                model. Defaults to "all-mpnet-base-v2".
+            similarity_thresholds (dict, optional): Custom thresholds for similarity scoring.
+                Defaults to None.
             value_error_thresholds (dict, optional): Mapping of ground-truth value ranges to
                 absolute error tolerances. Keys must be 2-element tuples (min, max); values
                 are the allowed absolute difference between the ground-truth and extracted
-                numeric property value.  Use float('inf') / float('-inf') for open-ended
-                ranges.  Example::
+                numeric property value. Use float('inf') / float('-inf') for open-ended
+                ranges. Defaults to None. Example::
 
                     {
                         (-200, 200): 5,
@@ -109,8 +107,7 @@ class MaterialsDataSemanticEvaluator:
         }
 
     def _load_models(self):
-        """
-        Attempt to load the semantic models in order of preference.
+        """Attempt to load the semantic models in order of preference.
         First tries to load PhysBERT, then falls back to sentence-transformers.
         """
         # Try to load PhysBERT first
@@ -144,10 +141,16 @@ class MaterialsDataSemanticEvaluator:
                     self.model_available = False
 
     def _calculate_text_similarity(self, text1, text2):
-        """
-        Calculate semantic similarity between two texts.
+        """Calculate semantic similarity between two texts.
         Uses PhysBERT if available, falls back to transformer model,
         otherwise uses sequence matching.
+
+        Args:
+            text1 (str, required): First text to compare.
+            text2 (str, required): Second text to compare.
+
+        Returns:
+            float: Cosine-similarity-based score between the two texts.
         """
         if self.physbert_available:
             # Use PhysBERT model for domain-specific similarity calculation
@@ -193,14 +196,13 @@ class MaterialsDataSemanticEvaluator:
             return SequenceMatcher(None, text1_proc, text2_proc).ratio()
 
     def _simple_preprocess(self, text):
-        """
-        Simple text preprocessing without external dependencies
+        """Simple text preprocessing without external dependencies.
 
         Args:
-            text (str): Text to preprocess
+            text (str, required): Text to preprocess.
 
         Returns:
-            str: Preprocessed text
+            str: Preprocessed text.
         """
         text = str(text).lower()
         text = text.translate(str.maketrans("", "", string.punctuation))
@@ -212,16 +214,15 @@ class MaterialsDataSemanticEvaluator:
         return " ".join(filtered_words)
 
     def _get_error_threshold(self, ref_val, error_thresholds):
-        """
-        Return the absolute error threshold for *ref_val* from *error_thresholds*.
+        """Return the absolute error threshold for *ref_val* from *error_thresholds*.
 
         Args:
-            ref_val (float): Ground-truth numeric value.
-            error_thresholds (dict): Mapping of ``(min, max)`` tuples to absolute
+            ref_val (float, required): Ground-truth numeric value.
+            error_thresholds (dict, required): Mapping of ``(min, max)`` tuples to absolute
                 thresholds.  Infinity values are supported.  Ranges are interpreted
                 as layers: the narrowest range that contains ``ref_val`` wins, so
                 ``(-150, 150): 8`` matches values in (-150, -50) and (50, 150) when
-                ``(-50, 50): 0.5`` is also present.  Tuple order does not matter —
+                ``(-50, 50): 0.5`` is also present. Tuple order does not matter:
                 ``(-150, 150)`` and ``(150, -150)`` are equivalent.
 
         Returns:
@@ -239,17 +240,16 @@ class MaterialsDataSemanticEvaluator:
         return None
 
     def _is_value_in_range(self, ref_val, test_val, error_thresholds=None):
-        """
-        Check if test_val is within the range specified by ref_val, optionally
+        """Check if test_val is within the range specified by ref_val, optionally
         using a per-range absolute error tolerance.
 
         Args:
-            ref_val: Reference value, which can be a number or a list [min, max]
-            test_val: Test value to check against the reference
+            ref_val (Any, required): Reference value, which can be a number or a list [min, max].
+            test_val (Any, required): Test value to check against the reference.
             error_thresholds (dict, optional): Mapping of ``(min, max)`` tuples to
-                absolute error tolerances (see class docstring).  When provided and a
+                absolute error tolerances (see class docstring). When provided and a
                 matching range is found the comparison becomes
-                ``|ref_val - test_val| <= threshold`` instead of an exact check.
+                ``|ref_val - test_val| <= threshold`` instead of an exact check. Defaults to None.
 
         Returns:
             bool: True if the test value matches or falls within the reference range,
@@ -288,7 +288,15 @@ class MaterialsDataSemanticEvaluator:
             return ref_val == test_val
 
     def _resolve_weights(self, weights):
-        """Return weights to use, falling back to defaults if missing or not summing to 1.0."""
+        """Return weights to use, falling back to defaults if missing or not summing to 1.0.
+
+        Args:
+            weights (dict, optional): Candidate field-name -> weight mapping to validate.
+
+        Returns:
+            dict: `self.default_weights` merged with `weights` if it sums to 1.0, otherwise
+            `self.default_weights` alone.
+        """
         if weights is None:
             return self.default_weights
         # Check if the sum of weights is approximately 1.0
@@ -301,23 +309,34 @@ class MaterialsDataSemanticEvaluator:
         return {**self.default_weights, **weights}
 
     def _field_threshold(self, field):
-        """Return a field's similarity threshold, honouring '<field>_match' overrides."""
+        """Return a field's similarity threshold, honouring '<field>_match' overrides.
+
+        Args:
+            field (SchemaField, required): Field whose threshold is looked up.
+
+        Returns:
+            float: User-supplied '<field>_match' threshold if set, else the field's own
+            similarity_threshold.
+        """
         return self.user_similarity_thresholds.get(
             f"{field.name}_match", field.similarity_threshold
         )
 
     def _evaluate_domain(self, domain, reference, test, weights=None):
-        """
-        Evaluate one data section field by field according to the extraction schema.
+        """Evaluate one data section field by field according to the extraction schema.
 
         Args:
-            domain (str): "composition" or "synthesis"
-            reference (dict): Reference section data
-            test (dict): Test section data
-            weights (dict, optional): Weights for different components
+            domain (str, required): "composition" or "synthesis".
+            reference (dict, required): Reference section data.
+            test (dict, required): Test section data.
+            weights (dict, optional): Weights for different components. Defaults to None.
 
         Returns:
-            tuple: (score, details, absolute_metrics, component_weights)
+            tuple:
+                - float: Overall section score.
+                - dict: Per-field evaluation details.
+                - dict: Aggregated true_positives/false_positives/false_negatives counts.
+                - dict: Normalized per-field component weights.
         """
         weights = self._resolve_weights(weights)
         fields = self.schema_config.fields(domain, final_only=True)
@@ -363,40 +382,51 @@ class MaterialsDataSemanticEvaluator:
         return max(0, score), details, absolute_metrics, component_weights
 
     def _evaluate_composition_data(self, reference_comp, test_comp, weights=None):
-        """
-        Evaluate composition data section with semantic matching for keys and exact matching for values.
+        """Evaluate composition data section with semantic matching for keys and exact
+        matching for values.
 
         Args:
-            reference_comp (dict): Reference composition data
-            test_comp (dict): Test composition data
-            weights (dict, optional): Weights for different components
+            reference_comp (dict, required): Reference composition data.
+            test_comp (dict, required): Test composition data.
+            weights (dict, optional): Weights for different components. Defaults to None.
 
         Returns:
-            tuple: (score, details, absolute_metrics, component_weights)
+            tuple: Same as `_evaluate_domain`: (score, details, absolute_metrics, component_weights).
         """
         return self._evaluate_domain("composition", reference_comp, test_comp, weights)
 
     def _evaluate_synthesis_data(self, reference_synth, test_synth, weights=None):
-        """
-        Evaluate synthesis data section with semantic understanding.
+        """Evaluate synthesis data section with semantic understanding.
 
         Args:
-            reference_synth (dict): Reference synthesis data
-            test_synth (dict): Test synthesis data
-            weights (dict, optional): Weights for different components
+            reference_synth (dict, required): Reference synthesis data.
+            test_synth (dict, required): Test synthesis data.
+            weights (dict, optional): Weights for different components. Defaults to None.
 
         Returns:
-            tuple: (score, details, absolute_metrics, component_weights)
+            tuple: Same as `_evaluate_domain`: (score, details, absolute_metrics, component_weights).
         """
         return self._evaluate_domain("synthesis", reference_synth, test_synth, weights)
 
     @staticmethod
     def _new_metrics():
+        """Create a fresh zeroed metrics counter dict.
+
+        Returns:
+            dict: true_positives, false_positives, and false_negatives all set to 0.
+        """
         return {"true_positives": 0, "false_positives": 0, "false_negatives": 0}
 
     @staticmethod
     def _empty_value(field):
-        """Value used when a field is absent from a record."""
+        """Value used when a field is absent from a record.
+
+        Args:
+            field (SchemaField, required): Field whose match_mode determines the empty value shape.
+
+        Returns:
+            Any: [] for item_list/joined_text fields, {} for keyed_values fields, else None.
+        """
         if field.match_mode in ("item_list", "joined_text"):
             return []
         if field.match_mode == "keyed_values":
@@ -404,7 +434,16 @@ class MaterialsDataSemanticEvaluator:
         return None
 
     def _values_match(self, field, ref_val, test_val):
-        """Check whether two values of a field match under its match mode."""
+        """Check whether two values of a field match under its match mode.
+
+        Args:
+            field (SchemaField, required): Field whose match_mode determines the comparison.
+            ref_val (Any, required): Reference value.
+            test_val (Any, required): Test value.
+
+        Returns:
+            bool: True if the two values match under the field's match mode.
+        """
         if field.match_mode == "numeric":
             if field.similarity_threshold is None:
                 return self._is_value_in_range(
@@ -431,7 +470,17 @@ class MaterialsDataSemanticEvaluator:
         return ref_val == test_val
 
     def _is_within_tolerance(self, field, ref_val, test_val):
-        """Compare numbers (or lists of numbers) using the field's similarity threshold."""
+        """Compare numbers (or lists of numbers) using the field's similarity threshold.
+
+        Args:
+            field (SchemaField, required): Field providing similarity_threshold and
+                similarity_threshold_mode.
+            ref_val (Any, required): Reference number or list of numbers.
+            test_val (Any, required): Test number or list of numbers.
+
+        Returns:
+            bool: True if the values are within the field's tolerance.
+        """
         if ref_val is None or test_val is None:
             return ref_val == test_val
         if isinstance(ref_val, list) or isinstance(test_val, list):
@@ -453,16 +502,15 @@ class MaterialsDataSemanticEvaluator:
         return abs(ref_num - test_num) <= tolerance
 
     def _compare_values(self, field, ref_val, test_val):
-        """
-        Compare two values of a field leaf by leaf.
+        """Compare two values of a field leaf by leaf.
 
         Args:
-            field (SchemaField): Field whose values are compared
-            ref_val: Reference value
-            test_val: Test value
+            field (SchemaField, required): Field whose values are compared.
+            ref_val (Any, required): Reference value.
+            test_val (Any, required): Test value.
 
         Returns:
-            dict: match_fraction, match, metrics and per-leaf results
+            dict: match_fraction, match, metrics, and per-leaf results.
         """
         metrics = self._new_metrics()
         if not field.value_fields:
@@ -530,7 +578,20 @@ class MaterialsDataSemanticEvaluator:
         }
 
     def _evaluate_scalar_field(self, field, ref_value, test_value, weight):
-        """Evaluate a single-value field with exact or numeric matching."""
+        """Evaluate a single-value field with exact or numeric matching.
+
+        Args:
+            field (SchemaField, required): Field being evaluated.
+            ref_value (Any, required): Reference value.
+            test_value (Any, required): Test value.
+            weight (float, required): Weight applied as penalty on mismatch.
+
+        Returns:
+            tuple:
+                - float: Penalty to subtract from the overall score.
+                - dict: match, reference, and test details.
+                - dict: true_positives/false_positives/false_negatives counts.
+        """
         metrics = self._new_metrics()
         penalty = 0.0
         if field.match_mode == "numeric":
@@ -558,7 +619,20 @@ class MaterialsDataSemanticEvaluator:
         return penalty, details, metrics
 
     def _evaluate_semantic_field(self, field, ref_value, test_value, weight):
-        """Evaluate a text field with semantic similarity."""
+        """Evaluate a text field with semantic similarity.
+
+        Args:
+            field (SchemaField, required): Field being evaluated.
+            ref_value (Any, required): Reference text value.
+            test_value (Any, required): Test text value.
+            weight (float, required): Weight applied as penalty on mismatch.
+
+        Returns:
+            tuple:
+                - float: Penalty to subtract from the overall score.
+                - dict: match, reference, test, and similarity details.
+                - dict: true_positives/false_positives/false_negatives counts.
+        """
         metrics = self._new_metrics()
         penalty = 0.0
         threshold = self._field_threshold(field)
@@ -600,7 +674,17 @@ class MaterialsDataSemanticEvaluator:
         return penalty, details, metrics
 
     def _compare_item_lists(self, field, ref_items, test_items):
-        """Match two non-empty lists item by item using tiered similarity."""
+        """Match two lists item by item using tiered similarity.
+
+        Args:
+            field (SchemaField, required): Field providing the similarity threshold.
+            ref_items (list, required): Reference list of text items.
+            test_items (list, required): Test list of text items.
+
+        Returns:
+            dict: match, similarity, reference, test, very_high_similarity_matches,
+            high_similarity_matches, missing_items, extra_items, and metrics.
+        """
         metrics = self._new_metrics()
 
         # Case 1: Both empty
@@ -765,7 +849,20 @@ class MaterialsDataSemanticEvaluator:
         }
 
     def _evaluate_item_list_field(self, field, ref_items, test_items, weight):
-        """Evaluate a list field by matching its items."""
+        """Evaluate a list field by matching its items.
+
+        Args:
+            field (SchemaField, required): Field being evaluated.
+            ref_items (list, required): Reference list of items.
+            test_items (list, required): Test list of items.
+            weight (float, required): Weight applied as penalty on mismatch.
+
+        Returns:
+            tuple:
+                - float: Penalty to subtract from the overall score.
+                - dict: Item-list comparison details (see `_compare_item_lists`).
+                - dict: true_positives/false_positives/false_negatives counts.
+        """
         details = self._compare_item_lists(field, ref_items, test_items)
         metrics = details.pop("metrics")
         penalty = 0.0
@@ -777,7 +874,20 @@ class MaterialsDataSemanticEvaluator:
         return penalty, details, metrics
 
     def _evaluate_joined_text_field(self, field, ref_steps, test_steps, weight):
-        """Evaluate a list field by comparing its items joined into one paragraph."""
+        """Evaluate a list field by comparing its items joined into one paragraph.
+
+        Args:
+            field (SchemaField, required): Field being evaluated.
+            ref_steps (list, required): Reference list of text items.
+            test_steps (list, required): Test list of text items.
+            weight (float, required): Weight applied as penalty on mismatch.
+
+        Returns:
+            tuple:
+                - float: Penalty to subtract from the overall score.
+                - dict: steps_match and comparison details.
+                - dict: true_positives/false_positives/false_negatives counts.
+        """
         metrics = self._new_metrics()
         penalty = 0.0
         threshold = self._field_threshold(field)
@@ -867,7 +977,20 @@ class MaterialsDataSemanticEvaluator:
         return penalty, details, metrics
 
     def _evaluate_object_field(self, field, ref_value, test_value, weight):
-        """Evaluate a nested object field leaf by leaf."""
+        """Evaluate a nested object field leaf by leaf.
+
+        Args:
+            field (SchemaField, required): Field being evaluated.
+            ref_value (Any, required): Reference nested value.
+            test_value (Any, required): Test nested value.
+            weight (float, required): Weight scaled by the unmatched leaf fraction.
+
+        Returns:
+            tuple:
+                - float: Penalty to subtract from the overall score.
+                - dict: match, similarity, reference, test, and leaves details.
+                - dict: true_positives/false_positives/false_negatives counts.
+        """
         if ref_value is None and test_value is None:
             return 0.0, {"match": True, "reference": None, "test": None}, self._new_metrics()
         comparison = self._compare_values(field, ref_value, test_value)
@@ -892,21 +1015,20 @@ class MaterialsDataSemanticEvaluator:
         key_threshold,
         proposed,
     ):
-        """
-        Re-pair similar keys whose values got interchanged, without losing any key match.
+        """Re-pair similar keys whose values got interchanged, without losing any key match.
 
         Args:
-            field (SchemaField): Keyed field being compared
-            ref_keys (list): Remaining reference keys (sorted)
-            test_keys (list): Remaining test keys (sorted)
-            ref_values (dict): Reference values by key
-            test_values (dict): Test values by key
-            similarity_matrix (list): Key similarities, ref_keys x test_keys
-            key_threshold (float): Minimum similarity for a key match
-            proposed (dict): Semantic matching result, ref index -> test index
+            field (SchemaField, required): Keyed field being compared.
+            ref_keys (list, required): Remaining reference keys (sorted).
+            test_keys (list, required): Remaining test keys (sorted).
+            ref_values (dict, required): Reference values by key.
+            test_values (dict, required): Test values by key.
+            similarity_matrix (list, required): Key similarities, ref_keys x test_keys.
+            key_threshold (float, required): Minimum similarity for a key match.
+            proposed (dict, required): Semantic matching result, ref index -> test index.
 
         Returns:
-            dict: ref index -> (test index, value comparison)
+            dict: ref index -> (test index, value comparison).
         """
         final_pairs = {}
         pool_refs, pool_tests = [], []
@@ -946,7 +1068,21 @@ class MaterialsDataSemanticEvaluator:
         return final_pairs
 
     def _evaluate_keyed_values_field(self, field, ref_values, test_values, weight):
-        """Evaluate a composition-keyed field: match keys semantically, then compare values leaf by leaf."""
+        """Evaluate a composition-keyed field: match keys semantically, then compare values
+        leaf by leaf.
+
+        Args:
+            field (SchemaField, required): Keyed field being evaluated.
+            ref_values (dict, required): Reference key -> value mapping.
+            test_values (dict, required): Test key -> value mapping.
+            weight (float, required): Weight applied as penalty on an empty-reference mismatch.
+
+        Returns:
+            tuple:
+                - float: Penalty to subtract from the overall score.
+                - dict: match and per-key/per-value comparison details.
+                - dict: true_positives/false_positives/false_negatives counts.
+        """
         metrics = self._new_metrics()
         penalty = 0.0
         key_threshold = self._field_threshold(field)
@@ -998,6 +1134,11 @@ class MaterialsDataSemanticEvaluator:
         pair_matches = []
 
         def _add_value_metrics(comparison):
+            """Accumulate one value comparison's metrics into the enclosing `metrics` dict.
+
+            Args:
+                comparison (dict, required): Result of `_compare_values`, with a "metrics" entry.
+            """
             for metric in metrics:
                 metrics[metric] += comparison["metrics"][metric]
 
@@ -1053,6 +1194,15 @@ class MaterialsDataSemanticEvaluator:
         matched_test_idxs = set()
 
         def _record_fuzzy_match(i, j, similarity, comparison, match_type):
+            """Record a fuzzy key match's key/value results into the enclosing tracking dicts.
+
+            Args:
+                i (int, required): Index into `remaining_ref_keys_list` for the matched reference key.
+                j (int, required): Index into `remaining_test_keys_list` for the matched test key.
+                similarity (float, required): Key similarity score for this match.
+                comparison (dict, required): Result of `_compare_values` for this pair's values.
+                match_type (str, required): Label describing how the match was found.
+            """
             ref_key = remaining_ref_keys_list[i]
             test_key = remaining_test_keys_list[j]
             matched_ref_idxs.add(i)
@@ -1240,7 +1390,14 @@ class MaterialsDataSemanticEvaluator:
         return penalty, details, metrics
 
     def _count_all_items(self, item):
-        """Count all individual items in a data entry"""
+        """Count all individual items in a data entry.
+
+        Args:
+            item (Dict[str, Any], required): Data entry to count items in.
+
+        Returns:
+            int: Total number of individual evaluation items in the entry.
+        """
         return count_record_items(self.schema_config, item)
 
     def evaluate(
@@ -1253,23 +1410,30 @@ class MaterialsDataSemanticEvaluator:
         is_synthesis_evaluation=True,
         value_error_thresholds=None,
     ):
-        """
-        Evaluate materials science data using normalized weights to ensure fair comparison
+        """Evaluate materials science data using normalized weights to ensure fair comparison
         across DOIs with different numbers of items.
 
         Args:
-            ground_truth_file (str): Path to the ground truth JSON file
-            test_data_file (str): Path to the test data JSON file
-            extraction_agent_model_name (str): Name of the agent model used in data extraction
-            weights (dict, optional): Custom weights for different components
-            output_file (str, optional): Path to save the detailed evaluation results
-            is_synthesis_evaluation (bool, optional): Whether to evaluate synthesis data
+            ground_truth_file (str, optional): Path to the ground truth JSON file. Defaults to None.
+            test_data_file (str, optional): Path to the test data JSON file. Defaults to None.
+            extraction_agent_model_name (str, optional): Name of the agent model used in data
+                extraction. Defaults to None.
+            weights (dict, optional): Custom weights for different components. Defaults to None.
+            output_file (str, optional): Path to save the detailed evaluation results. Defaults
+                to `DefaultPaths.DETAILED_EVALUATION_FILENAME`.
+            is_synthesis_evaluation (bool, optional): Whether to evaluate synthesis data.
+                Defaults to True.
             value_error_thresholds (dict, optional): Per-call override for the instance-level
-                ``value_error_thresholds``.  Mapping of ``(min, max)`` tuples to absolute
+                ``value_error_thresholds``. Mapping of ``(min, max)`` tuples to absolute
                 error tolerances for numeric property value comparisons (see class docstring).
+                Defaults to None.
 
         Returns:
-            dict: Evaluation results with scores and details including F1 metrics
+            dict: Evaluation results with scores and details including F1 metrics.
+
+        Raises:
+            ValueErrorHandler: If `ground_truth_file` or `test_data_file` is not provided, or
+                if `extraction_agent_model_name` is not provided.
         """
         if value_error_thresholds is not None:
             self.value_error_thresholds = value_error_thresholds

@@ -4,7 +4,7 @@ prepare_iop_files.py
 Author: Aritra Roy
 Email: contact@aritraroy.live
 Website: https://aritraroy.live
-Date: 10-03-2025
+GitHub: aritraroy24
 """
 
 # Standard library imports

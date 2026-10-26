@@ -4,7 +4,7 @@ schema_config.py
 Author: Aritra Roy
 Email: contact@aritraroy.live
 Website: https://aritraroy.live
-Date: 24-10-2026
+GitHub: aritraroy24
 """
 
 import copy

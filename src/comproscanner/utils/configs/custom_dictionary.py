@@ -1,3 +1,13 @@
+"""
+custom_dictionary.py
+
+Author: Aritra Roy
+Email: contact@aritraroy.live
+Website: https://aritraroy.live
+GitHub: aritraroy24
+"""
+
+
 class CustomDictionary:
     get_common_stops = {
         "a",

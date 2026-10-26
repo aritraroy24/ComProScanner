@@ -1,3 +1,12 @@
+"""
+rag_config.py
+
+Author: Aritra Roy
+Email: contact@aritraroy.live
+Website: https://aritraroy.live
+GitHub: aritraroy24
+"""
+
 from typing import Optional
 
 

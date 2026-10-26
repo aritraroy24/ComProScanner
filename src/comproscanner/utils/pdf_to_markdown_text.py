@@ -4,7 +4,7 @@ pdf_to_markdown_text.py
 Author: Aritra Roy
 Email: contact@aritraroy.live
 Website: https://aritraroy.live
-Date: 21-03-2025
+GitHub: aritraroy24
 """
 
 # Standard library imports

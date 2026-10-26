@@ -4,7 +4,7 @@ data_visualizer.py
 Author: Aritra Roy
 Email: contact@aritraroy.live
 Website: https://aritraroy.live
-Date: 07-05-2025
+GitHub: aritraroy24
 """
 
 from typing import Optional, List, Dict, Union, Tuple, TYPE_CHECKING

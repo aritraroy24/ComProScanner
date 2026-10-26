@@ -4,7 +4,7 @@ create_knowledge_graph.py
 Author: Aritra Roy
 Email: contact@aritraroy.live
 Website: https://aritraroy.live
-Date: 08-04-2025
+GitHub: aritraroy24
 """
 
 from neo4j import GraphDatabase
@@ -56,10 +56,10 @@ class SemanticMatcher:
 
     def __init__(self, model_name="thellert/physbert_cased"):
         """
-        Initialize the semantic matching with the specified model
+        Initialize the semantic matching with the specified model.
 
         Args:
-            model_name (str): Name of the transformer model to load
+            model_name (str, optional): Name of the transformer model to load. Defaults to "thellert/physbert_cased".
         """
         self.semantic_model = None
         self._load_semantic_model(model_name)
@@ -69,10 +69,10 @@ class SemanticMatcher:
         Load the specified semantic model for similarity calculations.
 
         Args:
-            model_name (str): Name of the model to load
+            model_name (str, required): Name of the model to load.
 
         Returns:
-            dict: Dictionary with model type and model/tokenizer objects
+            dict: Dictionary with model type and model/tokenizer objects.
         """
         # Try loading the transformer model first
         if TRANSFORMERS_AVAILABLE:
@@ -116,11 +116,11 @@ class SemanticMatcher:
         Calculate semantic similarity between two texts using the best available method.
 
         Args:
-            text1 (str): First text
-            text2 (str): Second text
+            text1 (str, required): First text.
+            text2 (str, required): Second text.
 
         Returns:
-            float: Similarity score between 0 and 1
+            float: Similarity score between 0 and 1.
         """
         # Handle empty or None inputs
         if not text1 or not text2:
@@ -144,11 +144,11 @@ class SemanticMatcher:
         Calculate similarity between two texts using transformers model.
 
         Args:
-            text1 (str): First text
-            text2 (str): Second text
+            text1 (str, required): First text.
+            text2 (str, required): Second text.
 
         Returns:
-            float: Similarity score between 0 and 1
+            float: Similarity score between 0 and 1.
         """
         tokenizer = self.semantic_model["tokenizer"]
         model = self.semantic_model["model"]
@@ -180,11 +180,11 @@ class SemanticMatcher:
         Calculate similarity between two texts using sentence-transformers.
 
         Args:
-            text1 (str): First text
-            text2 (str): Second text
+            text1 (str, required): First text.
+            text2 (str, required): Second text.
 
         Returns:
-            float: Similarity score between 0 and 1
+            float: Similarity score between 0 and 1.
         """
         model = self.semantic_model["model"]
 
@@ -211,11 +211,11 @@ class SemanticMatcher:
         Calculate similarity between two texts using difflib.SequenceMatcher.
 
         Args:
-            text1 (str): First text
-            text2 (str): Second text
+            text1 (str, required): First text.
+            text2 (str, required): Second text.
 
         Returns:
-            float: Similarity score between 0 and 1
+            float: Similarity score between 0 and 1.
         """
         return difflib.SequenceMatcher(None, text1.lower(), text2.lower()).ratio()
 
@@ -224,11 +224,11 @@ class SemanticMatcher:
         Cluster similar items using semantic similarity.
 
         Args:
-            items (list): List of items to cluster
-            similarity_threshold (float): Minimum similarity to consider two items as same
+            items (list, required): List of items to cluster.
+            similarity_threshold (float, optional): Minimum similarity to consider two items as same. Defaults to 0.8.
 
         Returns:
-            dict: Dictionary mapping canonical names to lists of similar items
+            dict: Dictionary mapping canonical names to lists of similar items.
         """
         if not items:
             return {}
@@ -290,11 +290,11 @@ class SemanticMatcher:
         Get the canonical name for an item from the clusters.
 
         Args:
-            item (str): The item to look up
-            clusters (dict): Dictionary mapping canonical names to lists of similar items
+            item (str, required): The item to look up.
+            clusters (dict, required): Dictionary mapping canonical names to lists of similar items.
 
         Returns:
-            str: The canonical name for the item, or the item itself if not found
+            str: The canonical name for the item, or the item itself if not found.
         """
         for canonical, similar_items in clusters.items():
             if item in similar_items:
@@ -305,10 +305,14 @@ class SemanticMatcher:
 class CreateKG:
     def __init__(self, schema_config_path=None):
         """
-        Initialize Neo4j connection using environment variables
+        Initialize Neo4j connection using environment variables.
 
         Args:
             schema_config_path (str | Path, optional): Path to the extraction schema YAML file. Defaults to None (bundled default schema).
+
+        Raises:
+            ValueError: If NEO4J_URI, NEO4J_USER, or NEO4J_PASSWORD is missing from the environment.
+            ServiceUnavailable: If the Neo4j database cannot be reached.
         """
         self.driver = None
         self.semantic_matcher = None
@@ -378,11 +382,11 @@ class CreateKG:
         If clustering is disabled, return the item as-is.
 
         Args:
-            item (str): The item to look up
-            clusters (dict): Dictionary mapping canonical names to lists of similar items
+            item (str, required): The item to look up.
+            clusters (dict, required): Dictionary mapping canonical names to lists of similar items.
 
         Returns:
-            str: The canonical name for the item, or the item itself if not found
+            str: The canonical name for the item, or the item itself if not found.
         """
         if self.semantic_matcher is None or not clusters:
             # If clustering is disabled, return the item as-is
@@ -408,12 +412,12 @@ class CreateKG:
         Collect the values of a node_cluster leaf across all papers for clustering.
 
         Args:
-            results (dict): Dictionary containing results data
-            domain (str): "composition" or "synthesis"
-            path (tuple): Schema fields from the top-level field down to the leaf
+            results (dict, required): Dictionary containing results data.
+            domain (str, required): "composition" or "synthesis".
+            path (tuple, required): Schema fields from the top-level field down to the leaf.
 
         Returns:
-            list: Values to cluster
+            list: Values to cluster.
         """
         leaf = path[-1]
         sentinel = (
@@ -452,13 +456,13 @@ class CreateKG:
         Build clusters of semantically similar values of a node_cluster field
 
         Args:
-            results (dict): Dictionary containing results data
-            domain (str): "composition" or "synthesis"
-            path (tuple): Schema fields from the top-level field down to the leaf
-            similarity_threshold (float): Minimum similarity to consider two values as similar
+            results (dict, required): Dictionary containing results data.
+            domain (str, required): "composition" or "synthesis".
+            path (tuple, required): Schema fields from the top-level field down to the leaf.
+            similarity_threshold (float, required): Minimum similarity to consider two values as similar.
 
         Returns:
-            dict: Dictionary mapping canonical values to similar values
+            dict: Dictionary mapping canonical values to similar values.
         """
         return self.semantic_matcher.cluster_items(
             self._cluster_values(results, domain, path), similarity_threshold
@@ -471,22 +475,58 @@ class CreateKG:
         return None
 
     def build_family_clusters(self, results, similarity_threshold):
-        """Build clusters of semantically similar material families"""
+        """
+        Build clusters of semantically similar material families.
+
+        Args:
+            results (dict, required): Dictionary containing results data.
+            similarity_threshold (float, required): Minimum similarity to consider two families as similar.
+
+        Returns:
+            dict: Dictionary mapping canonical family names to similar names.
+        """
         domain, path = self._top_level_cluster_path("family")
         return self.build_field_clusters(results, domain, path, similarity_threshold)
 
     def build_precursor_clusters(self, results, similarity_threshold):
-        """Build clusters of semantically similar precursors"""
+        """
+        Build clusters of semantically similar precursors.
+
+        Args:
+            results (dict, required): Dictionary containing results data.
+            similarity_threshold (float, required): Minimum similarity to consider two precursors as similar.
+
+        Returns:
+            dict: Dictionary mapping canonical precursor names to similar names.
+        """
         domain, path = self._top_level_cluster_path("precursors")
         return self.build_field_clusters(results, domain, path, similarity_threshold)
 
     def build_method_clusters(self, results, similarity_threshold):
-        """Build clusters of semantically similar synthesis methods"""
+        """
+        Build clusters of semantically similar synthesis methods.
+
+        Args:
+            results (dict, required): Dictionary containing results data.
+            similarity_threshold (float, required): Minimum similarity to consider two methods as similar.
+
+        Returns:
+            dict: Dictionary mapping canonical method names to similar names.
+        """
         domain, path = self._top_level_cluster_path("method")
         return self.build_field_clusters(results, domain, path, similarity_threshold)
 
     def build_technique_clusters(self, results, similarity_threshold):
-        """Build clusters of semantically similar characterization techniques"""
+        """
+        Build clusters of semantically similar characterization techniques.
+
+        Args:
+            results (dict, required): Dictionary containing results data.
+            similarity_threshold (float, required): Minimum similarity to consider two techniques as similar.
+
+        Returns:
+            dict: Dictionary mapping canonical technique names to similar names.
+        """
         domain, path = self._top_level_cluster_path("characterization_techniques")
         return self.build_field_clusters(results, domain, path, similarity_threshold)
 
@@ -495,11 +535,11 @@ class CreateKG:
         Build clusters of semantically similar keywords
 
         Args:
-            results (dict): Dictionary containing results data
-            similarity_threshold (float): Minimum similarity to consider two keywords as similar
+            results (dict, required): Dictionary containing results data.
+            similarity_threshold (float, required): Minimum similarity to consider two keywords as similar.
 
         Returns:
-            dict: Dictionary mapping canonical keywords to similar keywords
+            dict: Dictionary mapping canonical keywords to similar keywords.
         """
         # Extract all keywords from results
         all_keywords = []
@@ -524,12 +564,12 @@ class CreateKG:
         Write one schema field's value under its parent nodes, recursing into nested values.
 
         Args:
-            tx: Open Neo4j transaction
-            domain (str): "composition" or "synthesis"
-            path (tuple): Names of the fields from the top-level field down to this one
-            parent_ids (list): Element ids of the parent nodes
-            value: The field's value
-            relationship_type (str, optional): Overrides the field's relationship type
+            tx (required): Open Neo4j transaction.
+            domain (str, required): "composition" or "synthesis".
+            path (tuple, required): Names of the fields from the top-level field down to this one.
+            parent_ids (list, required): Element ids of the parent nodes.
+            value (required): The field's value.
+            relationship_type (str, optional): Overrides the field's relationship type. Defaults to None (use the field's own relationship type).
         """
         field = self._field_by_path[(domain, path)]
         if not parent_ids:
@@ -627,7 +667,16 @@ class CreateKG:
         )
 
     def _section_value(self, section, field):
-        """A top-level field's value, falling back to its graph_default when missing."""
+        """
+        A top-level field's value, falling back to its graph_default when missing.
+
+        Args:
+            section (dict, required): The composition_data or synthesis_data section.
+            field (SchemaField, required): The top-level schema field to read.
+
+        Returns:
+            The field's value, or its graph_default if missing and the field is a node_cluster.
+        """
         if field.name in section:
             return section[field.name]
         if field.graph_role == "node_cluster":
@@ -641,15 +690,15 @@ class CreateKG:
         paper_metadata: Dict,
     ) -> bool:
         """
-        Create paper node with authors, affiliations, and compositions, and establish relationships
+        Create paper node with authors, affiliations, and compositions, and establish relationships.
 
         Args:
-            synthesis_data: Dictionary containing synthesis information
-            composition_data: Dictionary containing composition information
-            paper_metadata: Dictionary containing paper information
+            synthesis_data (Dict, required): Dictionary containing synthesis information.
+            composition_data (Dict, required): Dictionary containing composition information.
+            paper_metadata (Dict, required): Dictionary containing paper information.
 
         Returns:
-            bool: True if the operation was successful, False otherwise
+            bool: True if the operation was successful, False otherwise.
         """
         synthesis_data = synthesis_data or {}
         composition_data = composition_data or {}
@@ -847,7 +896,17 @@ class CreateKG:
         composition_data: Dict,
         paper_metadata: Dict,
     ) -> bool:
-        """Process paper data and create nodes in Neo4j database"""
+        """
+        Process paper data and create nodes in Neo4j database.
+
+        Args:
+            synthesis_data (Dict, required): Dictionary containing synthesis information.
+            composition_data (Dict, required): Dictionary containing composition information.
+            paper_metadata (Dict, required): Dictionary containing paper information.
+
+        Returns:
+            bool: True if the operation was successful, False otherwise.
+        """
         try:
             success = self.create_paper_with_compositions(
                 synthesis_data, composition_data, paper_metadata
@@ -874,16 +933,19 @@ class CreateKG:
         keyword_clustering_similarity_threshold: float = 0.85,
     ):
         """
-        Create a knowledge graph from the extracted results file
+        Create a knowledge graph from the extracted results file.
 
         Args:
             result_file (str, required): Path to the JSON file containing extracted results.
-            is_semantic_clustering_enabled (bool, optional): Whether to enable clustering of similar compositions (Default: True)
-            family_clustering_similarity_threshold (float, optional): Similarity threshold for family clustering (Default: 0.9)
-            method_clustering_similarity_threshold (float, optional): Similarity threshold for method clustering (Default: 0.8)
-            precursor_clustering_similarity_threshold (float, optional): Similarity threshold for precursor clustering (Default: 0.9)
-            technique_clustering_similarity_threshold (float, optional): Similarity threshold for technique clustering (Default: 0.8)
-            keyword_clustering_similarity_threshold (float, optional): Similarity threshold for keyword clustering (Default: 0.85)
+            is_semantic_clustering_enabled (bool, optional): Whether to enable clustering of similar compositions. Defaults to True.
+            family_clustering_similarity_threshold (float, optional): Similarity threshold for family clustering. Defaults to 0.9.
+            method_clustering_similarity_threshold (float, optional): Similarity threshold for method clustering. Defaults to 0.8.
+            precursor_clustering_similarity_threshold (float, optional): Similarity threshold for precursor clustering. Defaults to 0.9.
+            technique_clustering_similarity_threshold (float, optional): Similarity threshold for technique clustering. Defaults to 0.8.
+            keyword_clustering_similarity_threshold (float, optional): Similarity threshold for keyword clustering. Defaults to 0.85.
+
+        Raises:
+            ValueErrorHandler: If result_file is not provided.
         """
         if not result_file:
             raise ValueErrorHandler(
@@ -893,13 +955,16 @@ class CreateKG:
         # Define a local function to load results file
         def load_results_file(file_path: str) -> Dict:
             """
-            Load extracted results from a JSON file
+            Load extracted results from a JSON file.
 
             Args:
-                file_path: Path to the results JSON file
+                file_path (str, required): Path to the results JSON file.
 
             Returns:
-                Dict: Dictionary containing the extracted results
+                Dict: Dictionary containing the extracted results.
+
+            Raises:
+                Exception: If the file cannot be read or parsed as JSON.
             """
             try:
                 with open(file_path, "r", encoding="utf-8") as f:

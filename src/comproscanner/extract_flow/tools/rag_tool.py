@@ -4,7 +4,7 @@ rag_tool.py
 Author: Aritra Roy
 Email: contact@aritraroy.live
 Website: https://aritraroy.live
-Date: 21-03-2025
+GitHub: aritraroy24
 """
 
 # Standard library imports
@@ -52,9 +52,10 @@ class RAGTool(BaseTool):
     model_config = {"arbitrary_types_allowed": True}
 
     def __init__(self, rag_config: None):
-        """
+        """Initialize the RAG tool and its vector database manager.
+
         Args:
-            rag_config (RAGConfig or None): RAG configuration. When None a default RAGConfig is used.
+            rag_config (RAGConfig, optional): RAG configuration. Defaults to None, which builds a default RAGConfig.
         """
         load_dotenv()
         super().__init__()
@@ -68,8 +69,8 @@ class RAGTool(BaseTool):
         """Check if a required package is installed, raising ImportErrorHandler if not.
 
         Args:
-            package_name (str): Name of the Python package to check (importlib spec name).
-            model (str): Model name included in the error message for context.
+            package_name (str, required): Name of the Python package to check (importlib spec name).
+            model (str, required): Model name included in the error message for context.
 
         Raises:
             ImportErrorHandler: If the package is not found.
@@ -83,7 +84,14 @@ class RAGTool(BaseTool):
             )
 
     def _get_llm(self) -> BaseChatModel:
-        """Get the appropriate LLM based on the model name prefix in rag_config.rag_chat_model"""
+        """Build the appropriate LangChain chat model based on the model name prefix in rag_config.rag_chat_model.
+
+        Returns:
+            BaseChatModel: the instantiated chat model for the configured provider.
+
+        Raises:
+            ValueErrorHandler: If the model name does not match any supported provider prefix.
+        """
         model = self.rag_config.rag_chat_model
         temp = getattr(self.rag_config, "temperature", 0.1)
         streaming = getattr(self.rag_config, "streaming", False)
@@ -169,7 +177,7 @@ class RAGTool(BaseTool):
         """Format retrieved (document, score) pairs into a numbered string for LLM context.
 
         Args:
-            docs (list): List of (Document, float) tuples from a similarity search.
+            docs (list, required): List of (Document, float) tuples from a similarity search.
 
         Returns:
             str: Newline-separated document blocks, each prefixed with its relevance score.
@@ -186,8 +194,8 @@ class RAGTool(BaseTool):
         """Generate an LLM answer grounded in the retrieved documents.
 
         Args:
-            query (str): The user question to answer.
-            docs (list): List of (Document, float) tuples returned by the vector search.
+            query (str, required): The user question to answer.
+            docs (list, required): List of (Document, float) tuples returned by the vector search.
 
         Returns:
             str: The LLM-generated answer string.
@@ -212,8 +220,8 @@ class RAGTool(BaseTool):
         """Query the vector database for the given DOI and return an LLM-generated answer.
 
         Args:
-            doi (str): DOI of the article whose vector database to query.
-            query (str): Question to answer using the retrieved document chunks.
+            doi (str, required): DOI of the article whose vector database to query.
+            query (str, required): Question to answer using the retrieved document chunks.
 
         Returns:
             str: LLM-generated answer, or an error message string if the query fails.

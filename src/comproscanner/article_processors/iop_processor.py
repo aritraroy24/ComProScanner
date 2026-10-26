@@ -4,7 +4,7 @@ iop_processor.py
 Author: Aritra Roy
 Email: contact@aritraroy.live
 Website: https://aritraroy.live
-Date: 10-03-2025
+GitHub: aritraroy24
 """
 
 # Standard library imports
@@ -41,25 +41,29 @@ from ..utils.figure_extractor import FigureExtractor, record_failed_article
 logger = setup_logger("comproscanner.log", module_name="iop_processor")
 
 
-######## Class to process IOP articles ########
+# Class to process IOP articles
 class IOPArticleProcessor:
     """
     Get the article data from the stored XML files and process them to extract the required sections of the article and write them to the database and CSV files.
 
     Args:
-        main_property_keyword (str: Required): The main keyword to process the articles for and file naming
-        property_keywords (dict: Required): A dictionary of property keywords which will be used for filtering sentences and should look like the following:
+        main_property_keyword (str, required): The main keyword to process the articles for and file naming.
+        property_keywords (dict, required): A dictionary of property keywords used for filtering sentences, shaped like:
         {
             "exact_keywords": ["example1", "example2"],
             "substring_keywords": [" example 1 ", " example 2 "],
         }
-        sql_batch_size (int): The number of rows to write to the database at once (Applicable only if is_sql_db is True) (default: 500)
-        csv_batch_size (int): The number of rows to write to the CSV file at once (default: 1)
-        start_row (int): The row number to start processing from (default: None)
-        end_row (int): The row number to end processing at (default: None)
-        doi_list (list): A list of DOIs to process (default: None)
-        is_sql_db (bool): A flag to indicate if the data should be written to the database (default: False)
-        rag_config (RAGConfig): An instance of the RAGConfig class (default: RAGConfig())
+        sql_batch_size (int, optional): The number of rows to write to the database at once (applicable only if is_sql_db is True). Defaults to 500.
+        csv_batch_size (int, optional): The number of rows to write to the CSV file at once. Defaults to 1.
+        start_row (int, optional): The row number to start processing from. Defaults to None.
+        end_row (int, optional): The row number to end processing at. Defaults to None.
+        doi_list (list, optional): A list of DOIs to process. Defaults to None.
+        is_sql_db (bool, optional): A flag to indicate if the data should be written to the database. Defaults to False.
+        rag_config (RAGConfig, optional): An instance of the RAGConfig class. Defaults to RAGConfig().
+        main_figure_keywords (dict, optional): Keywords used to match figure captions for extraction. Defaults to property_keywords.
+        additional_figure_keywords (dict, optional): Extra keywords that also qualify a figure for extraction without counting as a property match. Defaults to None.
+        save_failed_automated_report (bool, optional): Whether to persist a report of articles that failed automated processing. Defaults to True.
+        failed_automated_report_path (str, optional): Path to write the failed-articles report to. Defaults to None.
     """
 
     def __init__(
@@ -148,7 +152,12 @@ class IOPArticleProcessor:
         self._iop_revision_cache = {}
 
     def _record_failed_article(self, doi: str, reason: str) -> None:
-        """Record a failed article to the automated failure report."""
+        """Record a failed article to the automated failure report.
+
+        Args:
+            doi (str, required): DOI of the article that failed processing.
+            reason (str, required): Short code describing why the article failed.
+        """
         self.failed_automated_count += 1
         record_failed_article(
             doi,
@@ -159,6 +168,15 @@ class IOPArticleProcessor:
         )
 
     def _get_first_xpath_text(self, root, xpath_expr: str) -> str:
+        """Return the first non-empty text value matched by an XPath expression.
+
+        Args:
+            root (Element, required): Element to evaluate the XPath expression against.
+            xpath_expr (str, required): XPath expression to evaluate.
+
+        Returns:
+            str: The first non-empty matching text, or an empty string if none is found.
+        """
         values = root.xpath(xpath_expr)
         for value in values:
             if isinstance(value, str):
@@ -172,6 +190,14 @@ class IOPArticleProcessor:
         return ""
 
     def _get_iop_cdn_path_parts(self, root):
+        """Pull the identifiers needed to build an IOP content CDN figure URL out of the article metadata.
+
+        Args:
+            root (Element, required): lxml root element of the parsed IOP XML.
+
+        Returns:
+            tuple or None: (issn, volume, issue, elocation_id) if all four were found, otherwise None.
+        """
         issn = self._get_first_xpath_text(
             root,
             './/*[local-name()="journal-meta"]/*[local-name()="issn"][1]/text()',
@@ -193,6 +219,14 @@ class IOPArticleProcessor:
         return issn, volume, issue, elocation_id
 
     def _is_iop_no_such_key(self, response: requests.Response) -> bool:
+        """Detect whether an IOP content CDN response is really a missing-key error disguised as a 200, since the CDN returns NoSuchKey XML with a 200 status for some revisions.
+
+        Args:
+            response (requests.Response, required): Response from the content CDN request.
+
+        Returns:
+            bool: True if the response indicates a missing key (404, or a NoSuchKey XML body), False otherwise.
+        """
         if response is None:
             return False
         if response.status_code == 404:
@@ -212,6 +246,19 @@ class IOPArticleProcessor:
         figure_filename: str,
         cache_key: str,
     ):
+        """Download a figure from the IOP content CDN, trying revision numbers until one resolves. A previously successful revision for the same article is tried first and cached for subsequent figures.
+
+        Args:
+            issn (str, required): Journal ISSN.
+            volume (str, required): Article volume.
+            issue (str, required): Article issue.
+            elocation_id (str, required): Article elocation id.
+            figure_filename (str, required): Filename of the figure to download.
+            cache_key (str, required): Key identifying the article, used to cache the resolved revision number.
+
+        Returns:
+            bytes or None: Raw image content if found, otherwise None.
+        """
         cached_revision = self._iop_revision_cache.get(cache_key)
         revision_candidates = [cached_revision] if cached_revision else []
         revision_candidates.extend(
@@ -297,6 +344,14 @@ class IOPArticleProcessor:
         self.df = self.df[self.df["doi"].isin(unprocessed_dois)]
 
     def _find_article(self, path: str):
+        """Parse a stored IOP XML file and return its root element, if it contains a body.
+
+        Args:
+            path (str, required): Path to the article's XML file.
+
+        Returns:
+            Element or None: Root element of the parsed XML if it has a body, otherwise None.
+        """
         try:
             tree = etree.parse(path.strip())
             root = tree.getroot()
@@ -307,11 +362,25 @@ class IOPArticleProcessor:
             return None
 
     def get_text(self, elements):
+        """Concatenate the text of a sequence of elements, stripping internal spaces.
+
+        Args:
+            elements (list, required): Elements whose text should be concatenated.
+
+        Returns:
+            str: Concatenated text with spaces removed and trailing whitespace stripped.
+        """
         return "".join(
             e.text.replace(" ", "") if e.text else "" for e in elements
         ).rstrip()
 
     def replace_element_with_text(self, element, text_to_add):
+        """Replace an XML element with plain text, merging it into the surrounding sibling or parent text.
+
+        Args:
+            element (Element, required): Element to remove and replace with text.
+            text_to_add (str, required): Text to insert in place of the element.
+        """
         parent = element.getparent()
         index = parent.index(element)
         if index > 0:
@@ -326,6 +395,12 @@ class IOPArticleProcessor:
         parent.remove(element)
 
     def _modify_specific_element(self, sections, element_name):
+        """Replace <sup> and <math> elements with inline text equivalents (e.g. "E^{...}") so exponents survive plain-text extraction.
+
+        Args:
+            sections (Element, required): Element containing the sections of the article.
+            element_name (str, required): Name of the element to modify ("sup" or "math").
+        """
         for element in sections.xpath(f'//*[local-name()="{element_name}"]'):
             if element_name == "math":
                 mn_elements = element.xpath('.//*[local-name()="mn"]')
@@ -345,11 +420,30 @@ class IOPArticleProcessor:
             self.replace_element_with_text(element, text_to_add)
 
     def _modify_all_elements(self, filtered_sections):
+        """Apply the sup and math element replacements to a section in sequence.
+
+        Args:
+            filtered_sections (Element, required): Section element to modify in place.
+
+        Returns:
+            Element: The same section element, with sup and math elements replaced by text.
+        """
         self._modify_specific_element(filtered_sections, "sup")
         self._modify_specific_element(filtered_sections, "math")
         return filtered_sections
 
     def _process_xml(self, root):
+        """Process the XML response to extract the required sections of the article.
+
+        Args:
+            root (Element, required): Root element of the parsed XML.
+
+        Returns:
+            tuple:
+            - abstract (Element or None): Element containing the abstract of the article, or None if absent.
+            - modified_sections (list): Section elements matching the required section titles, with inline formulas and cross-refs stripped out.
+        """
+
         def _remove_elements(element_names, req_sections):
             for element_name in element_names:
                 elements = req_sections.xpath(f'.//*[local-name()="{element_name}"]')
@@ -399,15 +493,15 @@ class IOPArticleProcessor:
 
     def _extract_and_save_figures(self, root, doi: str, xml_dir: str):
         """
-        Extract figures from IOP JATS XML and save them. If self.main_figure_keywords is
-        provided only figures whose captions match are saved; if None, all figures are saved.
-        Tries local image files first (co-located with the XML), then IOP CDN as fallback.
-        Saves to results/extracted_data/{keyword}/related_figures/{doi_}/.
+        Extract figures from IOP JATS XML and save them. If self.main_figure_keywords is provided only figures whose captions match are saved; if None, all figures are saved. Tries local image files first (co-located with the XML), then IOP CDN as fallback. Saves to results/extracted_data/{keyword}/related_figures/{doi_}/.
 
         Args:
-            root: lxml root element of the parsed IOP XML.
-            doi (str): Article DOI.
-            xml_dir (str): Directory containing the XML file (for local image lookup).
+            root (Element, required): lxml root element of the parsed IOP XML.
+            doi (str, required): Article DOI.
+            xml_dir (str, required): Directory containing the XML file, for local image lookup.
+
+        Returns:
+            bool: True if at least one figure's caption matched main_figure_keywords, False otherwise.
         """
         base_path = f"results/extracted_data/{self.keyword}/related_figures"
         try:
@@ -521,6 +615,16 @@ class IOPArticleProcessor:
             return False
 
     def _extract_paragraphs(self, element):
+        """Extract paragraphs from the sections of the article, splitting them by whether they mention a computational-method keyword.
+
+        Args:
+            element (Element, required): Element containing the sections of the article.
+
+        Returns:
+            tuple:
+            - other_paragraphs (str): Paragraphs not containing a computational-method keyword.
+            - comp_paragraphs (str): Paragraphs containing a computational-method keyword.
+        """
         paragraphs = element.xpath('.//*[local-name()="p"]')
         other_paragraphs = ""
         comp_paragraphs = ""
@@ -552,9 +656,30 @@ class IOPArticleProcessor:
         publisher,
         has_caption_keyword_match: bool = False,
     ):
+        """Build a one-row dataframe for the article, and trigger vector database creation when the property or figure keywords are matched.
+
+        Args:
+            abstract (Element, required): Element containing the abstract of the article.
+            req_sections (list, required): List of elements containing the required sections of the article.
+            doi (str, required): DOI of the article.
+            tables (list, required): List of markdown-formatted tables extracted from the XML.
+            article_title (str, required): Title of the article.
+            publication_name (str, required): Name of the publication.
+            publisher (str, required): Name of the publisher.
+            has_caption_keyword_match (bool, optional): Whether a figure caption already matched the main figure keywords. Defaults to False.
+
+        Returns:
+            pd.DataFrame: Single-row dataframe containing the extracted data for the article.
+        """
+
         def _append_section(section):
-            """
-            Append the section to the dictionary of all paragraphs
+            """Split a section's paragraphs and unicode-escape them for storage.
+
+            Args:
+                section (Element, required): Section element to extract paragraphs from.
+
+            Returns:
+                tuple: Unicode-escaped (other_section, comp_section) paragraph strings.
             """
             other_section, comp_section = self._extract_paragraphs(section)
             encoded_other_section = other_section.encode("unicode_escape").decode(
@@ -696,11 +821,16 @@ class IOPArticleProcessor:
         # Returning dataframe (appended dictionary for one article)
         return pd.DataFrame([all_req_data])
 
-    ###### Table processing functions ######
+    # Table processing functions
     def _process_header(self, head_element):
         """
-        Function to process and return the header element of a table
-        params: head_element: Element containing the header of the table
+        Resolve sup/math elements in the header and extract the header cell texts.
+
+        Args:
+            head_element (Element, required): Element containing the header of the table.
+
+        Returns:
+            list: Header cell text, one entry per column.
         """
         if head_element.xpath('.//*[local-name()="sup"]'):
             self._modify_specific_element(head_element, "sup")
@@ -715,8 +845,13 @@ class IOPArticleProcessor:
 
     def _process_entries(self, entries):
         """
-        Function to process and return the entries (body elements) of a table
-        params: entries: List of entries in a row of the table
+        Process the entries (body cells) of a table row into plain text, with multi-line cells kept as a list of lines.
+
+        Args:
+            entries (list, required): List of entry elements in a row of the table.
+
+        Returns:
+            list: One item per entry, either a string or, if the entry contains a <br>, a list of line strings.
         """
         row_data = []
         for entry in entries:
@@ -740,8 +875,13 @@ class IOPArticleProcessor:
 
     def _process_rows(self, rows):
         """
-        Function to process and return the rows of a table
-        params: rows: List of rows in the table
+        Process each row element in a table into its entry data.
+
+        Args:
+            rows (list, required): List of row elements in the table.
+
+        Returns:
+            list: Processed entry data for each row.
         """
         all_row_data = []
         for row in rows:
@@ -751,18 +891,27 @@ class IOPArticleProcessor:
 
     def _process_tables(self, tables):
         """
-        Function to process and return the tables
-        params: tables: List of tables
+        Process the parsed table elements into parallel lists ready for markdown rendering.
+
+        Args:
+            tables (list, required): List of table elements, each paired with a preceding caption element.
+
+        Returns:
+            tuple:
+            - header_data (list): List of header lists, one per table.
+            - column_number (list): Number of columns in each table.
+            - all_table_data (list): List of row data, one list of rows per table.
+            - caption_data (list): Caption string for each table.
         """
 
         def _process_caption(caption_element: etree._Element) -> str:
-            """Function to process and return the caption element of a table
+            """Flatten a caption element's text into a single cleaned string.
 
             Args:
-                caption_element: Element containing the caption of the table
+                caption_element (etree._Element, required): Element containing the caption of the table.
 
             Returns:
-                str: Processed caption text
+                str: Processed caption text.
             """
             return (
                 " ".join(
@@ -777,13 +926,13 @@ class IOPArticleProcessor:
 
         def _get_preceding_caption(table_element: etree._Element) -> str:
             """
-            Given a table element, this function returns the text of the immediately preceding caption element, if any.
+            IOP tables are not nested inside their caption, so this looks up the caption from the preceding sibling instead.
 
             Args:
-                table_element: The table element
+                table_element (etree._Element, required): The table element.
 
             Returns:
-                str: The text of the caption element, if any
+                str or None: The text of the preceding caption element, or None if there isn't one.
             """
             caption_element = table_element.xpath("preceding-sibling::caption[1]")
             if caption_element:
@@ -819,10 +968,16 @@ class IOPArticleProcessor:
         self, header_data, column_number, all_table_data, caption_data
     ):
         """
-        Function to generate markdown tables
-        params: header_data: List of headers of tables
-                column_number: List of number of columns in each table
-                all_table_data: List of data in each table
+        Render the extracted table data as markdown tables.
+
+        Args:
+            header_data (list, required): List of header lists, one per table.
+            column_number (list, required): Number of columns in each table.
+            all_table_data (list, required): List of row data, one list of rows per table.
+            caption_data (list, required): Caption string for each table.
+
+        Returns:
+            list or str: List of markdown table strings, or an error message string if the input lists have mismatched lengths.
         """
         tables = []
         if len(all_table_data) == len(header_data) == len(column_number):
@@ -840,6 +995,12 @@ class IOPArticleProcessor:
             return "Error: Data mismatch"
 
     def _process_articles(self):
+        """Main function to process the IOP articles and save the required sections to the MySQL database and CSV files and create a vector store if the relevant data is present in the article.
+
+        Raises:
+            KeyboardInterruptHandler: If the user interrupts processing.
+            Exception: If an unexpected error occurs while processing the IOP articles.
+        """
         try:
             self._load_and_preprocess_data()
             sql_dataframes = []

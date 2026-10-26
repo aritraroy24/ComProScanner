@@ -4,7 +4,7 @@ elsevier_processor.py
 Author: Aritra Roy
 Email: contact@aritraroy.live
 Website: https://aritraroy.live
-Date: 23-02-2025
+GitHub: aritraroy24
 """
 
 # Standard library imports
@@ -46,26 +46,30 @@ load_dotenv()
 logger = setup_logger("comproscanner.log", module_name="elsevier_processor")
 
 
-######## Class to process Elsevier articles ########
+# Class to process Elsevier articles
 class ElsevierArticleProcessor:
     """
     Get the article data from the XML response of the Elsevier API and process it to extract the required sections of the article and save it to the MySQL database and CSV files and create a vector store if the relevant data is present in the article.
 
     Args:
-        main_property_keyword (str: Required): The main keyword to process the articles for and file naming
-        property_keywords (dict: Required): A dictionary of property keywords which will be used for filtering sentences and should look like the following:
+        main_property_keyword (str, required): The main keyword to process the articles for and file naming.
+        property_keywords (dict, required): A dictionary of property keywords used for filtering sentences, shaped like:
         {
             "exact_keywords": ["example1", "example2"],
             "substring_keywords": [" example 1 ", " example 2 "],
         }
-        sql_batch_size (int): The number of rows to write to the database at once (Applicable only if is_sql_db is True) (default: 500)
-        csv_batch_size (int): The number of rows to write to the CSV file at once (default: 1)
-        start_row (int): The row number to start processing from (default: None)
-        end_row (int): The row number to end processing at (default: None)
-        doi_list (list): A list of DOIs to process (default: None)
-        is_sql_db (bool): A flag to indicate if the data should be written to the database (default: False)
-        is_save_xml (bool): A flag to indicate if the XML response should be saved (default: False)
-        rag_config (RAGConfig): An instance of the RAGConfig class (default: RAGConfig())
+        sql_batch_size (int, optional): The number of rows to write to the database at once (applicable only if is_sql_db is True). Defaults to 500.
+        csv_batch_size (int, optional): The number of rows to write to the CSV file at once. Defaults to 1.
+        start_row (int, optional): The row number to start processing from. Defaults to None.
+        end_row (int, optional): The row number to end processing at. Defaults to None.
+        doi_list (list, optional): A list of DOIs to process. Defaults to None.
+        is_sql_db (bool, optional): A flag to indicate if the data should be written to the database. Defaults to False.
+        is_save_xml (bool, optional): A flag to indicate if the XML response should be saved. Defaults to False.
+        rag_config (RAGConfig, optional): An instance of the RAGConfig class. Defaults to RAGConfig().
+        main_figure_keywords (dict, optional): Keywords used to match figure captions for extraction. Defaults to property_keywords.
+        additional_figure_keywords (dict, optional): Extra keywords that also qualify a figure for extraction without counting as a property match. Defaults to None.
+        save_failed_automated_report (bool, optional): Whether to persist a report of articles that failed automated processing. Defaults to True.
+        failed_automated_report_path (str, optional): Path to write the failed-articles report to. Defaults to None.
     """
 
     def __init__(
@@ -171,7 +175,12 @@ class ElsevierArticleProcessor:
         self.is_exceeded = False
 
     def _record_failed_article(self, doi: str, reason: str) -> None:
-        """Record a failed article to the automated failure report."""
+        """Record a failed article to the automated failure report.
+
+        Args:
+            doi (str, required): DOI of the article that failed processing.
+            reason (str, required): Short code describing why the article failed.
+        """
         self.failed_automated_count += 1
         record_failed_article(
             doi,
@@ -239,10 +248,10 @@ class ElsevierArticleProcessor:
         Parse the XML response from the Elsevier API.
 
         Args:
-            response (Response): Response object from the API call.
+            response (Response, required): Response object from the API call.
 
         Returns:
-            root (Element): Root element of the parsed XML.
+            Element: Root element of the parsed XML, or None if parsing failed.
         """
         utf8_parser = etree.XMLParser(encoding="utf-8")
         try:
@@ -257,8 +266,8 @@ class ElsevierArticleProcessor:
         Save the XML response to a file.
 
         Args:
-            response (Response): Response object from the API call.
-            doi (str): DOI of the article.
+            response (Response, required): Response object from the API call.
+            doi (str, required): DOI of the article.
         """
         xml_folderpath = f"downloaded_files/xmls/elsevier"
         if not os.path.exists(xml_folderpath):
@@ -269,19 +278,19 @@ class ElsevierArticleProcessor:
 
     def _send_request(self, doi):
         """
-        Send a request to the Elsevier API to get the article data.
+        Send a request to the Elsevier API to get the article data. Retries indefinitely on connection errors until a successful connection or a KeyboardInterrupt.
 
         Args:
-            doi (str): DOI of the article.
+            doi (str, required): DOI of the article.
 
         Returns:
-            response (Response): Response object from the API call, or "Not Found" if the article is not found, or None if there was an error.
+            Response or str or None:
+            - Response object from the API call on success.
+            - "Not Found" if the article does not exist (HTTP 404).
+            - None if the request failed (bad request, rate limit, or other error).
 
         Raises:
-            KeyboardInterruptHandler: If user interrupts the retry process
-
-        Note:
-            This method will retry indefinitely for connection errors until successful connection or KeyboardInterrupt
+            KeyboardInterruptHandler: If the user interrupts the retry process.
         """
         url = f"{BaseUrls.ELSEVIER_ARTICLE_BASE_URL}{doi}"
         retry_count = 0
@@ -381,11 +390,11 @@ class ElsevierArticleProcessor:
 
     def _modify_specific_element(self, sections, element_name):
         """
-        Modify specific elements in the XML response.
+        Replace <sup> and <math> elements with inline text equivalents (e.g. "E^{...}") so exponents survive plain-text extraction, since lxml would otherwise drop their markup when text is pulled from the surrounding element.
 
         Args:
-            sections (Element): Element containing the sections of the article.
-            element_name (str): Name of the element to modify.
+            sections (Element, required): Element containing the sections of the article.
+            element_name (str, required): Name of the element to modify ("sup" or "math").
         """
 
         def _get_text(elements):
@@ -426,6 +435,14 @@ class ElsevierArticleProcessor:
             _replace_element_with_text(element, text_to_add)
 
     def _modify_all_elements(self, filtered_sections):
+        """Apply the sup and math element replacements to a section in sequence.
+
+        Args:
+            filtered_sections (Element, required): Section element to modify in place.
+
+        Returns:
+            Element: The same section element, with sup and math elements replaced by text.
+        """
         self._modify_specific_element(filtered_sections, "sup")
         self._modify_specific_element(filtered_sections, "math")
         return filtered_sections
@@ -435,11 +452,12 @@ class ElsevierArticleProcessor:
         Process the XML response to extract the required sections of the article.
 
         Args:
-            root (Element): Root element of the parsed XML.
+            root (Element, required): Root element of the parsed XML.
 
         Returns:
-            abstract (Element): Element containing the abstract of the article.
-            modified_sections (list): List of elements containing the required sections of the article.
+            tuple:
+            - abstract (Element or None): Element containing the abstract of the article, or None if absent.
+            - modified_sections (list): Section elements matching the required section titles, with formulas and cross-refs stripped out.
         """
 
         def _remove_elements(element_names, req_sections):
@@ -496,15 +514,14 @@ class ElsevierArticleProcessor:
 
     def _extract_and_save_figures(self, root, doi: str):
         """
-        Extract figures from Elsevier XML and save them. If self.main_figure_keywords is
-        provided only figures whose captions match are saved; if None, all figures are saved.
-        Downloads images from the Elsevier API and saves them to
-        results/extracted_data/{keyword}/related_figures/{doi_}/{caption_id}.jpg
-        alongside info.json.
+        Extract figures from Elsevier XML and save them. If self.main_figure_keywords is provided only figures whose captions match are saved; if None, all figures are saved. Downloads images from the Elsevier API and saves them to results/extracted_data/{keyword}/related_figures/{doi_}/{caption_id}.jpg alongside info.json.
 
         Args:
-            root: lxml root element of the parsed Elsevier XML.
-            doi (str): Article DOI.
+            root (Element, required): lxml root element of the parsed Elsevier XML.
+            doi (str, required): Article DOI.
+
+        Returns:
+            bool: True if at least one figure's caption matched main_figure_keywords, False otherwise.
         """
         base_path = f"results/extracted_data/{self.keyword}/related_figures"
         try:
@@ -614,14 +631,15 @@ class ElsevierArticleProcessor:
 
     def _extract_paragraphs(self, element):
         """
-        Extract paragraphs from the sections of the article.
+        Extract paragraphs from the sections of the article, splitting them by whether they mention a computational-method keyword.
 
         Args:
-            element (Element): Element containing the sections of the article.
+            element (Element, required): Element containing the sections of the article.
 
         Returns:
-            other_paragraphs (str): Paragraphs not containing the main property keyword.
-            comp_paragraphs (str): Paragraphs containing the main property keyword.
+            tuple:
+            - other_paragraphs (str): Paragraphs not containing a computational-method keyword.
+            - comp_paragraphs (str): Paragraphs containing a computational-method keyword.
         """
         paragraphs = element.xpath('.//*[local-name()="para"]')
         other_paragraphs = ""
@@ -656,24 +674,30 @@ class ElsevierArticleProcessor:
         has_caption_keyword_match: bool = False,
     ):
         """
-        Append the required sections to the dataframe.
+        Build a one-row dataframe for the article, and trigger vector database creation when the property or figure keywords are matched.
 
         Args:
-            abstract (Element): Element containing the abstract of the article.
-            req_sections (list): List of elements containing the required sections of the article.
-            doi (str): DOI of the article.
-            tables (list): List of tables in the XML response.
-            article_title (str): Title of the article.
-            publication_name (str): Name of the publication.
-            publisher (str): Name of the publisher.
+            abstract (Element, required): Element containing the abstract of the article.
+            req_sections (list, required): List of elements containing the required sections of the article.
+            doi (str, required): DOI of the article.
+            tables (list, required): List of markdown-formatted tables extracted from the XML response.
+            article_title (str, required): Title of the article.
+            publication_name (str, required): Name of the publication.
+            publisher (str, required): Name of the publisher.
+            has_caption_keyword_match (bool, optional): Whether a figure caption already matched the main figure keywords. Defaults to False.
 
         Returns:
-            pd.DataFrame: Dataframe containing the extracted data for one article.
+            pd.DataFrame: Single-row dataframe containing the extracted data for the article.
         """
 
         def _append_section(section):
-            """
-            Append the section to the dictionary of all paragraphs
+            """Split a section's paragraphs and unicode-escape them for storage.
+
+            Args:
+                section (Element, required): Section element to extract paragraphs from.
+
+            Returns:
+                tuple: Unicode-escaped (other_section, comp_section) paragraph strings.
             """
             other_section, comp_section = self._extract_paragraphs(section)
             encoded_other_section = other_section.encode("unicode_escape").decode(
@@ -815,13 +839,13 @@ class ElsevierArticleProcessor:
 
     def _process_entries(self, entries):
         """
-        Function to process and return the entries (body elements) of a table
+        Process the entries (body cells) of a table row into plain text, with multi-line cells kept as a list of lines.
 
         Args:
-            entries (list): List of entries in a row of the table
+            entries (list, required): List of entry elements in a row of the table.
 
         Returns:
-            row_data (list): List of data in each row of the table
+            list: One item per entry, either a string or, if the entry contains a <br>, a list of line strings.
         """
         row_data = []
         for entry in entries:
@@ -845,26 +869,27 @@ class ElsevierArticleProcessor:
 
     def _process_tables(self, tables):
         """
-        Function to process and return the tables
+        Process the parsed table elements into parallel lists ready for markdown rendering.
 
         Args:
-            tables (list): List of tables in the XML response
+            tables (list, required): List of table elements from the XML response.
 
         Returns:
-            header_data (list): List of headers of tables
-            column_number (list): List of number of columns in each table
-            all_table_data (list): List of data in each table
-            caption_data (list): List of captions of each table
+            tuple:
+            - header_data (list): List of header lists, one per table.
+            - column_number (list): Number of columns in each table.
+            - all_table_data (list): List of row data, one list of rows per table.
+            - caption_data (list): Caption string for each table.
         """
 
         def _process_caption(caption_element):
-            """Function to process and return the caption element of a table.
+            """Flatten a caption element's text into a single cleaned string.
 
             Args:
-                caption_element (Element): Element containing the caption of the table
+                caption_element (Element, required): Element containing the caption of the table.
 
             Returns:
-                caption_data (str): Caption of the table
+                str: Caption text of the table.
             """
             return (
                 " ".join(
@@ -879,13 +904,13 @@ class ElsevierArticleProcessor:
 
         def _process_header(head_element):
             """
-            Function to process and return the header element of a table
+            Resolve sup/math elements in the header and extract the header cell texts.
 
             Args:
-                head_element (Element): Element containing the header of the table
+                head_element (Element, required): Element containing the header of the table.
 
             Returns:
-                header_data (list): List of headers of tables
+                list: Header cell text, one entry per column.
             """
             if head_element.xpath('.//*[local-name()="sup"]'):
                 self._modify_specific_element(head_element, "sup")
@@ -903,13 +928,13 @@ class ElsevierArticleProcessor:
 
         def _process_rows(rows):
             """
-            Function to process and return the rows of a table
+            Process each row element in a table into its entry data.
 
             Args:
-                rows (list): List of rows in the table
+                rows (list, required): List of row elements in the table.
 
             Returns:
-                all_row_data (list): List of data in each row of the table
+                list: Processed entry data for each row.
             """
             all_row_data = []
             for row in rows:
@@ -951,10 +976,16 @@ class ElsevierArticleProcessor:
         self, header_data, column_number, all_table_data, caption_data
     ):
         """
-        Function to generate markdown tables
-        params: header_data: List of headers of tables
-                column_number: List of number of columns in each table
-                all_table_data: List of data in each table
+        Render the extracted table data as markdown tables.
+
+        Args:
+            header_data (list, required): List of header lists, one per table.
+            column_number (list, required): Number of columns in each table.
+            all_table_data (list, required): List of row data, one list of rows per table.
+            caption_data (list, required): Caption string for each table.
+
+        Returns:
+            list or str: List of markdown table strings, or an error message string if the input lists have mismatched lengths.
         """
         tables = []
         if len(all_table_data) == len(header_data) == len(column_number):

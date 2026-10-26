@@ -4,7 +4,7 @@ comproscanner.py
 Author: Aritra Roy
 Email: contact@aritraroy.live
 Website: https://aritraroy.live
-Date: 02-04-2025
+GitHub: aritraroy24
 """
 
 # Standard library imports
@@ -171,7 +171,7 @@ class ComProScanner:
             save_failed_pdf_report (bool, optional): For `pdfs` source only. If True, save skipped/failed filename-based DOI fallback cases to a text report. Defaults to True.
             failed_pdf_report_path (str, optional): For `pdfs` source only. Custom path for failed PDF filename report. Defaults to None (uses `{folder_path}/failed_pdf_filenames.txt`).
             save_failed_automated_report (bool, optional): For automated publisher sources (elsevier, springer, iop, wiley). If True, save failed/unparseable articles to a report. Defaults to True.
-            failed_automated_report_path (str, optional): Custom path for the automated failure report. Defaults to None (uses `results/article_processor_failed_articles.txt`)..
+            failed_automated_report_path (str, optional): Custom path for the automated failure report. Defaults to None (uses `results/article_processor_failed_articles.txt`).
 
         Raises:
             ValueErrorHandler: If property_keywords is not provided.
@@ -536,7 +536,14 @@ class ComProScanner:
         paper_metadata_extractor = PaperMetadataExtractor()
 
         def _has_composition_data(comp_data):
-            """Check if composition data contains actual values"""
+            """Check if composition data contains actual values.
+
+            Args:
+                comp_data (dict): Composition data extracted for a paper.
+
+            Returns:
+                bool: True if comp_data holds at least one composition value.
+            """
             if not comp_data or not isinstance(comp_data, dict):
                 return False
 
@@ -769,7 +776,7 @@ class ComProScanner:
                 expands bracket coefficients, but spares compositions with balanced brackets containing
                 genuine text/annotations, e.g. "...-(as-sintered)", from being dropped as unresolved).
                 element_validation_lenient/coefficient_expansion_lenient have no additional effect when
-                their strict counterpart is also selected — the strict step's result wins. Unicode
+                their strict counterpart is also selected: the strict step's result wins. Unicode
                 subscript conversion and arithmetic/fraction resolution always run regardless of this
                 parameter, since the other steps depend on their output.
             is_store_unresolved_compositions (bool, optional): Whether to log resolution statistics and save unresolved composition keys to a file. Requires is_save_composition_property_file=True. Defaults to False.

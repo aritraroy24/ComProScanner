@@ -4,7 +4,7 @@ composition_evaluation_crew.py
 Author: Aritra Roy
 Email: contact@aritraroy.live
 Website: https://aritraroy.live
-Date: 20-04-2025
+GitHub: aritraroy24
 """
 
 # Standard library imports
@@ -44,8 +44,8 @@ class GetValueErrorThresholdTool(BaseTool):
     ground-truth value before the comparison is counted as a mismatch.
 
     The returned string is one of:
-    - ``"threshold:<N>"`` — the extracted value matches if |extracted - reference| <= N.
-    - ``"exact"`` — no tolerance configured; use exact matching (within 1e-6).
+    - ``"threshold:<N>"``: the extracted value matches if |extracted - reference| <= N.
+    - ``"exact"``: no tolerance configured, use exact matching (within 1e-6).
     """
 
     name: str = "get_value_error_threshold"
@@ -62,6 +62,16 @@ class GetValueErrorThresholdTool(BaseTool):
     thresholds_list: List[Tuple[float, float, float]] = Field(default_factory=list)
 
     def _run(self, reference_value: str) -> str:
+        """Look up the error threshold band containing a reference value.
+
+        Args:
+            reference_value (str, required): Ground-truth numeric property value as a string.
+
+        Returns:
+            str: "threshold:<N>" if a configured range contains the value, "exact" if no range
+            matches or none are configured, or "exact: reference value is not numeric" if
+            `reference_value` cannot be parsed as a float.
+        """
         try:
             ref_num = float(reference_value)
         except (ValueError, TypeError):
@@ -89,11 +99,11 @@ class CompositionEvaluationCrew:
     ):
         """
         Args:
-            llm: LLM instance for the agent.
-            value_error_thresholds: Mapping of ``(min, max)`` tuples to absolute error
-                tolerances for numeric property-value comparisons.  When provided, the
-                ``get_value_error_threshold`` tool is added to the evaluator agent so that
-                it can look up the tolerance before deciding on value matches.  Example::
+            llm (Optional[LLM], optional): LLM instance for the agent. Defaults to LLM(model="o3-mini").
+            value_error_thresholds (Optional[Dict], optional): Mapping of ``(min, max)`` tuples to absolute
+                error tolerances for numeric property-value comparisons. When provided, the
+                ``get_value_error_threshold`` tool is added to the evaluator agent so that it can look up the
+                tolerance before deciding on value matches. Defaults to None. Example::
 
                     {
                         (-50, 50): 0.5,
@@ -101,7 +111,8 @@ class CompositionEvaluationCrew:
                         (-1000, 1000): 2,
                         (float('-inf'), float('inf')): 5,
                     }
-            schema_config: Extraction schema defining the evaluated fields. Defaults to the bundled default schema.
+            schema_config (Optional[ExtractionSchemaConfig], optional): Extraction schema defining the evaluated
+                fields. Defaults to the bundled default schema.
         """
         self.llm = llm or LLM(model="o3-mini")
         self.schema_config = schema_config or load_schema_config()
@@ -121,7 +132,12 @@ class CompositionEvaluationCrew:
 
     @agent
     def composition_evaluator_agent(self) -> Agent:
-        """Agent that evaluates composition data with binary decisions."""
+        """Agent that evaluates composition data with binary decisions.
+
+        Returns:
+            Agent: Configured CrewAI agent, with the error-threshold lookup tool attached if
+            value error thresholds were configured.
+        """
         tools = []
         if self._thresholds_list:
             tools = [
@@ -138,7 +154,11 @@ class CompositionEvaluationCrew:
 
     @task
     def evaluate_composition_data_task(self) -> Task:
-        """Task for evaluating composition data with binary decisions."""
+        """Task for evaluating composition data with binary decisions.
+
+        Returns:
+            Task: Configured CrewAI task that outputs the composition evaluation pydantic model.
+        """
         return Task(
             config=fill_schema_placeholders(
                 self.tasks_config["evaluate_composition_data_task"],
@@ -149,7 +169,11 @@ class CompositionEvaluationCrew:
 
     @crew
     def crew(self) -> Crew:
-        """Create and configure the composition evaluation crew."""
+        """Create and configure the composition evaluation crew.
+
+        Returns:
+            Crew: Sequential-process crew wiring the composition evaluator agent to its task.
+        """
         return Crew(
             agents=[self.composition_evaluator_agent()],
             tasks=[self.evaluate_composition_data_task()],

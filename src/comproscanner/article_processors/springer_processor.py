@@ -4,7 +4,7 @@ springer_processor.py
 Author: Aritra Roy
 Email: contact@aritraroy.live
 Website: https://aritraroy.live
-Date: 05-03-2025
+GitHub: aritraroy24
 """
 
 # Standard library imports
@@ -46,26 +46,25 @@ load_dotenv()
 logger = setup_logger("comproscanner.log", module_name="springer_processor")
 
 
-######## Class to process Springer articles ########
 class SpringerArticleProcessor:
     """
     Get the article data from the XML response of the Springer API and process it to extract the required sections of the article and save it to the MySQL database and CSV files and create a vector store if the relevant data is present in the article.
 
     Args:
-        main_property_keyword (str: Required): The main keyword to process the articles for and file naming
-        property_keywords (dict: Required): A dictionary of property keywords which will be used for filtering sentences and should look like the following:
-        {
-            "exact_keywords": ["example1", "example2"],
-            "substring_keywords": [" example 1 ", " example 2 "],
-        }
-        sql_batch_size (int): The number of rows to write to the database at once (Applicable only if is_sql_db is True) (default: 500)
-        csv_batch_size (int): The number of rows to write to the CSV file at once (default: 1)
-        start_row (int): The row number to start processing from (default: None)
-        end_row (int): The row number to end processing at (default: None)
-        doi_list (list): A list of DOIs to process (default: None)
-        is_sql_db (bool): A flag to indicate if the data should be written to the database (default: False)
-        is_save_xml (bool): A flag to indicate if the XML response should be saved (default: False)
-        rag_config (RAGConfig): An instance of the RAGConfig class (default: RAGConfig())
+        main_property_keyword (str, required): The main keyword to process the articles for and file naming.
+        property_keywords (dict, required): A dictionary of property keywords used for filtering sentences, e.g. {"exact_keywords": ["example1", "example2"], "substring_keywords": [" example 1 ", " example 2 "]}.
+        sql_batch_size (int, optional): The number of rows to write to the database at once (applicable only if is_sql_db is True). Defaults to 500.
+        csv_batch_size (int, optional): The number of rows to write to the CSV file at once. Defaults to 1.
+        start_row (int, optional): The row number to start processing from. Defaults to None.
+        end_row (int, optional): The row number to end processing at. Defaults to None.
+        doi_list (list, optional): A list of DOIs to process. Defaults to None.
+        is_sql_db (bool, optional): A flag to indicate if the data should be written to the database. Defaults to False.
+        is_save_xml (bool, optional): A flag to indicate if the XML response should be saved. Defaults to False.
+        rag_config (RAGConfig, optional): An instance of the RAGConfig class. Defaults to RAGConfig().
+        main_figure_keywords (dict, optional): Keywords used to match figure captions; falls back to property_keywords. Defaults to None.
+        additional_figure_keywords (dict, optional): Extra keywords used to match figure captions. Defaults to None.
+        save_failed_automated_report (bool, optional): Whether to save a report of articles that failed download/parse. Defaults to True.
+        failed_automated_report_path (str, optional): Path for the failed-articles report. Defaults to None.
     """
 
     def __init__(
@@ -162,7 +161,12 @@ class SpringerArticleProcessor:
         self.is_exceeded = False
 
     def _record_failed_article(self, doi: str, reason: str) -> None:
-        """Record a failed article to the automated failure report."""
+        """Record a failed article to the automated failure report.
+
+        Args:
+            doi (str, required): DOI of the article that failed.
+            reason (str, required): Short code describing why the article failed.
+        """
         self.failed_automated_count += 1
         record_failed_article(
             doi,
@@ -230,10 +234,10 @@ class SpringerArticleProcessor:
         Parse the XML response from the Springer API.
 
         Args:
-            response (Response): Response object from the API call.
+            response (Response, required): Response object from the API call.
 
         Returns:
-            root (Element): Root element of the parsed XML.
+            Element: Root element of the parsed XML, or None if parsing fails.
         """
         utf8_parser = etree.XMLParser(encoding="utf-8")
         try:
@@ -248,8 +252,8 @@ class SpringerArticleProcessor:
         Save the XML response to a file.
 
         Args:
-            response (Response): Response object from the API call.
-            doi (str): DOI of the article.
+            response (Response, required): Response object from the API call.
+            doi (str, required): DOI of the article.
         """
         xml_folderpath = f"downloaded_files/xmls/springer"
         if not os.path.exists(xml_folderpath):
@@ -260,23 +264,27 @@ class SpringerArticleProcessor:
 
     def _send_request(self, doi):
         """
-        Send a request to the Springer API to get the article data.
+        Send a request to the Springer API to get the article data. Retries indefinitely on connection errors until it succeeds or the user interrupts.
 
         Args:
-            doi (str): DOI of the article.
+            doi (str, required): DOI of the article.
 
         Returns:
-            response (Response): Response object from the API call, or "Not Found" if the article is not found, or None if there was an error.
+            Response: Response object from the API call, or "Not Found" if the article is not found, or None if there was an error.
 
         Raises:
-            KeyboardInterruptHandler: If user interrupts the retry process
-
-        Note:
-            This method will retry indefinitely for connection errors until successful connection or KeyboardInterrupt
+            KeyboardInterruptHandler: If the user interrupts the retry process.
         """
 
         def _check_response_data(response):
-            """Checks if the response data has any article content."""
+            """Checks if the response data has any article content.
+
+            Args:
+                response (Response, required): Response object from the API call.
+
+            Returns:
+                bool: True if the response contains article content, False otherwise.
+            """
             if response is None:
                 return False
             elif response.status_code == 200:
@@ -416,11 +424,11 @@ class SpringerArticleProcessor:
 
     def _modify_specific_element(self, sections, element_name):
         """
-        Modify specific elements in the XML response.
+        Modify specific elements in the XML response in place (e.g. rewriting <sup>/<math> markup as plain text).
 
         Args:
-            sections (Element): Element containing the sections of the article.
-            element_name (str): Name of the element to modify.
+            sections (Element, required): Element containing the sections of the article.
+            element_name (str, required): Name of the element to modify.
         """
 
         def _get_text(elements):
@@ -461,6 +469,14 @@ class SpringerArticleProcessor:
             _replace_element_with_text(element, text_to_add)
 
     def _modify_all_elements(self, filtered_sections):
+        """Apply all element rewrites (sup, math) to a section.
+
+        Args:
+            filtered_sections (Element, required): Element containing the sections of the article.
+
+        Returns:
+            Element: The same element with sup/math elements rewritten as plain text.
+        """
         self._modify_specific_element(filtered_sections, "sup")
         self._modify_specific_element(filtered_sections, "math")
         return filtered_sections
@@ -470,14 +486,24 @@ class SpringerArticleProcessor:
         Process the XML response to extract the required sections of the article.
 
         Args:
-            root (Element): Root element of the parsed XML.
+            root (Element, required): Root element of the parsed XML.
 
         Returns:
-            abstract (Element): Element containing the abstract of the article.
-            modified_sections (list): List of elements containing the required sections of the article.
+            tuple:
+                - abstract (Element or None): Element containing the abstract of the article.
+                - modified_sections (list): List of elements containing the required sections of the article.
         """
 
         def _remove_elements(element_names, req_sections):
+            """Strip the named elements from req_sections, folding any trailing text into the surrounding content.
+
+            Args:
+                element_names (list, required): Names of elements to remove.
+                req_sections (Element, required): Element to strip elements from.
+
+            Returns:
+                Element: req_sections with the named elements removed.
+            """
             for element_name in element_names:
                 elements = req_sections.xpath(f'.//*[local-name()="{element_name}"]')
                 if elements:
@@ -531,15 +557,14 @@ class SpringerArticleProcessor:
 
     def _extract_and_save_figures(self, root, doi: str):
         """
-        Extract figures from Springer JATS XML and save them. If self.main_figure_keywords is
-        provided only figures whose captions match are saved; if None, all figures are saved.
-        Attempts to download images from the Springer CDN and saves them to
-        results/extracted_data/{keyword}/related_figures/{doi_}/{caption_id}.jpg
-        alongside info.json.
+        Extract figures from Springer JATS XML and save them. If self.main_figure_keywords is provided only figures whose captions match are saved; if None, all figures are saved. Attempts to download images from the Springer CDN and saves them to results/extracted_data/{keyword}/related_figures/{doi_}/{caption_id}.jpg alongside info.json.
 
         Args:
-            root: lxml root element of the parsed Springer JATS XML.
-            doi (str): Article DOI.
+            root (Element, required): lxml root element of the parsed Springer JATS XML.
+            doi (str, required): Article DOI.
+
+        Returns:
+            bool: True if at least one figure matched the main figure keywords, False otherwise.
         """
         base_path = f"results/extracted_data/{self.keyword}/related_figures"
         try:
@@ -638,11 +663,12 @@ class SpringerArticleProcessor:
         Extract paragraphs from the sections of the article.
 
         Args:
-            element (Element): Element containing the sections of the article.
+            element (Element, required): Element containing the sections of the article.
 
         Returns:
-            other_paragraphs (str): Paragraphs not containing the main property keyword.
-            comp_paragraphs (str): Paragraphs containing the main property keyword.
+            tuple:
+                - other_paragraphs (str): Paragraphs not containing a computational keyword.
+                - comp_paragraphs (str): Paragraphs containing a computational keyword.
         """
         paragraphs = element.xpath('.//*[local-name()="p"]')
         other_paragraphs = ""
@@ -680,21 +706,29 @@ class SpringerArticleProcessor:
         Append the required sections to the dataframe.
 
         Args:
-            abstract (Element): Element containing the abstract of the article.
-            req_sections (list): List of elements containing the required sections of the article.
-            doi (str): DOI of the article.
-            tables (list): List of tables in the XML response.
-            article_title (str): Title of the article.
-            publication_name (str): Name of the publication.
-            publisher (str): Name of the publisher.
+            abstract (Element, required): Element containing the abstract of the article.
+            req_sections (list, required): List of elements containing the required sections of the article.
+            doi (str, required): DOI of the article.
+            tables (list, required): List of markdown table strings for the article.
+            article_title (str, required): Title of the article.
+            publication_name (str, required): Name of the publication.
+            publisher (str, required): Name of the publisher.
+            has_caption_keyword_match (bool, optional): Whether a figure caption matched the main figure keywords. Defaults to False.
 
         Returns:
             pd.DataFrame: Dataframe containing the extracted data for one article.
         """
 
         def _append_section(section):
-            """
-            Append the section to the dictionary of all paragraphs
+            """Encode a section's paragraphs for storage.
+
+            Args:
+                section (Element, required): Element containing the section to extract.
+
+            Returns:
+                tuple:
+                    - encoded_other_section (str): Unicode-escaped non-computational paragraphs.
+                    - encoded_comp_section (str): Unicode-escaped computational paragraphs.
             """
             other_section, comp_section = self._extract_paragraphs(section)
             encoded_other_section = other_section.encode("unicode_escape").decode(
@@ -838,13 +872,13 @@ class SpringerArticleProcessor:
 
     def _process_entries(self, entries):
         """
-        Function to process and return the entries (body elements) of a table
+        Function to process and return the entries (body elements) of a table.
 
         Args:
-            entries (list): List of entries in a row of the table
+            entries (list, required): List of entries in a row of the table.
 
         Returns:
-            row_data (list): List of data in each row of the table
+            list: Data in each row of the table.
         """
         row_data = []
         for entry in entries:
@@ -868,26 +902,27 @@ class SpringerArticleProcessor:
 
     def _process_tables(self, tables):
         """
-        Function to process and return the tables
+        Function to process and return the tables.
 
         Args:
-            tables (list): List of tables in the XML response
+            tables (list, required): List of tables in the XML response.
 
         Returns:
-            header_data (list): List of headers of tables
-            column_number (list): List of number of columns in each table
-            all_table_data (list): List of data in each table
-            caption_data (list): List of captions of each table
+            tuple:
+                - header_data (list): Headers of each table.
+                - column_number (list): Number of columns in each table.
+                - all_table_data (list): Data in each table.
+                - caption_data (list): Caption of each table.
         """
 
         def _process_caption(caption_element):
             """Function to process and return the caption element of a table.
 
             Args:
-                caption_element (Element): Element containing the caption of the table
+                caption_element (Element, required): Element containing the caption of the table.
 
             Returns:
-                caption_data (str): Caption of the table
+                str: Caption of the table.
             """
             return (
                 " ".join(
@@ -902,13 +937,13 @@ class SpringerArticleProcessor:
 
         def _process_header(head_element):
             """
-            Function to process and return the header element of a table
+            Function to process and return the header element of a table.
 
             Args:
-                head_element (Element): Element containing the header of the table
+                head_element (Element, required): Element containing the header of the table.
 
             Returns:
-                header_data (list): List of headers of tables
+                list: Headers of the table.
             """
             if head_element.xpath('.//*[local-name()="sup"]'):
                 self._modify_specific_element(head_element, "sup")
@@ -926,13 +961,13 @@ class SpringerArticleProcessor:
 
         def _process_rows(rows):
             """
-            Function to process and return the rows of a table
+            Function to process and return the rows of a table.
 
             Args:
-                rows (list): List of rows in the table
+                rows (list, required): List of rows in the table.
 
             Returns:
-                all_row_data (list): List of data in each row of the table
+                list: Data in each row of the table.
             """
             all_row_data = []
             for row in rows:
@@ -974,10 +1009,16 @@ class SpringerArticleProcessor:
         self, header_data, column_number, all_table_data, caption_data
     ):
         """
-        Function to generate markdown tables
-        params: header_data: List of headers of tables
-                column_number: List of number of columns in each table
-                all_table_data: List of data in each table
+        Function to generate markdown tables.
+
+        Args:
+            header_data (list, required): List of headers of tables.
+            column_number (list, required): List of number of columns in each table.
+            all_table_data (list, required): List of data in each table.
+            caption_data (list, required): List of captions of each table.
+
+        Returns:
+            list or str: Markdown table strings, or an error string if the input lists are mismatched in length.
         """
         tables = []
         if len(all_table_data) == len(header_data) == len(column_number):

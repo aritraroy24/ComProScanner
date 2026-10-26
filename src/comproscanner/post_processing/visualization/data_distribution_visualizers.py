@@ -1,10 +1,10 @@
 """
-data_distribution_visualizer.py
+data_distribution_visualizers.py
 
 Author: Aritra Roy
 Email: contact@aritraroy.live
 Website: https://aritraroy.live
-Date: 03-05-2025
+GitHub: aritraroy24
 """
 
 import os
@@ -51,10 +51,10 @@ class DataDistributionVisualizer:
         Load the specified semantic model for similarity calculations.
 
         Args:
-            model_name (str): Name of the model to load
+            model_name (str, optional): Name of the model to load. Defaults to "thellert/physbert_cased".
 
         Returns:
-            dict: Dictionary with model type and model/tokenizer objects
+            dict: Dictionary with model type and model/tokenizer objects.
         """
         # Check if the model is already loaded
         if hasattr(self, "semantic_model") and self.semantic_model is not None:
@@ -104,11 +104,11 @@ class DataDistributionVisualizer:
         Calculate semantic similarity between two texts using the best available method.
 
         Args:
-            text1 (str): First text
-            text2 (str): Second text
+            text1 (str, required): First text.
+            text2 (str, required): Second text.
 
         Returns:
-            float: Similarity score between 0 and 1
+            float: Similarity score between 0 and 1.
         """
         # Make sure a model is loaded
         if not hasattr(self, "semantic_model") or self.semantic_model is None:
@@ -136,11 +136,11 @@ class DataDistributionVisualizer:
         Calculate similarity between two texts using transformers model.
 
         Args:
-            text1 (str): First text
-            text2 (str): Second text
+            text1 (str, required): First text.
+            text2 (str, required): Second text.
 
         Returns:
-            float: Similarity score between 0 and 1
+            float: Similarity score between 0 and 1.
         """
         tokenizer = self.semantic_model["tokenizer"]
         model = self.semantic_model["model"]
@@ -172,11 +172,11 @@ class DataDistributionVisualizer:
         Calculate similarity between two texts using sentence-transformers.
 
         Args:
-            text1 (str): First text
-            text2 (str): Second text
+            text1 (str, required): First text.
+            text2 (str, required): Second text.
 
         Returns:
-            float: Similarity score between 0 and 1
+            float: Similarity score between 0 and 1.
         """
         model = self.semantic_model["model"]
 
@@ -203,11 +203,11 @@ class DataDistributionVisualizer:
         Calculate similarity between two texts using difflib.SequenceMatcher.
 
         Args:
-            text1 (str): First text
-            text2 (str): Second text
+            text1 (str, required): First text.
+            text2 (str, required): Second text.
 
         Returns:
-            float: Similarity score between 0 and 1
+            float: Similarity score between 0 and 1.
         """
         return difflib.SequenceMatcher(None, text1.lower(), text2.lower()).ratio()
 
@@ -216,11 +216,11 @@ class DataDistributionVisualizer:
         Cluster similar items using semantic similarity.
 
         Args:
-            items (list): List of items to cluster
-            similarity_threshold (float): Minimum similarity to consider two items as same
+            items (list, required): List of items to cluster.
+            similarity_threshold (float, optional): Minimum similarity to consider two items as same. Defaults to 0.8.
 
         Returns:
-            dict: Dictionary mapping canonical names to lists of similar items
+            dict: Dictionary mapping canonical names to lists of similar items.
         """
         if not items:
             return {}
@@ -282,10 +282,13 @@ class DataDistributionVisualizer:
         Resolve a schema field name or dotted leaf path to its location in the data.
 
         Args:
-            field_path (str): Field name (e.g. "family") or dotted leaf path (e.g. "compositions_property_values.d33_data.unit")
+            field_path (str, required): Field name (e.g. "family") or dotted leaf path (e.g. "compositions_property_values.d33_data.unit").
 
         Returns:
-            tuple: (data_key, top-level SchemaField, remaining path parts)
+            tuple: (data_key, top-level SchemaField, remaining path parts).
+
+        Raises:
+            ValueError: If field_path does not match any schema field, or references an unknown nested leaf.
         """
         parts = field_path.split(".")
         for domain in ("composition", "synthesis"):
@@ -307,11 +310,11 @@ class DataDistributionVisualizer:
         Collect all values of a field or nested leaf across the loaded data.
 
         Args:
-            field_path (str): Field name or dotted leaf path
-            skip_falsy (bool): Skip empty values (otherwise only None is skipped)
+            field_path (str, required): Field name or dotted leaf path.
+            skip_falsy (bool, optional): Skip empty values (otherwise only None is skipped). Defaults to True.
 
         Returns:
-            list: Values, with list values flattened
+            list: Values, with list values flattened.
         """
         data_key, field, rest = self._resolve_field(field_path)
         items = []
@@ -343,12 +346,12 @@ class DataDistributionVisualizer:
         Count the values of a field, optionally merging semantically similar values.
 
         Args:
-            field_path (str): Field name or dotted leaf path
-            is_semantic_clustering_enabled (bool): Whether to cluster similar values
-            similarity_threshold (float): Threshold for similarity-based clustering
+            field_path (str, required): Field name or dotted leaf path.
+            is_semantic_clustering_enabled (bool, optional): Whether to cluster similar values. Defaults to False.
+            similarity_threshold (float, optional): Threshold for similarity-based clustering. Defaults to 0.8.
 
         Returns:
-            Counter: Counter with (canonicalized) items
+            Counter: Counter with (canonicalized) items.
         """
         all_items = self._field_items(field_path)
         if not is_semantic_clustering_enabled:
@@ -372,17 +375,41 @@ class DataDistributionVisualizer:
         return canonicalized_counts
 
     def _extract_families_with_clustering(self, similarity_threshold=0.8):
-        """Extract material families with semantic clustering."""
+        """
+        Extract material families with semantic clustering.
+
+        Args:
+            similarity_threshold (float, optional): Threshold for similarity-based clustering. Defaults to 0.8.
+
+        Returns:
+            Counter: Counter with canonicalized family names.
+        """
         return self._extract_field_counter("family", True, similarity_threshold)
 
     def _extract_precursors_with_clustering(self, similarity_threshold=0.8):
-        """Extract precursors with semantic clustering."""
+        """
+        Extract precursors with semantic clustering.
+
+        Args:
+            similarity_threshold (float, optional): Threshold for similarity-based clustering. Defaults to 0.8.
+
+        Returns:
+            Counter: Counter with canonicalized precursor names.
+        """
         return self._extract_field_counter("precursors", True, similarity_threshold)
 
     def _extract_characterization_techniques_with_clustering(
         self, similarity_threshold=0.8
     ):
-        """Extract characterization techniques with semantic clustering."""
+        """
+        Extract characterization techniques with semantic clustering.
+
+        Args:
+            similarity_threshold (float, optional): Threshold for similarity-based clustering. Defaults to 0.8.
+
+        Returns:
+            Counter: Counter with canonicalized technique names.
+        """
         return self._extract_field_counter(
             "characterization_techniques", True, similarity_threshold
         )
@@ -394,13 +421,16 @@ class DataDistributionVisualizer:
         Get clusters of similar items based on semantic similarity.
 
         Args:
-            data_type (str): Schema field name or dotted leaf path to cluster ("families" is accepted for "family")
-            data_sources (Union[List[str], List[Dict], str], optional): List of paths to JSON files
-            folder_path (str, optional): Path to folder containing JSON data files
-            similarity_threshold (float): Threshold for similarity-based clustering
+            data_type (str, required): Schema field name or dotted leaf path to cluster ("families" is accepted for "family").
+            data_sources (Union[List[str], List[Dict], str], optional): List of paths to JSON files. Defaults to None.
+            folder_path (str, optional): Path to folder containing JSON data files. Defaults to None.
+            similarity_threshold (float, optional): Threshold for similarity-based clustering. Defaults to 0.8.
 
         Returns:
-            Dict[str, List[str]]: Dictionary mapping canonical names to lists of similar items
+            Dict[str, List[str]]: Dictionary mapping canonical names to lists of similar items.
+
+        Raises:
+            ValueError: If data_type does not match any supported schema field.
         """
         # Load data if not already loaded
         if self.data is None or data_sources is not None or folder_path is not None:
@@ -422,7 +452,17 @@ class DataDistributionVisualizer:
     def get_family_clusters(
         self, data_sources=None, folder_path=None, similarity_threshold=0.8
     ):
-        """Get clusters of similar material families."""
+        """
+        Get clusters of similar material families.
+
+        Args:
+            data_sources (Union[List[str], List[Dict], str], optional): List of paths to JSON files. Defaults to None.
+            folder_path (str, optional): Path to folder containing JSON data files. Defaults to None.
+            similarity_threshold (float, optional): Threshold for similarity-based clustering. Defaults to 0.8.
+
+        Returns:
+            Dict[str, List[str]]: Dictionary mapping canonical family names to similar names.
+        """
         return self.get_clusters(
             "families", data_sources, folder_path, similarity_threshold
         )
@@ -430,7 +470,17 @@ class DataDistributionVisualizer:
     def get_technique_clusters(
         self, data_sources=None, folder_path=None, similarity_threshold=0.8
     ):
-        """Get clusters of similar characterization techniques."""
+        """
+        Get clusters of similar characterization techniques.
+
+        Args:
+            data_sources (Union[List[str], List[Dict], str], optional): List of paths to JSON files. Defaults to None.
+            folder_path (str, optional): Path to folder containing JSON data files. Defaults to None.
+            similarity_threshold (float, optional): Threshold for similarity-based clustering. Defaults to 0.8.
+
+        Returns:
+            Dict[str, List[str]]: Dictionary mapping canonical technique names to similar names.
+        """
         return self.get_clusters(
             "characterization_techniques",
             data_sources,
@@ -441,7 +491,17 @@ class DataDistributionVisualizer:
     def get_precursor_clusters(
         self, data_sources=None, folder_path=None, similarity_threshold=0.8
     ):
-        """Get clusters of similar precursors."""
+        """
+        Get clusters of similar precursors.
+
+        Args:
+            data_sources (Union[List[str], List[Dict], str], optional): List of paths to JSON files. Defaults to None.
+            folder_path (str, optional): Path to folder containing JSON data files. Defaults to None.
+            similarity_threshold (float, optional): Threshold for similarity-based clustering. Defaults to 0.8.
+
+        Returns:
+            Dict[str, List[str]]: Dictionary mapping canonical precursor names to similar names.
+        """
         return self.get_clusters(
             "precursors", data_sources, folder_path, similarity_threshold
         )
@@ -452,15 +512,15 @@ class DataDistributionVisualizer:
 
         Args:
             data_sources (Union[List[str], List[Dict], str], optional): List of paths to JSON files
-                or dictionaries containing materials data
-            folder_path (str, optional): Path to folder containing JSON data files.
+                or dictionaries containing materials data. Defaults to None.
+            folder_path (str, optional): Path to folder containing JSON data files. Defaults to None.
                 Either data_sources or folder_path must be provided.
 
         Returns:
-            dict: Combined data dictionary
+            dict: Combined data dictionary.
 
         Raises:
-            ValueError: If neither data_sources nor folder_path is provided, or if no valid data found
+            ValueError: If neither data_sources nor folder_path is provided, or if no valid data found.
         """
         if data_sources is None and folder_path is None:
             raise ValueError("Either data_sources or folder_path must be provided")
@@ -521,8 +581,8 @@ class DataDistributionVisualizer:
         Merge source data dictionary into target data dictionary.
 
         Args:
-            target_dict (dict): Target dictionary to merge data into
-            source_dict (dict): Source dictionary containing data to merge
+            target_dict (dict, required): Target dictionary to merge data into.
+            source_dict (dict, required): Source dictionary containing data to merge.
         """
         for doi, data in source_dict.items():
             target_dict[doi] = data
@@ -845,7 +905,7 @@ class DataDistributionVisualizer:
         Create a pie chart or histogram of the values of any schema field.
 
         Args:
-            field (str): Schema field name or dotted leaf path (e.g. "family", "compositions_property_values.d33_data.unit")
+            field (str, required): Schema field name or dotted leaf path (e.g. "family", "compositions_property_values.d33_data.unit").
             chart_type (str, optional): "pie" or "histogram" (Default: "histogram")
             data_sources (Union[List[str], List[Dict], str], optional): List of paths to JSON files or dictionaries containing materials data
             folder_path (str, optional): Path to folder containing JSON data files. Either data_sources or folder_path must be provided.
@@ -903,7 +963,15 @@ class DataDistributionVisualizer:
         raise ValueError(f"Unsupported chart_type: {chart_type}")
 
     def _numeric_values(self, field):
-        """Collect the numeric values of a field or nested leaf, flattening lists."""
+        """
+        Collect the numeric values of a field or nested leaf, flattening lists.
+
+        Args:
+            field (str, required): Schema field name or dotted leaf path.
+
+        Returns:
+            list: Numeric values found for the field, booleans excluded.
+        """
         values = []
         for item in self._field_items(field, skip_falsy=False):
             if isinstance(item, bool):
@@ -936,7 +1004,7 @@ class DataDistributionVisualizer:
         Create a histogram of the numeric values of any schema field.
 
         Args:
-            field (str): Schema field name or dotted leaf path (e.g. "compositions_property_values", "compositions_property_values.sintering_temp.value")
+            field (str, required): Schema field name or dotted leaf path (e.g. "compositions_property_values", "compositions_property_values.sintering_temp.value").
             data_sources (Union[List[str], List[Dict], str], optional): List of paths to JSON files or dictionaries containing materials data
             folder_path (str, optional): Path to folder containing JSON data files. Either data_sources or folder_path must be provided.
             output_file (str, optional): Path to save the output plot image. If None, the plot is not saved
@@ -1077,7 +1145,6 @@ class DataDistributionVisualizer:
             legend_fontsize (int, optional): Font size for the legend (Default: 10)
             is_semantic_clustering_enabled (bool, optional): Whether to enable semantic clustering of families (Default: True)
             similarity_threshold (float, optional): Similarity threshold for clustering (Default: 0.8)
-
 
         Returns:
             matplotlib.figure.Figure: The generated figure object
@@ -1435,7 +1502,6 @@ class DataDistributionVisualizer:
             grid_axis (str, optional): Axis for grid lines ('x', 'y', 'both', or None for no grid) (Default: "y")
             grid_linestyle (str, optional): Line style for grid lines (Default: "--")
             grid_alpha (float, optional): Alpha (transparency) for grid lines (Default: 0.3)
-
 
         Returns:
             matplotlib.figure.Figure: The generated figure object

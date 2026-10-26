@@ -4,7 +4,7 @@ fetch_metadata.py - Contains the class to filter metadata based on only articles
 Author: Aritra Roy
 Email: contact@aritraroy.live
 Website: https://aritraroy.live
-Date: 21-02-2025
+GitHub: aritraroy24
 """
 
 # Standard library imports
@@ -39,16 +39,16 @@ load_dotenv()
 logger = setup_logger("comproscanner.log", module_name="filter_metadata")
 
 
-######## Class to filter metadata ########
+# Class to filter metadata
 class FilterMetadata:
-    """Class to filter metadata based on only articles and letters, remove duplicates, and update missing publisher information
+    """Class to filter metadata based on only articles and letters, remove duplicates, and update missing publisher information.
 
     Args:
-        main_property_keyword (str): Main property keyword to filter metadata
+        main_property_keyword (str, required): Main property keyword to filter metadata.
 
     Raises:
-        ValueError: If the main property keyword is not provided
-        ValueError: If the SCOPUS_API_KEY is not set in the environment variables
+        ValueError: If main_property_keyword is not provided.
+        ValueError: If SCOPUS_API_KEY is not set in the environment variables.
     """
 
     def __init__(self, main_property_keyword: str = None):
@@ -82,18 +82,13 @@ class FilterMetadata:
         self.is_exceeded = False
 
     def _remove_invalid_rows(self, df):
-        """Removes rows with missing article types or DOIs
+        """Removes rows with missing article types or DOIs.
 
         Args:
-            df (pd.DataFrame): DataFrame containing metadata
+            df (pd.DataFrame, required): DataFrame containing metadata.
 
         Returns:
-            df (pd.DataFrame): DataFrame with invalid rows removed
-
-        Raises:
-            KeyError: If the column name is invalid
-            ValueError: If the value is invalid
-            Exception: If any other error occurs
+            pd.DataFrame: DataFrame with invalid rows removed.
         """
         try:
             valid_article_types = ["Article", "Letter"]
@@ -109,16 +104,13 @@ class FilterMetadata:
             logger.error(f"An error occurred. {e}")
 
     def _remove_duplicate_doi_rows(self, df):
-        """Removes duplicate rows based on DOI
+        """Removes duplicate rows based on DOI.
 
         Args:
-            df (pd.DataFrame): DataFrame containing metadata
+            df (pd.DataFrame, required): DataFrame containing metadata.
 
         Returns:
-            df (pd.DataFrame): DataFrame with duplicate rows removed
-
-        Raises:
-            Exception: If any error occurs
+            pd.DataFrame: DataFrame with duplicate rows removed.
         """
         try:
             initial_rows = len(df)
@@ -130,19 +122,15 @@ class FilterMetadata:
             logger.error(f"An error occurred. {e}")
 
     def _get_missing_publisher_entries(self, df):
-        """Gets entries where publisher information is missing
+        """Gets entries where publisher information is missing.
 
         Args:
-            df (pd.DataFrame): DataFrame containing metadata
+            df (pd.DataFrame, required): DataFrame containing metadata.
 
         Returns:
-            df_missing (pd.DataFrame): DataFrame with missing publisher information
-
-        Raises:
-            Exception: If any error occurs
+            pd.DataFrame: Entries where metadata_publisher is missing.
         """
         try:
-            # Check for missing publisher information in the DataFrame
             df_missing = df[df["metadata_publisher"].isna()]
             logger.debug(
                 f"Found {len(df_missing)} entries with missing publisher information."
@@ -152,16 +140,18 @@ class FilterMetadata:
             logger.error(f"Error identifying missing publishers: {e}")
 
     def _get_unique_identifiers_for_missing(self, df_missing):
-        """Gets unique ISSNs and Scopus IDs for entries with missing publishers.
+        """Gets unique ISSNs and Scopus IDs for entries with missing publishers, one entry per unique journal.
 
         Args:
-            df_missing (pd.DataFrame): DataFrame of entries with missing publisher information.
+            df_missing (pd.DataFrame, required): DataFrame of entries with missing publisher information.
 
         Returns:
-            tuple: (issn_list, scopus_id_list, publication_names) — one entry per unique journal.
+            tuple:
+                - issn_list (list): Unique ISSN values.
+                - scopus_id_list (list): Scopus ID for each unique journal.
+                - publication_names (list): Publication name for each unique journal.
         """
         try:
-            # Group by journal and take the first occurrence of each
             unique_data = (
                 df_missing.groupby("issn")
                 .agg({"scopus_id": "first", "publication_name": "first"})
@@ -178,16 +168,12 @@ class FilterMetadata:
             logger.error(f"Error getting unique identifiers: {e}")
 
     def _add_publisher_to_df_and_save(self, response, issn=None, scopus_id=None):
-        """Parses XML response to add publisher information to DataFrame and saves immediately
+        """Parses XML response to add publisher information to DataFrame and saves immediately.
 
         Args:
-            response (requests.Response): Response object from the API
-            issn (str, optional): ISSN of the publication
-            scopus_id (str, optional): Scopus ID of the publication
-
-        Raises:
-            AttributeError: If the publisher is not found
-            Exception: If any other error occurs
+            response (requests.Response, required): Response object from the API.
+            issn (str, optional): ISSN of the publication. Defaults to None.
+            scopus_id (str, optional): Scopus ID of the publication. Defaults to None.
         """
         try:
             utf8_parser = etree.XMLParser(encoding="utf-8")
@@ -196,28 +182,23 @@ class FilterMetadata:
             publisher_element = root.find(".//dc:publisher", namespaces)
 
             if publisher_element is not None:
-                # Create a temporary DataFrame to store all existing rows
                 temp_df = pd.read_csv(self.filepath, low_memory=False)
                 publisher = publisher_element.text
                 logger.info(f"Publisher: {publisher} found")
 
-                # Update publisher in the temporary DataFrame
                 if scopus_id is not None:
                     mask = temp_df["scopus_id"] == scopus_id
                 else:
                     mask = temp_df["issn"] == issn
 
-                # Update only if rows exist
                 if mask.any():
                     temp_df.loc[mask, "metadata_publisher"] = publisher
 
-                    # Update general publisher based on the mapping
                     for full_name, short_name in self.publisher_mapping.items():
                         if full_name.lower() in publisher.lower():
                             temp_df.loc[mask, "general_publisher"] = short_name
                             break
 
-                    # Save the updated DataFrame
                     temp_df.to_csv(self.filepath, index=False)
                     logger.info(
                         f"Updated {mask.sum()} rows in CSV for {'Scopus ID: ' + str(scopus_id) if scopus_id else 'ISSN: ' + str(issn)}"
@@ -234,20 +215,17 @@ class FilterMetadata:
             logger.error(f"An error occurred. {e}")
 
     def _get_publisher_from_issn(self, issn):
-        """Fetches publisher information using ISSN and updates CSV
+        """Fetches publisher information using ISSN and updates CSV, retrying indefinitely on connection errors until it succeeds or the user interrupts.
 
         Args:
-            issn (str): ISSN of the publication
+            issn (str, required): ISSN of the publication.
 
         Returns:
-            bool: True if successful, False otherwise
+            bool: True if the publisher was found and the CSV updated, False otherwise.
 
         Raises:
-            CustomErrorHandler: If API rate limit exceeded
-            KeyboardInterruptHandler: If user interrupts the retry process
-
-        Note:
-            This method will retry indefinitely for connection errors until successful connection or KeyboardInterrupt
+            CustomErrorHandler: If the Scopus API rate limit is exceeded.
+            KeyboardInterruptHandler: If the user interrupts the retry process.
         """
         retry_count = 0
         retry_delay = 60  # seconds
@@ -333,20 +311,17 @@ class FilterMetadata:
                 return False
 
     def _get_publisher_from_scopus_id(self, scopus_id):
-        """Fetches publisher information using Scopus ID and updates CSV
+        """Fetches publisher information using Scopus ID and updates CSV, retrying indefinitely on connection errors until it succeeds or the user interrupts.
 
         Args:
-            scopus_id (str): Scopus ID of the publication
+            scopus_id (str, required): Scopus ID of the publication.
 
         Returns:
-            bool: True if successful, False otherwise
+            bool: True if the publisher was found and the CSV updated, False otherwise.
 
         Raises:
-            CustomErrorHandler: If API rate limit exceeded
-            KeyboardInterruptHandler: If user interrupts the retry process
-
-        Note:
-            This method will retry indefinitely for connection errors until successful connection or KeyboardInterrupt
+            CustomErrorHandler: If the Scopus API rate limit is exceeded.
+            KeyboardInterruptHandler: If the user interrupts the retry process.
         """
         retry_count = 0
         retry_delay = 60  # seconds
@@ -436,16 +411,13 @@ class FilterMetadata:
                 return False
 
     def _process_journal(self, issn, scopus_id, df, publication_name):
-        """Processes journal information, retrieves publisher, and handles API errors
+        """Processes journal information, retrieves publisher, and handles API errors.
 
         Args:
-            issn (str): ISSN of the publication
-            scopus_id (str): Scopus ID of the publication
-            df (pd.DataFrame): DataFrame containing metadata
-            publication_name (str): Name of the publication
-
-        Raises:
-            Exception: If any error occurs
+            issn (str, required): ISSN of the publication.
+            scopus_id (str, required): Scopus ID of the publication.
+            df (pd.DataFrame, required): DataFrame containing metadata.
+            publication_name (str, required): Name of the publication.
         """
         logger.debug(f"\nISSN: {issn}, Scopus ID: {scopus_id}\n")
         logger.debug(f"Processing journal: {publication_name}. ISSN: {issn}")
@@ -469,31 +441,29 @@ class FilterMetadata:
 
     def _update_from_existing_data(self, df, df_missing):
         """
-        Update missing publisher information using existing entries in the DataFrame
+        Update missing publisher information using existing entries in the DataFrame, so journals already resolved elsewhere skip the API lookup.
 
         Args:
-            df (pd.DataFrame): Complete DataFrame
-            df_missing (pd.DataFrame): DataFrame with missing publisher information
+            df (pd.DataFrame, required): Complete DataFrame.
+            df_missing (pd.DataFrame, required): DataFrame with missing publisher information.
 
         Returns:
-            tuple: (updated DataFrame, remaining missing entries DataFrame)
+            tuple:
+                - df (pd.DataFrame): The DataFrame with matched entries updated.
+                - remaining_missing (pd.DataFrame): Entries that still have no publisher match.
         """
-        # Get entries with valid publisher information
         df_valid = df[df["metadata_publisher"].notna()].copy()
         updated_indices = []
 
-        # For each missing entry, try to find a match
         for idx in df_missing.index:
             row = df_missing.loc[idx]
 
-            # Try to find a matching record with valid publisher info
             matching_entry = df_valid[
                 (df_valid["issn"] == row["issn"])
                 | (df_valid["scopus_id"] == row["scopus_id"])
             ]
 
             if not matching_entry.empty:
-                # Update both publisher fields
                 df.loc[idx, "metadata_publisher"] = matching_entry.iloc[0][
                     "metadata_publisher"
                 ]
@@ -508,40 +478,37 @@ class FilterMetadata:
                 f"Updated {len(updated_indices)} entries using existing publisher information"
             )
 
-        # Return remaining missing entries
         remaining_missing = df_missing.drop(index=updated_indices)
         return df, remaining_missing
 
     def filter_metadata(self):
-        """Main function to update missing publisher information in the DataFrame"""
+        """Cleans the metadata CSV (invalid rows, duplicates) and fills in missing publisher information, first from existing entries, then from the Scopus API.
+
+        Returns:
+            pd.DataFrame: The cleaned DataFrame with publisher information filled in where possible.
+        """
         try:
-            # Read the existing CSV
             df = pd.read_csv(self.filepath, low_memory=False)
 
-            # Remove invalid rows and duplicates
             df = self._remove_invalid_rows(df)
             df = self._remove_duplicate_doi_rows(df)
 
-            # Save the cleaned DataFrame back to CSV
             df.to_csv(self.filepath, index=False)
             logger.info(f"Saved cleaned DataFrame with {len(df)} rows.")
 
-            # Ensure required columns exist
             if "metadata_publisher" not in df.columns:
                 df["metadata_publisher"] = None
             if "general_publisher" not in df.columns:
                 df["general_publisher"] = None
 
-            # Get entries with missing publisher information
             df_missing = self._get_missing_publisher_entries(df)
 
             if len(df_missing) > 0:
-                # First update from existing data and save intermediate results
+                # Update from existing entries first so fewer journals need an API lookup
                 df, remaining_missing = self._update_from_existing_data(df, df_missing)
                 df.to_csv(self.filepath, index=False)
                 logger.info("Saved DataFrame after updating from existing data.")
 
-                # Process remaining missing entries
                 if len(remaining_missing) > 0:
                     issn_list, scopus_id_list, publication_names = (
                         self._get_unique_identifiers_for_missing(remaining_missing)
@@ -563,35 +530,32 @@ class FilterMetadata:
             logger.error(f"Error in filter_metadata: {str(e)}")
 
     def update_publisher_information(self):
-        """Main function to update missing publisher information in the DataFrame"""
+        """Cleans the metadata CSV (invalid rows, duplicates) and fills in missing publisher information via the Scopus API.
+
+        Raises:
+            FileNotFoundErrorHandler: If the metadata CSV file does not exist.
+        """
         try:
-            # Read the existing CSV
             df = pd.read_csv(self.filepath, low_memory=False)
 
-            # Remove invalid rows and duplicates
             df = self._remove_invalid_rows(df)
             df = self._remove_duplicate_doi_rows(df)
 
-            # Save the cleaned DataFrame back to CSV
             df.to_csv(self.filepath, index=False)
             logger.info(f"Saved cleaned DataFrame with {len(df)} rows.")
 
-            # Ensure required columns exist
             if "metadata_publisher" not in df.columns:
                 df["metadata_publisher"] = None
             if "general_publisher" not in df.columns:
                 df["general_publisher"] = None
 
-            # Get entries with missing publisher information
             df_missing = self._get_missing_publisher_entries(df)
 
             if len(df_missing) > 0:
-                # Get unique identifiers for missing entries
                 issn_list, scopus_id_list, publication_names = (
                     self._get_unique_identifiers_for_missing(df_missing)
                 )
 
-                # Process only the missing entries
                 for issn, scopus_id, publication_name in tqdm(
                     zip(issn_list, scopus_id_list, publication_names),
                     total=len(issn_list),

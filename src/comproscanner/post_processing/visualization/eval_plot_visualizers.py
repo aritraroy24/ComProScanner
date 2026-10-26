@@ -1,10 +1,10 @@
 """
-visualizer.py
+eval_plot_visualizers.py
 
 Author: Aritra Roy
 Email: contact@aritraroy.live
 Website: https://aritraroy.live
-Date: 22-04-2025
+GitHub: aritraroy24
 """
 
 import os

@@ -4,7 +4,7 @@ logger.py - Contains the custom logger for the project
 Author: Aritra Roy
 Email: contact@aritraroy.live
 Website: https://aritraroy.live
-Date: 21-02-2025
+GitHub: aritraroy24
 """
 
 # Standard library imports
