@@ -1,5 +1,27 @@
 # Unreleased
 
+### Added
+
+- Added a YAML extraction schema that defines which fields are extracted, without editing any code. Pass `schema_config_path` to `ComProScanner(...)` to use a custom schema; the bundled default schema reproduces the previous output exactly. Fields can be nested to any depth with `object` and `dict[str, object]` types, and each field declares its own description, example, allowed values, evaluation weight and match mode, plot kind and knowledge-graph mapping. A custom schema replaces the default, except that `abbreviations` is always attached. See the new [Custom Schema](../custom-schema.md) page.
+
+- Added `plot_categorical_distribution()`, `plot_numeric_distribution()` and `plot_all_distributions()` to `data_visualizer`, which plot any schema field or nested leaf by its dotted path.
+
+- Added `schema_config_path` to `create_knowledge_graph()`, `DataCleaner` and all eleven `eval_visualizer` functions. Evaluation charts accept a `"<field>_match"` metric for every top-level schema field.
+
+- Added a swap correction to composition matching in semantic evaluation. When compositions are paired with each other's values (c1↔p2, c2↔p1), the pairs are re-assigned with an optimal assignment that maximises matched keys, then matching values, then similarity, and are reported with `"match_type": "swap_corrected"`.
+
+### Changed
+
+- Extraction prompts, example JSON and output validation models, both evaluators' weights, thresholds and prompts, data cleaning, plotting and the knowledge graph are now generated from the extraction schema.
+
+- Semantic evaluation compares nested values leaf by leaf, each leaf (including each entry of a nested keyed dictionary) counting as one item. Papers and composition keys are processed in sorted order, so results are reproducible across runs.
+
+- The knowledge graph follows the JSON structure of the schema: nested blocks become child nodes, keyed dictionaries become one node per entry, and leaves become properties, shared cluster nodes or joined text nodes.
+
+- `similarity_thresholds` in `evaluate_semantic()` now takes `"<field>_match"` keys; fields without an override use the `similarity_threshold` from the schema.
+
+- `scipy` is now a dependency.
+
 ### Fixed
 
 - Fixed the `Composition` node `MERGE` in `create_knowledge_graph.py` being keyed only on the composition string, which silently collapsed the same composition text reported by different papers into one node and overwrote its property value. The `MERGE` key now also includes `doi`, so each paper's composition gets its own node.

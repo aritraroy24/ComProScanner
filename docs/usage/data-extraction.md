@@ -10,6 +10,17 @@ scanner.extract_composition_property_data(
 )
 ```
 
+!!! tip "Choosing what to extract"
+
+    The fields that are extracted, and their shape, come from the scanner's extraction schema. Without one, the bundled default schema gives the output shown below. To extract different or additional (even deeply nested) fields, pass `schema_config_path` when creating the scanner; see [Custom Schema](../custom-schema.md).
+
+    ```python
+    scanner = ComProScanner(
+        main_property_keyword="piezoelectric",
+        schema_config_path="schemas/piezo_schema.yaml",
+    )
+    ```
+
 ## Parameters
 
 ### Required Parameters
@@ -204,7 +215,7 @@ Is there any material chemical composition and corresponding {main_property_keyw
 
 ### 2. Composition-Property Data Extractor (2️⃣) & Composition-Property Data Formatter (3️⃣)
 
-**Purpose**: `Composition-Property Data Extractor` extracts compositions and property values along with their corresponding unit and material family from the article text. It first calls `Equation Tool` to determine whether doping produces a single-phase compound and to retrieve the general doped formula, then calls `Graph Extractor Tool` to supplement text-derived values with data read from saved figures. Finally, `Composition-Property Data Formatter` formats the extracted data into structured JSON similar to the following example.
+**Purpose**: `Composition-Property Data Extractor` extracts the composition fields of the extraction schema from the article text; with the default schema these are the compositions and property values along with their corresponding unit and material family. It first calls `Equation Tool` to determine whether doping produces a single-phase compound and to retrieve the general doped formula, then calls `Graph Extractor Tool` to supplement text-derived values with data read from saved figures. Finally, `Composition-Property Data Formatter` formats the extracted data into structured JSON, validated against a model generated from the schema. With the default schema the output is similar to the following example.
 
 **Output Format**:
 
@@ -265,7 +276,7 @@ Is there any material chemical composition and corresponding {main_property_keyw
 
 ### 3. Synthesis Data Extractor (4️⃣) & Synthesis Data Formatter (5️⃣)
 
-**Purpose**: `Synthesis Data Extractor` extracts synthesis related data including method, precursors, steps, and characterization techniques from the article text and finally `Synthesis Data Formatter` formats the extracted data into structured JSON similar to the following example.
+**Purpose**: `Synthesis Data Extractor` extracts the synthesis fields of the extraction schema (by default method, precursors, steps, and characterization techniques) from the article text and finally `Synthesis Data Formatter` formats the extracted data into structured JSON. With the default schema the output is similar to the following example.
 
 **Output Format**:
 
@@ -305,13 +316,13 @@ Is there any material chemical composition and corresponding {main_property_keyw
 
 ## Flow Optional Arguments
 
-Customize extraction behavior by providing additional examples, notes, and allowed methods/techniques via `flow_optional_args` dictionary where values are formatted strings or lists of strings.:
+Customize extraction behavior by providing additional examples, notes, and allowed methods/techniques via `flow_optional_args` dictionary where values are formatted strings or lists of strings. Every argument is optional: when the examples are not given, they are generated from the `example` values of the extraction schema, so they always match the fields being extracted. If you do pass your own examples, use the field names of your schema.
 
 ```python
 flow_optional_args = {
     "expected_composition_property_example": f"""
     {{
-      "compositions":
+      "compositions_property_values":
       {{
         "Ba0.99Ca0.01Ti0.68Zr0.32O3": 375,
         "Ba0.98Ca0.02Ti0.78Zr0.22O3": 350,
@@ -323,7 +334,7 @@ flow_optional_args = {
     }}""",
     "expected_variable_composition_property_example": f"""
     {{
-    "compositions":
+    "compositions_property_values":
       {{
         "0.5NaNbO3": 375,
         "(1-x)Na0.2K2(x)Bi0.5TiO3 - (y)NaNbO3 where x=0, y=0.5": 350,
@@ -366,8 +377,8 @@ scanner.extract_composition_property_data(
 
 !!! note "Allowed Entities for \*\*flow_optional_args"
 
-    :material-square-small:**`expected_composition_property_example` _(str)_:** Example of expected composition-property JSON format for compositions and target properties. The string should be properly formatted similar to the example provided above.<br>
-    :material-square-small:**`expected_variable_composition_property_example` _(str)_:** Example of expected variable composition-property JSON format for compositions with variable components and target properties. The string should be properly formatted similar to the example provided above.<br>
+    :material-square-small:**`expected_composition_property_example` _(str)_:** Example of expected composition-property JSON format for compositions and target properties. The string should be properly formatted similar to the example provided above. Defaults to an example generated from the extraction schema.<br>
+    :material-square-small:**`expected_variable_composition_property_example` _(str)_:** Example of expected variable composition-property JSON format for compositions with variable components and target properties. The string should be properly formatted similar to the example provided above. Defaults to an example generated from the extraction schema.<br>
     :material-square-small:**`composition_property_extraction_agent_notes` _(list)_:** Notes for the extraction agent to consider when performing the extraction.<br>
     :material-square-small:**`composition_property_extraction_task_notes` _(list)_:** Notes for the extraction task to consider when performing the extraction by the composition-property data extraction agent.<br>
     :material-square-small:**`composition_property_formatting_agent_notes` _(list)_:** Notes for the formatting agent to consider when formatting the extracted data.<br>
@@ -376,8 +387,8 @@ scanner.extract_composition_property_data(
     :material-square-small:**`synthesis_extraction_task_notes` _(list)_:** Notes for the synthesis data extraction task to consider when performing the extraction by the synthesis data extraction agent.<br>
     :material-square-small:**`synthesis_formatting_agent_notes` _(list)_:** Notes for the synthesis data formatting agent to consider when formatting the extracted data.<br>
     :material-square-small:**`synthesis_formatting_task_notes` _(list)_:** Notes for the synthesis data formatting task to consider when formatting the extracted synthesis data by the synthesis data formatting agent.<br>
-    :material-square-small:**`allowed_synthesis_methods` _(list)_:** List of allowed synthesis methods to guide the extraction process. If specified, only these methods should be considered during extraction.<br>
-    :material-square-small:**`allowed_characterization_techniques` _(list)_:** List of allowed characterization techniques to guide the extraction process. If specified, only these techniques should be considered during extraction.<br>
+    :material-square-small:**`allowed_synthesis_methods` _(list)_:** List of allowed synthesis methods to guide the extraction process. If specified, only these methods should be considered during extraction. Applied to the schema field that declares `allowed_values_ref: allowed_synthesis_methods` (`method` in the default schema).<br>
+    :material-square-small:**`allowed_characterization_techniques` _(list)_:** List of allowed characterization techniques to guide the extraction process. If specified, only these techniques should be considered during extraction. Applied to the schema field that declares `allowed_values_ref: allowed_characterization_techniques` (`characterization_techniques` in the default schema).<br>
 
 ## Article Specific Metadata Collection
 
@@ -494,3 +505,4 @@ Once the data extraction is complete, article-specific metadata such as DOI, tit
 - Learn about [Evaluation](evaluation/overview.md)
 - Explore [Visualization](visualization/overview.md)
 - Configure [Advanced RAG](../rag-config.md)
+- Define a [Custom Schema](../custom-schema.md)

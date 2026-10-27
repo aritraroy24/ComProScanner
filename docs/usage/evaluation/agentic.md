@@ -30,7 +30,7 @@ Path to extracted results to be evaluated.
 
 #### :material-square-medium:`weights` _(dict)_
 
-Dictionary specifying weights for each metric during evaluation for ensuring scoring based on importance. The total should sum to 1.0.
+Dictionary mapping top-level schema field names to weights, for scoring based on importance. The total should sum to 1.0. When omitted, the weights come from the extraction schema (see [Custom Schema](../../custom-schema.md#evaluation)).
 
 #### :material-square-medium:`output_file` _(str)_
 
@@ -65,7 +65,7 @@ value_error_thresholds = {
 
 !!! info "Default Values"
 
-    :material-square-small:**`weights`** = {
+    :material-square-small:**`weights`** = from the extraction schema; for the default schema {
         "compositions_property_values": 0.3,
         "property_unit": 0.1,
         "family": 0.1,
@@ -86,6 +86,8 @@ graph TB
     E --> F[Scoring]
     F --> G[Evaluation Results]
 ```
+
+The evaluation agents' prompts and response format are generated from the scanner's extraction schema: each field is listed with its type, description and `evaluation_note` (the judging rule), and the agent returns one decision per field. For nested composition values from a [custom schema](../../custom-schema.md), the agent returns one decision per leaf, so every leaf counts as one item, as in semantic evaluation. The agent matches compositions to each other itself.
 
 ### Custom LLM
 
@@ -453,3 +455,4 @@ results = evaluate_agentic(
 - Compare with [Semantic Evaluation](semantic.md)
 - Visualize results with [Evaluation Visualizer](../visualization/eval-viz.md)
 - Learn about [RAG Configuration](../../rag-config.md)
+- Define a [Custom Schema](../../custom-schema.md)

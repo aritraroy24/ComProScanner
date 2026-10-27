@@ -11,7 +11,8 @@ Visualize extracted composition-property data:
 - Material family distributions
 - Precursor analysis
 - Characterization techniques
-- Knowledge graphs
+- Distributions of any extraction schema field, including nested leaves
+- Knowledge graphs that follow the extraction schema
 
 [Learn more →](data-viz.md)
 
@@ -92,3 +93,4 @@ fig = eval_visualizer.plot_multiple_radar_charts(
 - [Data Visualization Guide](data-viz.md) - Visualize extracted data
 - [Evaluation Visualization Guide](eval-viz.md) - Visualize evaluation results
 - Learn about [RAG Configuration](../../rag-config.md)
+- Define a [Custom Schema](../../custom-schema.md)

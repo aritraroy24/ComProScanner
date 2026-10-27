@@ -244,7 +244,8 @@ The extraction produces JSON files with structured data similar to the following
 Now that you understand the basics, explore:
 
 - **[User Guide](../usage/metadata-collection.md)** - Detailed documentation for each module and functions
-- **[Advanced Configuration](../rag-config.md)** - Configure RAG and custom flows
+- **[RAG Configuration](../rag-config.md)** - Configure RAG and custom flows
+- **[Custom Schema](../custom-schema.md)** - Choose which fields are extracted, evaluated, plotted and graphed
 
 ## Troubleshooting
 

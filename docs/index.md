@@ -139,8 +139,8 @@ graph LR
 - :fontawesome-solid-book: **[User Guide](usage/metadata-collection.md)**<br>
   Comprehensive guides for all features and capabilities.
 
-- :material-hammer-wrench: **[Advanced Configuration](rag-config.md)**<br>
-  Advanced features like RAG configuration and custom flows.
+- :material-hammer-wrench: **[Custom Configuration](rag-config.md)**<br>
+  RAG configuration and a custom extraction schema to choose exactly which fields are extracted.
 
 - :material-api: **[API Overview](api.md)**<br>
   Detailed API documentation for all modules and classes.

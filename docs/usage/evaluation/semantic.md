@@ -30,7 +30,7 @@ Path to extracted results to be evaluated.
 
 #### :material-square-medium:`weights` _(dict)_
 
-Dictionary specifying weights for each metric during evaluation for ensuring scoring based on importance. The total should sum to 1.0.
+Dictionary mapping top-level schema field names to weights, for scoring based on importance. The total should sum to 1.0; fields you leave out keep their default weight, and each section (composition and synthesis) is then normalised to half of the score. When omitted, the weights come from the extraction schema (see [Custom Schema](../../custom-schema.md#evaluation)).
 
 #### :material-square-medium:`output_file` _(str)_
 
@@ -58,11 +58,11 @@ Name of the fallback model which will be used if the primary model fails for sem
 
 #### :material-square-medium:`similarity_thresholds` _(dict)_
 
-Dictionary specifying similarity thresholds for each metric when using semantic evaluation.
+Dictionary of `"<field>_match"` keys (e.g. `"family_match"`, `"precursors_match"`) overriding the similarity threshold of a top-level schema field. Fields without an override use the `similarity_threshold` declared in the extraction schema.
 
 #### :material-square-medium:`value_error_thresholds` _(dict)_
 
-Optional mapping of ground-truth value ranges to absolute error tolerances for numeric property value comparisons. Ranges are interpreted as **layers**: the narrowest range that contains the ground-truth value determines the tolerance, so wider ranges implicitly cover the gaps left by narrower ones. If no range matches, exact comparison is used.
+Optional mapping of ground-truth value ranges to absolute error tolerances for numeric comparisons of fields that don't declare their own tolerance in the schema. Ranges are interpreted as **layers**: the narrowest range that contains the ground-truth value determines the tolerance, so wider ranges implicitly cover the gaps left by narrower ones. If no range matches, exact comparison is used.
 
 Keys must be **tuples** `(a, b)` — element order does not matter, `(-150, 150)` and `(150, -150)` are treated identically. `float('inf')` and `float('-inf')` are supported for open-ended bounds.
 
@@ -77,7 +77,7 @@ value_error_thresholds = {
 
 !!! info "Default Values"
 
-    :material-square-small:**`weights`** = {
+    :material-square-small:**`weights`** = from the extraction schema; for the default schema {
         "compositions_property_values": 0.3,
         "property_unit": 0.1,
         "family": 0.1,
@@ -86,15 +86,7 @@ value_error_thresholds = {
         "characterization_techniques": 0.15,
         "steps": 0.1
     }<br>:material-square-small:**`output_file`** = "semantic_evaluation_result.json"<br>:material-square-small:**`extraction_agent_model_name`** = "gpt-4o-mini"<br>:material-square-small:**`is_synthesis_evaluation`** = True<br>:material-square-small:**`use_semantic_model`** = True<br>:material-square-small:**`primary_model_name`** = "thellert/physbert_cased"<br>:material-square-small:**`fallback_model_name`** = "all-mpnet-base-v2"<br>
-    :material-square-small:**`similarity_thresholds`** = {
-        "compositions_property_values": 0.8,
-        "property_unit": 0.8,
-        "family": 0.8,
-        "method": 0.8,
-        "precursors": 0.8,
-        "characterization_techniques": 0.8,
-        "steps": 0.8
-    }<br>:material-square-small:**`value_error_thresholds`** = `None` (exact comparison)
+    :material-square-small:**`similarity_thresholds`** = None (each field's `similarity_threshold` from the extraction schema)<br>:material-square-small:**`value_error_thresholds`** = `None` (exact comparison)
 
 ## How It Works
 
@@ -107,6 +99,20 @@ graph TB
     E --> F[Calculate Metrics]
     F --> G[Evaluation Results]
 ```
+
+What is compared, and how, is defined by the scanner's extraction schema: every field has a `match_mode` (`exact`, `semantic`, `numeric`, `item_list`, `joined_text` or `keyed_values`), a threshold and a weight. With the default schema this reproduces the classic evaluation; with a [custom schema](../../custom-schema.md) the same evaluator scores your fields.
+
+### Composition Matching
+
+Composition keys are matched in three passes, always in sorted order so results are reproducible:
+
+1. **Exact keys**: identical composition strings are paired first.
+2. **Semantic matching**: the remaining keys are paired greedily by embedding similarity above the threshold.
+3. **Swap correction**: when two or more compositions are paired with each other's values (c1↔p2 and c2↔p1 instead of c1↔p1 and c2↔p2), the pairs are re-assigned with an optimal assignment that maximises first the number of matched keys, then the number of matching values, then the similarity. Such pairs are reported with `"match_type": "swap_corrected"`.
+
+### Nested Values
+
+When a composition's value is a nested structure (a custom schema with `object` or `dict[str, object]` value fields), every leaf is compared on its own and counts as one item, with its own tolerance and its effective weight. Entries of nested dictionaries are separate items too, so a measurement present only in the extracted data counts as an extra item. Per-leaf results are reported under `leaf_matches`.
 
 ## Embedding Models
 
@@ -140,17 +146,16 @@ fallback_model_name="all-mpnet-base-v2"
 
 ## Custom Thresholds
 
-Adjust similarity thresholds per metric:
+Adjust similarity thresholds per field with `"<field>_match"` keys (thresholds can also be set permanently in the schema with `similarity_threshold`):
 
 ```python
 custom_thresholds = {
-    "compositions_property_values": 0.85,  # Stricter for compositions
-    "property_unit": 0.9,                   # Very strict for units
-    "family": 0.7,                          # More lenient for families
-    "method": 0.75,
-    "precursors": 0.8,
-    "characterization_techniques": 0.75,
-    "steps": 0.7
+    "compositions_property_values_match": 0.85,  # Stricter composition key matching
+    "family_match": 0.7,                          # More lenient for families
+    "method_match": 0.75,
+    "precursors_match": 0.8,
+    "characterization_techniques_match": 0.75,
+    "steps_match": 0.7
 }
 
 results = evaluate_semantic(
@@ -162,7 +167,7 @@ results = evaluate_semantic(
 
 ## Custom Weights
 
-Adjust importance of different metrics:
+Adjust importance of different top-level fields (weights can also be set permanently in the schema with `weight`):
 
 ```python
 custom_weights = {
@@ -204,7 +209,7 @@ results = evaluate_semantic(
 !!! note
     - Keys must be **tuples** `(min, max)` — Python lists cannot be used as dict keys.
     - Key ordering does not matter; `min`/`max` is resolved internally.
-    - This tolerance applies only to `compositions_property_values` numeric comparisons. Non-numeric values always use exact matching.
+    - This tolerance applies to numeric comparisons of fields that don't set `similarity_threshold` in the schema (with the default schema, the `compositions_property_values` values). Non-numeric values always use exact matching.
     - If no range contains the ground-truth value, exact comparison is used for that value.
 
 ## Output Format
@@ -506,3 +511,4 @@ results = evaluate_semantic(
 - Try [Agentic Evaluation](agentic.md) for comparison
 - Visualize results with [Evaluation Visualizer](../visualization/eval-viz.md)
 - Learn about [RAG Configuration](../../rag-config.md)
+- Define a [Custom Schema](../../custom-schema.md)

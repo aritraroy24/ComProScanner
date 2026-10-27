@@ -175,7 +175,9 @@ nav:
           - Overview: usage/visualization/overview.md
           - Data Visualization: usage/visualization/data-viz.md
           - Evaluation Visualization: usage/visualization/eval-viz.md
-  - RAG Configuration: rag-config.md
+  - Custom Configuration:
+      - RAG Configuration: rag-config.md
+      - Custom Schema: custom-schema.md
   - API Overview: api.md
   - Blog: news/index.md
   - About:

@@ -92,6 +92,7 @@ The ComProScanner workflow consists of four main stages:
 - [Quick Start Tutorial](https://slimeslab.github.io/ComProScanner/getting-started/quick-start/)
 - [User Guide](https://slimeslab.github.io/ComProScanner/usage/metadata-collection/)
 - [RAG Configuration](https://slimeslab.github.io/ComProScanner/rag-config/)
+- [Custom Schema](https://slimeslab.github.io/ComProScanner/custom-schema/)
 
 ## Core Capabilities
 

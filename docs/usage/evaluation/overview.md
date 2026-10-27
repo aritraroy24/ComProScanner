@@ -51,8 +51,10 @@ ComProScanner provides both semantic and agentic methods for evaluating extracti
 Both methods provide:
 
 - **Overall Accuracy**: Combined accuracy across both composition accuracy and synthesis accuracy
-- **Composition Accuracy**: Custom weight-based accuracy of extracted composition-property based data (compositions_property_values, property_unit, family)
-- **Synthesis Accuracy**: Custom weight-based accuracy of synthesis related data (method, precursors, steps, characterization_techniques)
+- **Composition Accuracy**: Custom weight-based accuracy of extracted composition-property based data (with the default schema: compositions_property_values, property_unit, family)
+- **Synthesis Accuracy**: Custom weight-based accuracy of synthesis related data (with the default schema: method, precursors, steps, characterization_techniques)
+
+Which fields are evaluated, how they are compared and how much each one counts are all defined by the extraction schema, so both methods also evaluate the fields of a [custom schema](../../custom-schema.md).
 - **Classification Metrics**: Standard Precision/Recall/F1 metrics for detailed performance analysis
 - **Normalized Classification Metrics**: Classification metrics normalized to ensure an equitable comparison between articles with significant disparities in the quantity of extractable information.
 
@@ -94,3 +96,4 @@ results = evaluate_agentic(
 - Continue to [Semantic Evaluation](semantic.md) or [Agentic Evaluation](agentic.md)
 - Explore [Visualization](../visualization/overview.md)
 - Learn about [RAG Configuration](../../rag-config.md)
+- Define a [Custom Schema](../../custom-schema.md)

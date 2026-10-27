@@ -45,6 +45,7 @@ comproscanner
 │       │   │   │   ├── __init__.py
 │       │   │   │   └── eval_flow.py
 │       │   │   ├── __init__.py
+│       │   │   ├── schema_items.py
 │       │   │   └── semantic_evaluator.py
 │       │   ├── visualization
 │       │   │   ├── __init__.py

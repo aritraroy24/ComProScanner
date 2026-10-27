@@ -16,6 +16,10 @@ scanner.clean_data(
 )
 ```
 
+!!! info "Cleaning with a custom schema"
+
+    Cleaning works on the keys of the schema's `primary_composition_field` (`compositions_property_values` in the default schema), whatever shape its values have, and it uses the same schema as the scanner. Entries whose sections are missing are filled with the defaults declared in the schema. See [Custom Schema](../custom-schema.md).
+
 ## Parameters
 
 ### Required Parameters
@@ -205,3 +209,4 @@ Selecting both `coefficient_expansion_strict` and `coefficient_expansion_lenient
 - Learn about [Evaluation](evaluation/overview.md)
 - Explore [Visualization](visualization/overview.md)
 - Configure [Advanced RAG](../rag-config.md)
+- Define a [Custom Schema](../custom-schema.md)
