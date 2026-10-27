@@ -9,3 +9,11 @@ Rules:
 - Inline comments are short and terse, like `# Check if data is directly accessible`: a few words, no trailing period, no rationale paragraphs.
 - Docstrings: a one-line summary, then an `Args:` block with `name (type, required|optional): description` entries for every argument, and a `Returns:` block with `type: description` (the style the user retrofitted across the codebase in d9a1614). No multi-paragraph design explanations; those belong in commit messages or `tasks/todo.md`.
 - Before committing, grep the diff for added `#` comments and docstrings and compare them against neighbouring code.
+
+## Docs are reviewed before committing
+
+Correction: I committed a large docs update without asking.
+
+Rules:
+- Leave docs changes (docs/, README, changelogs, blog posts) uncommitted and ask before committing; the user reviews them manually first.
+- Never add a Claude co-author line to commit messages.

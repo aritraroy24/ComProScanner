@@ -89,3 +89,15 @@ Deliberate behaviour changes with the default schema:
 - The synthesis "nothing to format" check looks at every synthesis field instead of method/precursors/steps only. With the default schema this path is only reached with all fields empty, so it's equivalent in practice.
 
 Not done: a live LLM run on fixed DOIs. Byte-identical output isn't achievable (LLM output varies run to run, and the prompts deliberately changed), so the deterministic checks above stand in for it. A small live spot-check before merging is still worthwhile.
+
+# Documentation for the extraction schema
+
+- [x] Restructure the nav: "Custom Configuration" with RAG Configuration (`rag-config.md`, URL unchanged) and Custom Schema
+- [x] Write `docs/custom-schema.md` with the attribute reference and a validated multi-level example (record, evaluation, plots, graph)
+- [x] Update argument and default docs on the extraction, cleaning, evaluation and visualization pages
+- [x] Changelogs, project structure, README and "Next Steps" links
+- [x] Blog post `docs/news/posts/dynamic-extraction-schema.md`
+
+## Review
+
+The example schema was validated end to end before publishing, which found two bugs with keyed dictionaries nested inside blocks (fixed in 90475b8). The numbers quoted on the page (effective weights, 13 plots) were recomputed with the real loader. MkDocs isn't installed locally, so instead of `mkdocs build --strict` a script checked every relative link and anchor under `docs/`: 0 problems. The old semantic-evaluation docs listed `similarity_thresholds` with bare field names, which never had any effect; they now show the `"<field>_match"` keys the code reads.
